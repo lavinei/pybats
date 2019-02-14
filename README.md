@@ -1,2 +1,2 @@
 # forecasting
-Sales forecasting of discrete time series
+Forecasting of discrete time series
