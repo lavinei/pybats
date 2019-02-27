@@ -1,9 +1,8 @@
 ## The standard DGLM forecast functions
 import numpy as np
-import scipy as sc
 from scipy import stats
 
-def forecast_marginal(mod, k, X = None, nsamps = 1, mean_only = False, n = None):
+def forecast_marginal(mod, k, X = None, nsamps = 1, mean_only = False):
     """
     Forecast function k steps ahead (marginal)
     """
@@ -27,11 +26,7 @@ def forecast_marginal(mod, k, X = None, nsamps = 1, mean_only = False, n = None)
         return mod.get_mean(param1, param2)
         
     # Simulate from the forecast distribution
-    # n will be specified in cases such as a binomial DGLM, where this parameter matters
-    if n is not None:
-        return mod.simulate(n, param1, param2, nsamps)
-    else:
-        return mod.simulate(param1, param2, nsamps)
+    return mod.simulate(param1, param2, nsamps)
 
 
 def forecast_path(mod, k, X = None, nsamps = 1):
@@ -129,9 +124,65 @@ def forecast_path_approx(mod, k, X = None, nsamps = 1, t_dist=False):
             lambda_cov[j,i] = lambda_cov[i,j] = Flist[j].T @ cov_ij @ Flist[i]
                                                     
     return forecast_path_approx_sim(mod, k, lambda_mu, lambda_cov, nsamps, t_dist)
-        
-        
-            
+
+
+def forecast_marginal_bindglm(mod, n, k, X=None, nsamps=1, mean_only=False):
+    """
+    Forecast function k steps ahead (marginal)
+    """
+    # Plug in the correct F values
+    if mod.nregn > 0:
+        F = np.copy(mod.F)
+        F[mod.iregn] = X
+
+    # Evolve to the prior for time t + k
+    Gk = np.linalg.matrix_power(mod.G, k - 1)
+    a = Gk @ mod.a
+    R = Gk @ mod.R @ Gk.T + (k - 1) * mod.W
+
+    # Mean and variance
+    ft, qt = mod.get_mean_and_var(F, a, R)
+
+    # Choose conjugate prior, match mean and variance
+    param1, param2 = mod.get_conjugate_params(ft, qt, mod.param1, mod.param2)
+
+    if mean_only:
+        return mod.get_mean(n, param1, param2)
+
+    # Simulate from the forecast distribution
+    return mod.simulate(n, param1, param2, nsamps)
+
+def forecast_path_normaldlm(mod, k, X = None, nsamps = 1):
+
+    samps = np.zeros([nsamps, k])
+    F = np.copy(mod.F)
+
+    ## Initialize samples of the state vector and variance from the prior
+    v = 1.0 / np.random.gamma(shape = mod.n/2, scale = 2/(mod.n * mod.s[0]), size = nsamps)
+    thetas = list(map(lambda var: np.random.multivariate_normal(mean = mod.a.reshape(-1), cov = var/mod.s * mod.R, size = 1).T,
+                     v))
+
+    for i in range(k):
+        # Plug in the correct F values
+        if mod.nregn > 0:
+            F[mod.iregn] = X[i, :]
+
+        # mean
+        ft = np.array(list(map(lambda theta: F.T @ theta,
+                        thetas))).reshape(-1)
+
+        # Simulate from the sampling model
+        samps[:,i] = mod.simulate_from_sampling_model(ft, v, nsamps)
+
+        # Evolve the state vector and variance for the next timestep
+        v = v * np.random.beta(mod.delVar*mod.n/2, ((1-mod.delVar)*mod.n)/2, size=nsamps)
+        thetas = list(
+            map(lambda theta, var: theta + np.random.multivariate_normal(mean = np.zeros(theta.shape[0]), cov=var / mod.s * mod.W, size=1).T,
+                thetas, v))
+
+    return samps
+
+
 def forecast_path_approx_sim(mod, k, lambda_mu, lambda_cov, nsamps, t_dist = False):
     """
     lambda_mu: kx1 Mean vector for forecast mean over t+1:t+k
@@ -140,6 +191,7 @@ def forecast_path_approx_sim(mod, k, lambda_mu, lambda_cov, nsamps, t_dist = Fal
         
     if t_dist:
         nu = 8
+        scale = lambda_cov * ((nu - 2) / nu)
         joint_samps = multivariate_t(lambda_mu, scale, nu, nsamps).T
         genlist = list(map(lambda f, q: stats.t(loc = f, scale = np.sqrt(q), df = nu),
                       lambda_mu, np.diag(scale)))
@@ -172,12 +224,12 @@ def scaledMSE(y, f, ymean):
 def multivariate_t(mean, scale, nu, nsamps):
     '''
     mean = mean
-    cov = covariance matrix
+    scale = covariance matrix * ((nu-2)/nu)
     nu = degrees of freedom
     nsamps = # of samples to produce
     '''
     p = len(mean)
-    #scale = cov * ((nu-2)/nu)
     g = np.tile(np.random.gamma(nu/2.,2./nu, nsamps), (p, 1)).T
     Z = np.random.multivariate_normal(np.zeros(p), scale, nsamps)
     return mean + Z/np.sqrt(g)
+

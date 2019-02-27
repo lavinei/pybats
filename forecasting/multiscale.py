@@ -1,10 +1,12 @@
 # These are for the general DGLM
 import numpy as np
 import scipy as sc
-from forecasting.seasonal import *
-from forecasting.forecast import *
+from forecasting.seasonal import fourierToSeasonalFxnl, fourierToSeasonal
+from forecasting.forecast import forecast_path_approx_sim
+import multiprocessing
+from functools import partial
 
-def multiscale_update(mod, y = None, X = None, phi_samps = None):
+def multiscale_update(mod, y = None, X = None, phi_samps = None, parallel=False):
     """
     phi_samps: array of samples of the latent factor vector
     """
@@ -26,7 +28,13 @@ def multiscale_update(mod, y = None, X = None, phi_samps = None):
             
     else:
         # Update m, C using a weighted average of the samples
-        output = map(lambda p: multiscale_update_with_samp(mod, y, mod.F, mod.a, mod.R, p), phi_samps)
+        if parallel:
+            f = partial(multiscale_update_with_samp, mod, y, mod.F, mod.a, mod.R)
+            p = multiprocessing.Pool(10)
+            output = p.map(f, phi_samps)
+            p.close()
+        else:
+            output = map(lambda p: multiscale_update_with_samp(mod, y, mod.F, mod.a, mod.R, p), phi_samps)
         mlist, Clist, logliklist = list(map(list, zip(*output)))
         w = (np.exp(logliklist) / np.sum(np.exp(logliklist))).reshape(-1,1,1)
         mlist = np.array(mlist)
@@ -36,12 +44,12 @@ def multiscale_update(mod, y = None, X = None, phi_samps = None):
             
         # Add 1 to the time index
         mod.t += 1
-        
+
         # Get priors a, R from the posteriors m, C
         mod.a = mod.G @ mod.m
         mod.R = mod.G @ mod.C @ mod.G.T
         mod.R = (mod.R + mod.R.T)/2 # prevent rounding issues
-        
+
         # Discount information if observation is observed
         mod.W = mod.get_W()
         mod.R = mod.R + mod.W

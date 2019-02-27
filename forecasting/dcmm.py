@@ -26,7 +26,8 @@ class dcmm:
                  seasHarmComponents_pois = None,
                  deltrend_pois = 1, delregn_pois = 1,
                  delhol_pois = 1, delseas_pois = 1,
-                 delmultiscale_pois = 1):
+                 delmultiscale_pois = 1,
+                 rho = 1):
         
         self.bern_mod = bern_dglm(a0 = a0_bern,
                             R0 = R0_bern,
@@ -48,83 +49,83 @@ class dcmm:
                             seasHarmComponents = seasHarmComponents_pois,
                             deltrend = deltrend_pois, delregn = delregn_pois,
                             delhol = delhol_pois, delseas = delseas_pois,
-                            delmultiscale = delmultiscale_pois)
+                            delmultiscale = delmultiscale_pois,
+                            rho = rho)
         
         self.t = 0
         
     # X is a list or tuple of length 2. The first component is data for the bernoulli DGLM, the next is for the Poisson DGLM.
     def update(self, y = None, X = None):
         if y == 0:
-            update(self.bern_mod, y = 0, X = X[0])
-            update(self.pois_mod, y = np.nan, X = X[1])
+            self.bern_mod.update(y = 0, X = X[0])
+            self.pois_mod.update(y = np.nan, X = X[1])
         else:
-            update(self.bern_mod, y = 1, X = X[0])
-            update(self.pois_mod, y = y - 1, X = X[1]) # Shifted Y values in the Poisson DGLM
+            self.bern_mod.update(y = 1, X = X[0])
+            self.pois_mod.update(y = y - 1, X = X[1]) # Shifted Y values in the Poisson DGLM
             
         self.t += 1
         
-    def multiscale_update(self, y = None, X = None, phi_samps = None):
+    def multiscale_update(self, y = None, X = None, phi_samps = None, parallel=False):
         if y == 0:
-            multiscale_update(self.bern_mod, y = 0, X = X[0], phi_samps = phi_samps[0])
-            multiscale_update(self.pois_mod, y = np.nan, X = X[1], phi_samps = phi_samps[1])
+            self.bern_mod.multiscale_update(y = 0, X = X[0], phi_samps = phi_samps[0], parallel = parallel)
+            self.pois_mod.multiscale_update(y = np.nan, X = X[1], phi_samps = phi_samps[1], parallel = parallel)
         else:
-            multiscale_update(self.bern_mod, y = 1, X = X[0], phi_samps = phi_samps[0])
+            self.bern_mod.multiscale_update(y = 1, X = X[0], phi_samps = phi_samps[0], parallel = parallel)
             # Shifted Y values in the Poisson DGLM
-            multiscale_update(self.pois_mod, y = y - 1, X = X[1], phi_samps = phi_samps[1]) 
+            self.pois_mod.multiscale_update(y = y - 1, X = X[1], phi_samps = phi_samps[1], parallel = parallel)
             
         self.t += 1
         
     def multiscale_update_approx(self, y = None, X = None, phi_mu = None, phi_sigma = None):
         if y == 0:
-            multiscale_update_approx(self.bern_mod, y = 0, X = X[0], phi_mu = phi_mu[0], phi_sigma = phi_sigma[0])
-            multiscale_update_approx(self.pois_mod, y = np.nan, X = X[1], phi_mu = phi_mu[1], phi_sigma = phi_sigma[1])
+            self.bern_mod.multiscale_update_approx(y = 0, X = X[0], phi_mu = phi_mu[0], phi_sigma = phi_sigma[0])
+            self.pois_mod.multiscale_update_approx(y = np.nan, X = X[1], phi_mu = phi_mu[1], phi_sigma = phi_sigma[1])
         else:
-            multiscale_update_approx(self.bern_mod, y = 1, X = X[0], phi_mu = phi_mu[0], phi_sigma = phi_sigma[0])
+            self.bern_mod.multiscale_update_approx(y = 1, X = X[0], phi_mu = phi_mu[0], phi_sigma = phi_sigma[0])
             # Shifted Y values in the Poisson DGLM
-            multiscale_update_approx(self.pois_mod, y = y - 1, X = X[1], phi_mu = phi_mu[1], phi_sigma = phi_sigma[1]) 
+            self.pois_mod.multiscale_update_approx(y = y - 1, X = X[1], phi_mu = phi_mu[1], phi_sigma = phi_sigma[1])
             
         self.t += 1
             
-    def forecast_marginal(self, k, X = None, nsamps = 1, mean_only = False): 
+    def forecast_marginal(self, k, X = None, nsamps = 1, mean_only = False):
         if mean_only:
-            mean_bern = forecast_marginal(self.bern_mod, k, X[0], nsamps, mean_only)
-            mean_pois = forecast_marginal(self.pois_mod, k, X[1], nsamps, mean_only)
+            mean_bern = self.bern_mod.forecast_marginal(k, X[0], nsamps, mean_only)
+            mean_pois = self.pois_mod.forecast_marginal(k, X[1], nsamps, mean_only)
             return mean_bern * (mean_pois + 1)
         else:
-            samps_bern = forecast_marginal(self.bern_mod, k, X[0], nsamps)
-            samps_pois = forecast_marginal(self.pois_mod, k, X[1], nsamps) + np.ones([nsamps]) # Shifted Y values in the Poisson DGLM
+            samps_bern = self.bern_mod.forecast_marginal(k, X[0], nsamps)
+            samps_pois = self.pois_mod.forecast_marginal(k, X[1], nsamps) + np.ones([nsamps]) # Shifted Y values in the Poisson DGLM
             return samps_bern * samps_pois
     
     def multiscale_forecast_marginal_approx(self, k, X = None, phi_mu = None, phi_sigma = None, nsamps = 1, mean_only = False):
         if mean_only:
-            mean_bern = multiscale_forecast_marginal_approx(self.bern_mod, k, X[0], phi_mu[0], phi_sigma[0], nsamps, mean_only)
-            mean_pois = multiscale_forecast_marginal_approx(self.pois_mod, k, X[1], phi_mu[1], phi_sigma[1], nsamps, mean_only)
-            return mean_bern * (mean_pois + 1)
+            mean_bern = self.bern_mod.multiscale_forecast_marginal_approx(k, X[0], phi_mu[0], phi_sigma[0], nsamps, mean_only)
+            mean_pois = self.pois_mod.multiscale_forecast_marginal_approx(k, X[1], phi_mu[1], phi_sigma[1], nsamps, mean_only)
+            return np.array([[mean_bern * (mean_pois + 1)]])
         
         else:
-            samps_bern = multiscale_forecast_marginal_approx(self.bern_mod, k, X[0], phi_mu = phi_mu[0], phi_sigma = phi_sigma[0], nsamps = nsamps)
-            samps_pois = multiscale_forecast_marginal_approx(self.pois_mod, k, X[1], phi_mu = phi_mu[1], phi_sigma = phi_sigma[1], nsamps = nsamps) + np.ones([nsamps]) # Shifted Y values in the Poisson DGLM
+            samps_bern = self.bern_mod.multiscale_forecast_marginal_approx(k, X[0], phi_mu = phi_mu[0], phi_sigma = phi_sigma[0], nsamps = nsamps)
+            samps_pois = self.pois_mod.multiscale_forecast_marginal_approx(k, X[1], phi_mu = phi_mu[1], phi_sigma = phi_sigma[1], nsamps = nsamps) + np.ones([nsamps]) # Shifted Y values in the Poisson DGLM
             return samps_bern * samps_pois
         
-    def multiscale_forecast_marginal(self, k, X = None, phi_samps = None, mean_only = False):
-        nsamps = phi_samps[1].shape[0]
-        samps_bern = multiscale_forecast_marginal(self.bern_mod, k, X[0], phi_samps = phi_samps[0])
-        samps_pois = multiscale_forecast_marginal(self.pois_mod, k, X[1], phi_samps = phi_samps[1]) + np.ones([nsamps]) # Shifted Y values in the Poisson DGLM
+    def multiscale_forecast_marginal(self, k, X = None, phi_samps = None, nsamps = 1, mean_only = False):
+        samps_bern = self.bern_mod.multiscale_forecast_marginal(k, X[0], phi_samps[0], mean_only)
+        samps_pois = self.pois_mod.multiscale_forecast_marginal(k, X[1], phi_samps[1], mean_only) + np.ones([nsamps]) # Shifted Y values in the Poisson DGLM
         return samps_bern * samps_pois
     
     def forecast_path(self, k, X = None, nsamps = 1):
-        samps_bern = forecast_path(self.bern_mod, k, X[0], nsamps)
-        samps_pois = forecast_path(self.pois_mod, k, X[1], nsamps) + np.ones([nsamps, k]) # Shifted Y values in the Poisson DGLM
+        samps_bern = self.bern_mod.forecast_path(k, X[0], nsamps)
+        samps_pois = self.pois_mod.forecast_path(k, X[1], nsamps) + np.ones([nsamps, k]) # Shifted Y values in the Poisson DGLM
         return samps_bern * samps_pois
     
     def forecast_path_approx(self, k, X = None, nsamps = 1):
-        samps_bern = forecast_path_approx(self.bern_mod, k, X[0], nsamps)
-        samps_pois = forecast_path_approx(self.pois_mod, k, X[1], nsamps) + np.ones([nsamps, k]) # Shifted Y values in the Poisson DGLM
+        samps_bern = self.bern_mod.forecast_path_approx(k, X[0], nsamps)
+        samps_pois = self.pois_mod.forecast_path_approx(k, X[1], nsamps) + np.ones([nsamps, k]) # Shifted Y values in the Poisson DGLM
         return samps_bern * samps_pois
     
-    def multiscale_forecast_path_approx(self, k, X = None, phi_mu = None, phi_sigma = None, phi_psi = None, nsamps = 1):
-        samps_bern = multiscale_forecast_path_approx(self.bern_mod, k, X[0], phi_mu = phi_mu[0], phi_sigma = phi_sigma[0], phi_psi = phi_psi[0], nsamps = nsamps)
-        samps_pois = multiscale_forecast_path_approx(self.pois_mod, k, X[1], phi_mu = phi_mu[1], phi_sigma = phi_sigma[1], phi_psi = phi_psi[0], nsamps = nsamps) + np.ones([nsamps, k]) # Shifted Y values in the Poisson DGLM
+    def multiscale_forecast_path_approx(self, k, X = None, phi_mu = None, phi_sigma = None, phi_psi = (None, None), nsamps = 1):
+        samps_bern = self.bern_mod.multiscale_forecast_path_approx(k, X[0], phi_mu = phi_mu[0], phi_sigma = phi_sigma[0], phi_psi = phi_psi[0], nsamps = nsamps)
+        samps_pois = self.pois_mod.multiscale_forecast_path_approx(k, X[1], phi_mu = phi_mu[1], phi_sigma = phi_sigma[1], phi_psi = phi_psi[1], nsamps = nsamps) + np.ones([nsamps, k]) # Shifted Y values in the Poisson DGLM
         return samps_bern * samps_pois
         
         

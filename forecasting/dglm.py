@@ -1,10 +1,11 @@
 # These are for the general DGLM
 import numpy as np
 import scipy as sc
-import numba
-from numba import jit, njit
-from forecasting.multiscale import *
-from forecasting.seasonal import *
+from forecasting.seasonal import seascomp, createFourierToSeasonalL
+from forecasting.update import update, update_normaldlm, update_bindglm
+from forecasting.forecast import forecast_marginal, forecast_path, forecast_path_approx, forecast_marginal_bindglm, forecast_path_normaldlm
+from forecasting.multiscale import multiscale_forecast_marginal, multiscale_forecast_marginal_approx, multiscale_forecast_path_approx
+from forecasting.multiscale import multiscale_update, multiscale_update_approx
 
 # These are for the bernoulli and Poisson DGLMs
 from scipy.special import digamma
@@ -125,11 +126,32 @@ class dglm:
         self.W = self.get_W()
         self.t = 0
         
-    #def update(self, y =None, X = None):
-    #if(self.nmultiscale > 0):
-    #    update_multiscale_approx
-    #else:
-    #    update(self, y, X)
+    def update(self, y = None, X = None):
+        update(self, y, X)
+
+    def forecast_marginal(self, k, X = None, nsamps = 1, mean_only = False):
+        return forecast_marginal(self, k, X, nsamps, mean_only)
+
+    def forecast_path(self, k, X = None, nsamps = 1):
+        return forecast_path(self, k, X, nsamps)
+
+    def forecast_path_approx(self, k, X = None, nsamps = 1, t_dist=False):
+        return forecast_path_approx(self, k, X, nsamps, t_dist)
+
+    def multiscale_update(self, y = None, X = None, phi_samps = None, parallel=False):
+        multiscale_update(self, y, X, phi_samps, parallel)
+
+    def multiscale_update_approx(self, y = None, X = None, phi_mu = None, phi_sigma = None):
+        multiscale_update_approx(self, y, X, phi_mu, phi_sigma)
+
+    def multiscale_forecast_marginal(self, k, X = None, phi_samps = None, mean_only = False):
+        return multiscale_forecast_marginal(self, k, X, phi_samps, mean_only)
+
+    def multiscale_forecast_marginal_approx(self, k, X = None, phi_mu = None, phi_sigma = None, nsamps = 1, mean_only = False):
+        return multiscale_forecast_marginal_approx(self, k, X, phi_mu, phi_sigma, nsamps, mean_only)
+
+    def multiscale_forecast_path_approx(self, k, X = None, phi_mu = None, phi_sigma = None, phi_psi = None, nsamps = 1):
+        return multiscale_forecast_path_approx(self, k, X, phi_mu, phi_sigma, phi_psi, nsamps)
         
     def get_mean_and_var(self, F, a, R):
         return F.T @ a, F.T @ R @ F   
@@ -164,7 +186,8 @@ class dglm:
         """
         ft_star = qt_star = None
         return param1, param2, ft_star, qt_star
-        
+
+
 class bern_dglm(dglm):
     
     def trigamma(self, x):
@@ -277,6 +300,15 @@ class normal_dlm(dglm):
         
     def simulate(self, mean, var, nsamps):
         return mean + np.sqrt(var)*np.random.standard_t(self.delVar*self.n, size = [nsamps])
+
+    def simulate_from_sampling_model(self, mean, var, nsamps):
+        return np.random.normal(mean, var, nsamps)
+
+    def update(self, y=None, X=None):
+        update_normaldlm(self, y, X)
+
+    def forecast_path(self, k, X = None, nsamps = 1):
+        return forecast_path_normaldlm(self, k, X, nsamps)
     
     
 class bin_dglm(dglm):
@@ -293,10 +325,8 @@ class bin_dglm(dglm):
         sol = opt.root(partial(self.beta_approx, ft = ft, qt = qt), x0 = np.sqrt(np.array([alpha, beta])))
         return sol.x**2
     
-    def update_conjugate_params(self, data, alpha, beta):
+    def update_conjugate_params(self, n, y, alpha, beta):
         # Update alpha and beta to the conjugate posterior coefficients
-        # Note that we pass in n and y as a tuple for data
-        n, y = data
         alpha = alpha + y
         beta = beta + n - y
 
@@ -308,7 +338,7 @@ class bin_dglm(dglm):
     
     def simulate(self, n, alpha, beta, nsamps):
         p = np.random.beta(alpha, beta, [nsamps])
-        return np.random.binomial(n, p, size=[nsamps])
+        return np.random.binomial(n.astype(int), p, size=[nsamps])
     
     def simulate_from_sampling_model(self, n, p, nsamps):
         return np.random.binomial(n, p, [nsamps])
@@ -320,10 +350,14 @@ class bin_dglm(dglm):
         n, y = data
         return stats.binom.logpmf(y, n, alpha / (alpha + beta))
     
-    
     def get_mean(self, n, alpha, beta):
         return n*(alpha / (alpha + beta))
     
     def get_prior_var(self, alpha, beta):
         return (alpha * beta) / ((alpha + beta)**2 * (alpha + beta + 1))
-        
+
+    def update(self, n = None, y = None, X = None):
+        update_bindglm(self, n, y, X)
+
+    def forecast_marginal(self, n, k, X = None, nsamps = 1, mean_only = False):
+        return forecast_marginal_bindglm(self, n, k, X, nsamps, mean_only)
