@@ -1,3 +1,5 @@
+import sys
+sys.path.insert(0,'../')
 import numpy as np
 import pandas as pd
 from forecasting.define_models import define_dbcm, define_normal_dlm
