@@ -1,5 +1,5 @@
-from forecasting.dglm import bin_dglm
-from forecasting.dcmm import dcmm
+from .dglm import bin_dglm
+from .dcmm import dcmm
 from functools import partial
 import numpy as np
 

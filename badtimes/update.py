@@ -1,5 +1,4 @@
 import numpy as np
-import scipy as sc
 
 
 def update(mod, y = None, X = None):

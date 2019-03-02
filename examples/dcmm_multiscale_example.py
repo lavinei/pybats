@@ -3,8 +3,8 @@ sys.path.insert(0,'../')
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from forecasting.define_models import define_dcmm, define_normal_dlm
-from forecasting.multiscale import get_latent_factor, forecast_latent_factor, sample_latent_factor
+from badtimes.define_models import define_dcmm, define_normal_dlm
+from badtimes.multiscale import get_latent_factor, forecast_latent_factor, sample_latent_factor
 
 
 ## Load in data:

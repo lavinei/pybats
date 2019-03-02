@@ -1,7 +1,7 @@
 import numpy as np
-from forecasting.dglm import normal_dlm
-from forecasting.dcmm import dcmm
-from forecasting.dbcm import dbcm
+from .dglm import normal_dlm
+from .dcmm import dcmm
+from .dbcm import dbcm
 import statsmodels.api as sm
 
 def define_models(Y, Y_totalsales, prior_length = 30):

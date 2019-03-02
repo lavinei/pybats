@@ -1,8 +1,8 @@
 # These are for the general DGLM
 import numpy as np
 import scipy as sc
-from forecasting.seasonal import fourierToSeasonalFxnl, fourierToSeasonal
-from forecasting.forecast import forecast_path_approx_sim
+from .seasonal import fourierToSeasonalFxnl, fourierToSeasonal
+from .forecast import forecast_path_approx_sim
 import multiprocessing
 from functools import partial
 

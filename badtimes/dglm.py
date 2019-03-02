@@ -1,11 +1,11 @@
 # These are for the general DGLM
 import numpy as np
 import scipy as sc
-from forecasting.seasonal import seascomp, createFourierToSeasonalL
-from forecasting.update import update, update_normaldlm, update_bindglm
-from forecasting.forecast import forecast_marginal, forecast_path, forecast_path_approx, forecast_marginal_bindglm, forecast_path_normaldlm
-from forecasting.multiscale import multiscale_forecast_marginal, multiscale_forecast_marginal_approx, multiscale_forecast_path_approx
-from forecasting.multiscale import multiscale_update, multiscale_update_approx
+from .seasonal import seascomp, createFourierToSeasonalL
+from .update import update, update_normaldlm, update_bindglm
+from .forecast import forecast_marginal, forecast_path, forecast_path_approx, forecast_marginal_bindglm, forecast_path_normaldlm
+from .multiscale import multiscale_forecast_marginal, multiscale_forecast_marginal_approx, multiscale_forecast_path_approx
+from .multiscale import multiscale_update, multiscale_update_approx
 
 # These are for the bernoulli and Poisson DGLMs
 from scipy.special import digamma

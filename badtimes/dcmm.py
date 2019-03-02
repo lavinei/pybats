@@ -1,9 +1,9 @@
 import numpy as np
 import scipy as sc
-from forecasting.dglm import *
-from forecasting.update import *
-from forecasting.forecast import *
-from forecasting.seasonal import *
+from .dglm import *
+from .update import *
+from .forecast import *
+from .seasonal import *
 
 class dcmm:
     def __init__(self,
