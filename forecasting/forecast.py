@@ -1,6 +1,7 @@
 ## The standard DGLM forecast functions
 import numpy as np
 from scipy import stats
+from scipy.special import gamma
 
 def forecast_marginal(mod, k, X = None, nsamps = 1, mean_only = False):
     """
@@ -80,7 +81,8 @@ def forecast_path(mod, k, X = None, nsamps = 1):
                 
     return samps
 
-def forecast_path_approx(mod, k, X = None, nsamps = 1, t_dist=False):
+
+def forecast_path_approx(mod, k, X = None, nsamps = 1, t_dist=False, y=None, nu=9):
     """
     Forecast function for the k-step path
     k: steps ahead to forecast
@@ -122,8 +124,11 @@ def forecast_path_approx(mod, k, X = None, nsamps = 1, t_dist=False):
             cov_ij = np.linalg.matrix_power(mod.G, i-j) @ Rlist[j]
             # Covariance between lambda at times j, i
             lambda_cov[j,i] = lambda_cov[i,j] = Flist[j].T @ cov_ij @ Flist[i]
-                                                    
-    return forecast_path_approx_sim(mod, k, lambda_mu, lambda_cov, nsamps, t_dist)
+
+    if y is not None:
+        return forecast_path_approx_dens_MC(mod, y, lambda_mu, lambda_cov, t_dist, nu, nsamps)
+    else:
+        return forecast_path_approx_sim(mod, k, lambda_mu, lambda_cov, nsamps, t_dist, nu)
 
 
 def forecast_marginal_bindglm(mod, n, k, X=None, nsamps=1, mean_only=False):
@@ -152,7 +157,7 @@ def forecast_marginal_bindglm(mod, n, k, X=None, nsamps=1, mean_only=False):
     # Simulate from the forecast distribution
     return mod.simulate(n, param1, param2, nsamps)
 
-def forecast_path_normaldlm(mod, k, X = None, nsamps = 1):
+def forecast_path_normaldlm(mod, k, X = None, nsamps = 1, multiscale=False, AR=False):
 
     samps = np.zeros([nsamps, k])
     F = np.copy(mod.F)
@@ -183,14 +188,14 @@ def forecast_path_normaldlm(mod, k, X = None, nsamps = 1):
     return samps
 
 
-def forecast_path_approx_sim(mod, k, lambda_mu, lambda_cov, nsamps, t_dist = False):
+def forecast_path_approx_sim(mod, k, lambda_mu, lambda_cov, nsamps, t_dist = False, nu = 9):
     """
     lambda_mu: kx1 Mean vector for forecast mean over t+1:t+k
     lambda_cov: kxk Covariance matrix for the forecast over t+1:t+k
     """
         
     if t_dist:
-        nu = 8
+        #nu = 8
         scale = lambda_cov * ((nu - 2) / nu)
         joint_samps = multivariate_t(lambda_mu, scale, nu, nsamps).T
         genlist = list(map(lambda f, q: stats.t(loc = f, scale = np.sqrt(q), df = nu),
@@ -206,20 +211,60 @@ def forecast_path_approx_sim(mod, k, lambda_mu, lambda_cov, nsamps, t_dist = Fal
                            lambda_mu, np.diag(lambda_cov)))
     
     # Use the marginal CDF of the joint distribution to convert our samples into uniform RVs
-    cdflist = list(map(lambda gen, samps: gen.cdf(samps),
+    unif_rvs = list(map(lambda gen, samps: gen.cdf(samps),
               genlist, joint_samps))
     
     # Use inverse-CDF along each margin to get implied PRIOR value (e.g. a gamma dist RV for a poisson sampling model)
     priorlist = list(map(lambda params, cdf: mod.prior_inverse_cdf(cdf, params[0], params[1]),
-                    conj_params, cdflist))
+                    conj_params, unif_rvs))
     
     # Simulate from the sampling model (e.g. poisson)
     return np.array(list(map(lambda prior: mod.simulate_from_sampling_model(prior, nsamps),
             priorlist))).T
 
+def forecast_path_approx_dens_MC(mod, y, lambda_mu, lambda_cov, t_dist=False, nu = 9, nsamps = 500):
+    """
+    lambda_mu: kx1 Mean vector for forecast mean over t+1:t+k
+    lambda_cov: kxk Covariance matrix for the forecast over t+1:t+k
+    """
+    not_missing = np.logical_not(np.isnan(y))
+    y = y[not_missing]
+    lambda_mu = lambda_mu[not_missing]
+    lambda_cov = lambda_cov[np.ix_(not_missing, not_missing)]
 
-def scaledMSE(y, f, ymean):
-    return np.mean(((y.reshape(-1) - f.reshape(-1))**2 / (ymean.reshape(-1)**2)))
+    # Get the marginals of the multivariate distribution
+    if t_dist:
+        scale = lambda_cov * ((nu - 2) / nu)
+        joint_samps = multivariate_t(lambda_mu, scale, nu, nsamps).T
+        genlist = list(map(lambda f, q: stats.t(loc=f, scale=np.sqrt(q), df=nu),
+                           lambda_mu, np.diag(scale)))
+    else:
+        joint_samps = np.random.multivariate_normal(lambda_mu, lambda_cov, size=nsamps).T
+        genlist = list(map(lambda f, q: stats.norm(f, np.sqrt(q)),
+                           lambda_mu, np.diag(lambda_cov)))
+
+    # Find the marginal distribution conjugate parameters
+    conj_params = list(map(lambda f, q: mod.get_conjugate_params(f, q, mod.param1, mod.param2),
+                           lambda_mu, np.diag(lambda_cov)))
+
+    # Use the marginal CDF of the joint distribution to convert our samples into uniform RVs
+    unif_rvs = list(map(lambda gen, samps: gen.cdf(samps),
+                       genlist, joint_samps))
+
+    # Use inverse-CDF along each margin to get implied PRIOR value (e.g. a gamma dist RV for a poisson sampling model)
+    priorlist = list(map(lambda params, cdf: mod.prior_inverse_cdf(cdf, params[0], params[1]),
+                         conj_params, unif_rvs))
+
+    # Get the density of the y values, using Monte Carlo integration (i.e. an average over the samples)
+    density_list = list(map(lambda y, prior: mod.sampling_density(y, prior),
+                            y, priorlist))
+
+    # Get the product of the densities to get the path density (they are independent, conditional upon the prior value at each time t+k)
+    path_density_list = list(map(lambda dens: np.exp(np.sum(np.log(dens))),
+                                 zip(*density_list)))
+
+    # Return their average, on the log scale
+    return np.log(np.mean(path_density_list))
 
 def multivariate_t(mean, scale, nu, nsamps):
     '''
@@ -232,4 +277,24 @@ def multivariate_t(mean, scale, nu, nsamps):
     g = np.tile(np.random.gamma(nu/2.,2./nu, nsamps), (p, 1)).T
     Z = np.random.multivariate_normal(np.zeros(p), scale, nsamps)
     return mean + Z/np.sqrt(g)
+
+def multivariate_t_density(y, mean, scale, nu):
+    '''
+    y = vector of observations
+    mean = mean
+    scale = covariance matrix * ((nu-2)/nu)
+    nu = degrees of freedom
+    '''
+    y = y.reshape(-1, 1)
+    mean = mean.reshape(-1, 1)
+    dim = len(y)
+    if dim > 1:
+        constant = gamma((nu + dim) / 2) / (gamma(nu / 2) * np.sqrt((np.pi * nu) ** dim * np.linalg.det(scale)))
+        dens = (1. + ((y - mean).T @ np.linalg.inv(scale) @ (y - mean)) / nu) ** (-(nu + dim) / 2)
+    else:
+        constant = gamma((nu + dim) / 2) / (gamma(nu / 2) * np.sqrt((np.pi * nu) ** dim * scale))
+        dens = (1. + ((y - mean))**2 / (nu * scale)) ** (-(nu + dim) / 2)
+
+    return 1. * constant * dens
+
 

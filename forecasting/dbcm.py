@@ -1,5 +1,5 @@
-from forecasting.dglm import bin_dglm
-from forecasting.dcmm import dcmm
+from .dglm import bin_dglm
+from .dcmm import dcmm
 from functools import partial
 import numpy as np
 
@@ -214,8 +214,8 @@ class dbcm:
         samps = np.concatenate((transaction_samps[:, None, :], cascade_samps, excess_samps), axis=1)
         return np.sum(samps, axis=1)
     
-    def multiscale_forecast_path_approx(self, k, X_transaction = None, X_cascade = None, phi_mu = None, phi_sigma = None, phi_psi = None, nsamps = 1, return_separate = False):
-        transaction_samps = self.dcmm.multiscale_forecast_path_approx(k, (X_transaction, X_transaction), (phi_mu, phi_mu), (phi_sigma, phi_sigma), (phi_psi, phi_psi), nsamps)
+    def multiscale_forecast_path_approx(self, k, X_transaction = None, X_cascade = None, phi_mu = None, phi_sigma = None, phi_psi = None, nsamps = 1, return_separate = False, **kwargs):
+        transaction_samps = self.dcmm.multiscale_forecast_path_approx(k, (X_transaction, X_transaction), (phi_mu, phi_mu), (phi_sigma, phi_sigma), (phi_psi, phi_psi), nsamps, **kwargs)
         cascade_samps = np.array(
             list(map(lambda h: self.forecast_cascade(h, transaction_samps[:, h], X_cascade[h], nsamps),
                      range(k)))).T

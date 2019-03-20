@@ -1,24 +1,18 @@
 import numpy as np
-from forecasting.dglm import normal_dlm
-from forecasting.dcmm import dcmm
-from forecasting.dbcm import dbcm
+from .dglm import normal_dlm
+from .dcmm import dcmm
+from .dbcm import dbcm
 import statsmodels.api as sm
 
-def define_models(Y, Y_totalsales, prior_length = 30):
-    nmod = define_normal_dlm(Y_totalsales, prior_length)
-    dcmm_standard = define_dcmm(Y, prior_length)
-    dcmm_multiscale = define_dcmm(Y, prior_length, multiscale = True)
-    return nmod, dcmm_standard, dcmm_multiscale
-
-def define_normal_dlm(Y, prior_length):
+def define_normal_dlm(Y, prior_length, period=[7]):
     # Define normal DLM for total sales
     mean = Y[:prior_length].mean()
-    a0 = np.array([[mean, 0, 0, 0, 0, 0, 0, 0]])
-    R0 = np.diag([.1, .1, .5, .5, .5, .5, .5, .5])
+    a0 = np.array([[mean, 0, 0, 0, 0, 0, 0, 0, 0]])
+    R0 = np.diag([.1, .1, .1, .5, .5, .5, .5, .5, .5])
     nmod = normal_dlm(a0 = a0, R0 = R0,
                 nregn = 1,
-                ntrend = 1,
-                seasPeriods = [7],
+                ntrend = 2,
+                seasPeriods = period,
                 seasHarmComponents = [[1,2,3]],
                 deltrend = .99, delregn = .995,
                 delhol = 1, delseas = .995,
@@ -26,15 +20,13 @@ def define_normal_dlm(Y, prior_length):
     
     return nmod
 
-def define_dcmm(Y, prior_length = 30, seasPeriods = [7], seasHarmComponents = [[1,2,3]], multiscale = False, rho=1, delbern = .999, delpois =.995):
-    bernmean = len(Y[:prior_length].nonzero()[0])/(prior_length+1)
-    bernmean = np.log(bernmean / (1-bernmean))
-    poismean = np.log(Y[:prior_length].mean())
+def define_dcmm(Y, X, prior_length = 30, seasPeriods = [7], seasHarmComponents = [[1,2,3]], multiscale = False, rho=1, delbern = .999, delpois =.995):
+    pois_params, bern_params = define_dcmm_params(Y, X, prior_length)
     if not multiscale:
         # Define a standard DCMM for a single item's sales (as a comparison)
-        a0_bern = np.array([[bernmean, 0, 0, 0, 0, 0, 0, 0]]).reshape(-1, 1)
+        a0_bern = np.array([[bern_params[0], bern_params[1], 0, 0, 0, 0, 0, 0]]).reshape(-1, 1)
         R0_bern = np.identity(8)/2
-        a0_pois = np.array([[poismean, 0, 0, 0, 0, 0, 0, 0]])
+        a0_pois = np.array([[pois_params[0], pois_params[1], 0, 0, 0, 0, 0, 0]])
         R0_pois = np.diag([.3, .3, .5, .5, .5, .5, .5, .5])
         mod = dcmm(a0_bern = a0_bern, R0_bern = R0_bern,
                     nregn_bern = 1,
@@ -53,9 +45,9 @@ def define_dcmm(Y, prior_length = 30, seasPeriods = [7], seasHarmComponents = [[
                    rho = rho)
     elif multiscale:
         # Define a multiscale DCMM for that single item's sales
-        a0_bern = np.array([[bernmean, 0, 0, 0, 0, 0, 0, 0, 0]]).reshape(-1, 1)
+        a0_bern = np.array([[bern_params[0], bern_params[1], 0, 0, 0, 0, 0, 0, 0]]).reshape(-1, 1)
         R0_bern = np.identity(9)/2
-        a0_pois = np.array([[poismean, 0, 0, 0, 0, 0, 0, 0, 0]])
+        a0_pois = np.array([[pois_params[0], pois_params[1], 0, 0, 0, 0, 0, 0, 0]])
         R0_pois = np.diag([.3, .3, .5, .5, .5, .5, .5, .5, .5])
         mod = dcmm(a0_bern = a0_bern, R0_bern = R0_bern,
                     nregn_bern = 1,
@@ -86,23 +78,7 @@ def define_dbcm(Y_transaction, X_transaction = None, Y_cascade = None, X_cascade
             return np.shape(x)[1]
 
     # Fit a GLM for the poisson and bernoulli components of the DCMM on transactions
-    nonzeros = Y_transaction[:prior_length].nonzero()[0]
-    pois_mod = sm.GLM(Y_transaction[nonzeros] - 1,
-                      np.c_[np.ones([len(nonzeros), 1]), X_transaction[nonzeros]],
-                      family=sm.families.Poisson())
-    pois_params = pois_mod.fit().params
-
-    if len(nonzeros) + 4 >= prior_length or len(nonzeros) <= 4:
-        bernmean = len(nonzeros) / (prior_length + 1)
-        bernmean = np.log(bernmean / (1 - bernmean))
-        bern_params = np.array([bernmean, 0])
-    else:
-        Y_bern = np.c_[np.zeros([prior_length, 1]), np.ones([prior_length, 1])]
-        Y_bern[Y_transaction[:prior_length].nonzero()[0], 0] = 1
-        Y_bern[Y_transaction[:prior_length].nonzero()[0], 1] = 0
-        X_bern = np.c_[np.ones([prior_length, 1]), X_transaction[:prior_length]]
-        bern_mod = sm.GLM(endog = Y_bern, exog = X_bern, family=sm.families.Binomial())
-        bern_params = bern_mod.fit().params
+    pois_params, bern_params = define_dcmm_params(Y_transaction, X_transaction, prior_length)
 
     # Calculate the prior means for the Cascade
     def cascade_prior_mean(alpha, beta):
@@ -206,57 +182,23 @@ def define_dbcm(Y_transaction, X_transaction = None, Y_cascade = None, X_cascade
         
     return mod
 
-def define_models_old():
-    # Define a standard DCMM for a single item's sales (as a comparison)
-    a0_bern = np.array([[1, 1, 0, 0, 0, 0, 0, 0]]).reshape(-1, 1)
-    R0_bern = np.identity(8)/2
-    a0_pois = np.array([[.5, 0, 0, 0, 0, 0, 0, 0]])
-    R0_pois = np.diag([.1, .1, .5, .5, .5, .5, .5, .5])
-    dcmm_standard = dcmm(a0_bern = a0_bern, R0_bern = R0_bern,
-                nregn_bern = 1,
-                ntrend_bern = 1,
-                seasPeriods_bern = [7],
-                seasHarmComponents_bern = [[1,2,3]],
-                deltrend_bern = .99, delregn_bern = .995,
-                delhol_bern = 1, delseas_bern = .995,
-          a0_pois = a0_pois, R0_pois = R0_pois,
-                nregn_pois = 1,
-                ntrend_pois = 1,
-                seasPeriods_pois = [7],
-                seasHarmComponents_pois = [[1,2,3]],
-                deltrend_pois = .99, delregn_pois = .995,
-                delhol_pois = 1, delseas_pois = .995)
-    
-    # Define a multiscale DCMM for that single item's sales
-    a0_bern = np.array([[1, 1, 0, 0, 0, 0, 0, 0, 0]]).reshape(-1, 1)
-    R0_bern = np.identity(9)/2
-    a0_pois = np.array([[.5, 0, 0, 0, 0, 0, 0, 0, 0]])
-    R0_pois = np.diag([.1, .1, .5, .5, .5, .5, .5, .5, .5])
-    dcmm_multiscale = dcmm(a0_bern = a0_bern, R0_bern = R0_bern,
-                nregn_bern = 1,
-                ntrend_bern = 1,
-                nmultiscale_bern = 7,
-                deltrend_bern = .99, delregn_bern = .995,
-                delhol_bern = 1, delseas_bern = .995,
-                delmultiscale_bern = .995,
-          a0_pois = a0_pois, R0_pois = R0_pois,
-                nregn_pois = 1,
-                ntrend_pois = 1,
-                nmultiscale_pois = 7,
-                deltrend_pois = .99, delregn_pois = .995,
-                delhol_pois = 1, delseas_pois = .995,
-                delmultiscale_pois = .995,)
-    
-    # Define normal DLM for total sales
-    a0 = np.array([[1.9, 1.5, 0, 0, 0, 0, 0, 0]])
-    R0 = np.diag([.1, .1, .5, .5, .5, .5, .5, .5])
-    nmod = normal_dlm(a0 = a0, R0 = R0,
-                nregn = 1,
-                ntrend = 1,
-                seasPeriods = [7],
-                seasHarmComponents = [[1,2,3]],
-                deltrend = .99, delregn = .995,
-                delhol = 1, delseas = .995,
-                n0 = 1, s0 = 1, delVar = .995)
-    
-    return nmod, dcmm_standard, dcmm_multiscale
+def define_dcmm_params(Y, X, prior_length):
+    nonzeros = Y[:prior_length].nonzero()[0]
+    pois_mod = sm.GLM(Y[nonzeros] - 1,
+                      np.c_[np.ones([len(nonzeros), 1]), X[nonzeros]],
+                      family=sm.families.Poisson())
+    pois_params = pois_mod.fit().params
+
+    if len(nonzeros) + 4 >= prior_length or len(nonzeros) <= 4:
+        bernmean = len(nonzeros) / (prior_length + 1)
+        bernmean = np.log(bernmean / (1 - bernmean))
+        bern_params = np.array([bernmean, 0])
+    else:
+        Y_bern = np.c_[np.zeros([prior_length, 1]), np.ones([prior_length, 1])]
+        Y_bern[Y[:prior_length].nonzero()[0], 0] = 1
+        Y_bern[Y[:prior_length].nonzero()[0], 1] = 0
+        X_bern = np.c_[np.ones([prior_length, 1]), X[:prior_length]]
+        bern_mod = sm.GLM(endog=Y_bern, exog=X_bern, family=sm.families.Binomial())
+        bern_params = bern_mod.fit().params
+
+    return pois_params, bern_params

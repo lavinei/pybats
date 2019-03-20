@@ -1,9 +1,9 @@
 import numpy as np
 import scipy as sc
-from forecasting.dglm import *
-from forecasting.update import *
-from forecasting.forecast import *
-from forecasting.seasonal import *
+from .dglm import *
+from .update import *
+from .forecast import *
+from .seasonal import *
 
 class dcmm:
     def __init__(self,
@@ -118,14 +118,27 @@ class dcmm:
         samps_pois = self.pois_mod.forecast_path(k, X[1], nsamps) + np.ones([nsamps, k]) # Shifted Y values in the Poisson DGLM
         return samps_bern * samps_pois
     
-    def forecast_path_approx(self, k, X = None, nsamps = 1):
-        samps_bern = self.bern_mod.forecast_path_approx(k, X[0], nsamps)
-        samps_pois = self.pois_mod.forecast_path_approx(k, X[1], nsamps) + np.ones([nsamps, k]) # Shifted Y values in the Poisson DGLM
+    def forecast_path_approx(self, k, X = None, nsamps = 1, **kwargs):
+        samps_bern = self.bern_mod.forecast_path_approx(k, X[0], nsamps, **kwargs)
+        samps_pois = self.pois_mod.forecast_path_approx(k, X[1], nsamps, **kwargs) + np.ones([nsamps, k]) # Shifted Y values in the Poisson DGLM
         return samps_bern * samps_pois
     
-    def multiscale_forecast_path_approx(self, k, X = None, phi_mu = None, phi_sigma = None, phi_psi = (None, None), nsamps = 1):
-        samps_bern = self.bern_mod.multiscale_forecast_path_approx(k, X[0], phi_mu = phi_mu[0], phi_sigma = phi_sigma[0], phi_psi = phi_psi[0], nsamps = nsamps)
-        samps_pois = self.pois_mod.multiscale_forecast_path_approx(k, X[1], phi_mu = phi_mu[1], phi_sigma = phi_sigma[1], phi_psi = phi_psi[1], nsamps = nsamps) + np.ones([nsamps, k]) # Shifted Y values in the Poisson DGLM
+    def multiscale_forecast_path_approx(self, k, X = None, phi_mu = None, phi_sigma = None, phi_psi = (None, None), nsamps = 1, **kwargs):
+        samps_bern = self.bern_mod.multiscale_forecast_path_approx(k, X[0], phi_mu = phi_mu[0], phi_sigma = phi_sigma[0], phi_psi = phi_psi[0], nsamps = nsamps, **kwargs)
+        samps_pois = self.pois_mod.multiscale_forecast_path_approx(k, X[1], phi_mu = phi_mu[1], phi_sigma = phi_sigma[1], phi_psi = phi_psi[1], nsamps = nsamps, **kwargs) + np.ones([nsamps, k]) # Shifted Y values in the Poisson DGLM
         return samps_bern * samps_pois
-        
+
+    def multiscale_forecast_path_approx_density(self, y, k, X = None, phi_mu = None, phi_sigma = None, phi_psi = (None, None), nsamps = 1, **kwargs):
+        z = np.zeros([k])
+        y = y.reshape(-1)
+        z[y > 0] = 1
+        logdens_bern = self.bern_mod.multiscale_forecast_path_approx(k, X[0], phi_mu = phi_mu[0], phi_sigma = phi_sigma[0], phi_psi = phi_psi[0], nsamps = nsamps, y = z, **kwargs)
+        # Shifted Y values in the Poisson DGLM
+        y = y - 1
+        y = y.astype('float')
+        # 0's in the original data (now -1's) are considered 'missing by the Poisson model
+        y[y < 0] = np.nan
+        logdens_pois = self.pois_mod.multiscale_forecast_path_approx(k, X[1], phi_mu = phi_mu[1], phi_sigma = phi_sigma[1], phi_psi = phi_psi[1], nsamps = nsamps, y = y, **kwargs)
+        return logdens_bern, logdens_pois
+
         

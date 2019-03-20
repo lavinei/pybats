@@ -1,14 +1,15 @@
 # These are for the general DGLM
 import numpy as np
 import scipy as sc
-from forecasting.seasonal import seascomp, createFourierToSeasonalL
-from forecasting.update import update, update_normaldlm, update_bindglm
-from forecasting.forecast import forecast_marginal, forecast_path, forecast_path_approx, forecast_marginal_bindglm, forecast_path_normaldlm
-from forecasting.multiscale import multiscale_forecast_marginal, multiscale_forecast_marginal_approx, multiscale_forecast_path_approx
-from forecasting.multiscale import multiscale_update, multiscale_update_approx
+from .seasonal import seascomp, createFourierToSeasonalL
+from .update import update, update_normaldlm, update_bindglm
+from .forecast import forecast_marginal, forecast_path, forecast_path_approx, forecast_marginal_bindglm, forecast_path_normaldlm
+from .multiscale import multiscale_forecast_marginal, multiscale_forecast_marginal_approx, multiscale_forecast_path_approx
+from .multiscale import multiscale_update, multiscale_update_approx, multiscale_get_mean_and_var
 
 # These are for the bernoulli and Poisson DGLMs
 from scipy.special import digamma
+from scipy.special import beta as beta_fxn
 from scipy import optimize as opt
 from functools import partial
 from scipy import stats
@@ -150,11 +151,14 @@ class dglm:
     def multiscale_forecast_marginal_approx(self, k, X = None, phi_mu = None, phi_sigma = None, nsamps = 1, mean_only = False):
         return multiscale_forecast_marginal_approx(self, k, X, phi_mu, phi_sigma, nsamps, mean_only)
 
-    def multiscale_forecast_path_approx(self, k, X = None, phi_mu = None, phi_sigma = None, phi_psi = None, nsamps = 1):
-        return multiscale_forecast_path_approx(self, k, X, phi_mu, phi_sigma, phi_psi, nsamps)
+    def multiscale_forecast_path_approx(self, k, X = None, phi_mu = None, phi_sigma = None, phi_psi = None, nsamps = 1, **kwargs):
+        return multiscale_forecast_path_approx(self, k, X, phi_mu, phi_sigma, phi_psi, nsamps, **kwargs)
         
     def get_mean_and_var(self, F, a, R):
-        return F.T @ a, F.T @ R @ F   
+        return F.T @ a, F.T @ R @ F
+
+    def multiscale_get_mean_and_var(self, F, a, R, phi_mu, phi_sigma, imultiscale):
+        return multiscale_get_mean_and_var(F, a, R, phi_mu, phi_sigma, imultiscale)
     
     def get_W(self):
         return self.R/self.Discount - self.R        
@@ -222,7 +226,17 @@ class bern_dglm(dglm):
     
     def prior_inverse_cdf(self, cdf, alpha, beta):
         return stats.beta.ppf(cdf, alpha, beta)
-    
+
+    def sampling_density(self, y, p):
+        return stats.binom.pmf(n = 1, p = p, k = y)
+
+    # NEED TO CHECK THIS FUNCTION - BEFORE, WAS JUST THE LAST RETURN LINE, WHICH I THINK IS THE PMF, NOT CDF
+    def marginal_cdf(self, y, alpha, beta):
+        if y == 1:
+            return 1
+        elif y == 0:
+            return beta_fxn(y + alpha, 1 - y + beta)/ beta_fxn(alpha, beta)
+
     def loglik(self, y, alpha, beta):
         return stats.bernoulli.logpmf(y, alpha / (alpha + beta))
     
@@ -241,6 +255,17 @@ class pois_dglm(dglm):
     
     def get_mean_and_var(self, F, a, R):
         return F.T @ a, F.T @ R @ F  / self.rho
+
+    def multiscale_get_mean_and_var(self, F, a, R, phi_mu, phi_sigma, imultiscale):
+        p = len(imultiscale)
+        if p == 1:
+            extra_var = a[imultiscale] ** 2 * phi_sigma + a[imultiscale] * R[
+                np.ix_(imultiscale, imultiscale)] * phi_sigma
+        else:
+            extra_var = a[imultiscale].T @ phi_sigma @ a[imultiscale] + np.trace(
+                R[np.ix_(imultiscale, imultiscale)] @ phi_sigma)
+
+        return F.T @ a, (F.T @ R @ F + extra_var) / self.rho
     
     def trigamma(self, x):
         return sc.special.polygamma(x = x, n = 1)
@@ -273,7 +298,13 @@ class pois_dglm(dglm):
     
     def prior_inverse_cdf(self, cdf, alpha, beta):
         return stats.gamma.ppf(cdf, a = alpha, scale = 1/beta)
-    
+
+    def sampling_density(self, y, mu):
+        return stats.poisson.pmf(mu = mu, k = y)
+
+    def marginal_cdf(self, y, alpha, beta):
+        return stats.nbinom.cdf(y, alpha, beta/(1 + beta))
+
     def loglik(self, y, alpha, beta):
         return stats.nbinom.logpmf(y, alpha, beta/(1 + beta))
     
@@ -294,18 +325,24 @@ class normal_dlm(dglm):
         
     def get_mean_and_var(self, F, a, R):
         return F.T @ a, F.T @ R @ F + self.s
+
+    def multiscale_get_mean_and_var(self, F, a, R, phi_mu, phi_sigma, imultiscale):
+        ft, qt = multiscale_get_mean_and_var(F, a, R, phi_mu, phi_sigma, imultiscale)
+        qt = qt + self.s
+        return ft, qt
     
     def get_conjugate_params(self, ft, qt, mean, var):
         return ft, qt
         
     def simulate(self, mean, var, nsamps):
-        return mean + np.sqrt(var)*np.random.standard_t(self.delVar*self.n, size = [nsamps])
+        return mean + np.sqrt(var)*np.random.standard_t(self.n, size = [nsamps])
 
     def simulate_from_sampling_model(self, mean, var, nsamps):
         return np.random.normal(mean, var, nsamps)
 
     def update(self, y=None, X=None):
         update_normaldlm(self, y, X)
+
 
     def forecast_path(self, k, X = None, nsamps = 1):
         return forecast_path_normaldlm(self, k, X, nsamps)
@@ -345,6 +382,12 @@ class bin_dglm(dglm):
     
     def prior_inverse_cdf(self, cdf, alpha, beta):
         return stats.beta.ppf(cdf, alpha, beta)
+
+    def marginal_cdf(self, y, n, alpha, beta):
+        cdf = 0.0
+        for i in range(y+1):
+            cdf += sc.misc.comb(n, y) * beta_fxn(y + alpha, n - y + beta)/ beta_fxn(alpha, beta)
+        return cdf
     
     def loglik(self, data, alpha, beta):
         n, y = data

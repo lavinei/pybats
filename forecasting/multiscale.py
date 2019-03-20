@@ -1,8 +1,8 @@
 # These are for the general DGLM
 import numpy as np
 import scipy as sc
-from forecasting.seasonal import fourierToSeasonalFxnl, fourierToSeasonal
-from forecasting.forecast import forecast_path_approx_sim
+from .seasonal import fourierToSeasonalFxnl, fourierToSeasonal
+from .forecast import forecast_path_approx_sim, forecast_path_approx_dens_MC
 import multiprocessing
 from functools import partial
 
@@ -69,7 +69,8 @@ def multiscale_update_with_samp(mod, y, F, a, R, phi):
     C = R - R @ F @ F.T @ R * (1 - qt_star/qt)/qt
     
     return m, C, loglik
-            
+
+
 def multiscale_update_approx(mod, y = None, X = None, phi_mu = None, phi_sigma = None):
     """
     phi_mu: mean vector of the latent factor
@@ -100,7 +101,7 @@ def multiscale_update_approx(mod, y = None, X = None, phi_mu = None, phi_sigma =
     else:
             
         # Mean and variance
-        ft, qt = multiscale_get_mean_and_var(mod.F, mod.a, mod.R, phi_mu, phi_sigma, mod.imultiscale)
+        ft, qt = mod.multiscale_get_mean_and_var(mod.F, mod.a, mod.R, phi_mu, phi_sigma, mod.imultiscale)
 
         # Choose conjugate prior, match mean and variance
         mod.param1, mod.param2 = mod.get_conjugate_params(ft, qt, mod.param1, mod.param2)
@@ -122,6 +123,63 @@ def multiscale_update_approx(mod, y = None, X = None, phi_mu = None, phi_sigma =
         # Discount information in the time t + 1 prior
         mod.W = mod.get_W()
         mod.R = mod.R + mod.W
+
+
+def multiscale_update_normaldlm_approx(mod, y=None, X=None, phi_mu = None, phi_sigma = None):
+    if mod.nregn > 0:
+        mod.F[mod.iregn] = X
+
+    # Put the mean of the latent factor phi_mu into the F vector
+    if mod.nmultiscale > 0:
+        mod.F[mod.imultiscale] = phi_mu
+
+    # If data is missing then skip discounting and updating, posterior = prior
+    if y is None or np.isnan(y):
+        mod.t += 1
+        mod.m = mod.a
+        mod.C = mod.R
+
+        # Get priors a, R for time t + 1 from the posteriors m, C
+        mod.a = mod.G @ mod.m
+        mod.R = mod.G @ mod.C @ mod.G.T
+        mod.R = (mod.R + mod.R.T) / 2
+
+        mod.W = mod.get_W()
+
+    else:
+
+        # Mean and variance
+        ft, qt = mod.multiscale_get_mean_and_var(mod.F, mod.a, mod.R, phi_mu, phi_sigma, mod.imultiscale)
+        mod.param1 = ft
+        mod.param2 = qt
+
+        # See time t observation y (which was passed into the update function)
+        mod.t += 1
+
+        # Update the  parameters:
+        et = y - ft
+
+        # Adaptive coefficient vector
+        At = mod.R @ mod.F / qt
+
+        # Volatility estimate ratio
+        rt = (mod.n + et ** 2 / qt) / (mod.n + 1)
+
+        # Kalman filter update
+        mod.n = mod.n + 1
+        mod.s = mod.s * rt
+        mod.m = mod.a + At * et
+        mod.C = rt * (mod.R - qt * At @ At.T)
+
+        # Get priors a, R for time t + 1 from the posteriors m, C
+        mod.a = mod.G @ mod.m
+        mod.R = mod.G @ mod.C @ mod.G.T
+        mod.R = (mod.R + mod.R.T) / 2
+
+        # Discount information
+        mod.W = mod.get_W()
+        mod.R = mod.R + mod.W
+        mod.n = mod.delVar * mod.n
         
         
 def multiscale_get_mean_and_var(F, a, R, phi_mu, phi_sigma, imultiscale):
@@ -181,7 +239,7 @@ def multiscale_forecast_marginal_approx(mod, k, X = None, phi_mu = None, phi_sig
     R = Gk @ mod.R @ Gk.T + (k-1)*mod.W
             
     # Mean and variance
-    ft, qt = multiscale_get_mean_and_var(F, a, R, phi_mu, phi_sigma, mod.imultiscale)
+    ft, qt = mod.multiscale_get_mean_and_var(F, a, R, phi_mu, phi_sigma, mod.imultiscale)
         
     # Choose conjugate prior, match mean and variance
     param1, param2 = mod.get_conjugate_params(ft, qt, mod.param1, mod.param2)
@@ -191,8 +249,9 @@ def multiscale_forecast_marginal_approx(mod, k, X = None, phi_mu = None, phi_sig
         
     # Simulate from the forecast distribution
     return mod.simulate(param1, param2, nsamps)
-        
-def multiscale_forecast_path_approx(mod, k, X = None, phi_mu = None, phi_sigma = None, phi_psi = None, nsamps = 1):  
+
+
+def multiscale_forecast_path_approx(mod, k, X = None, phi_mu = None, phi_sigma = None, phi_psi = None, nsamps = 1, t_dist=False, y = None, nu=9):
     """
     Forecast function for the k-step path
     k: steps ahead to forecast
@@ -233,7 +292,7 @@ def multiscale_forecast_path_approx(mod, k, X = None, phi_mu = None, phi_sigma =
         Flist[i] = np.copy(F)
             
         # Find lambda mean and var
-        ft, qt = multiscale_get_mean_and_var(F, a, R, phi_mu[i], phi_sigma[i], mod.imultiscale)
+        ft, qt = mod.multiscale_get_mean_and_var(F, a, R, phi_mu[i], phi_sigma[i], mod.imultiscale)
         lambda_mu[i] = ft
         lambda_cov[i,i] = qt
         
@@ -248,8 +307,11 @@ def multiscale_forecast_path_approx(mod, k, X = None, phi_mu = None, phi_sigma =
                 lambda_cov[j,i] = lambda_cov[i,j] = Flist[j].T @ cov_ij @ Flist[i]
             else:
                 lambda_cov[j,i] = lambda_cov[i,j] = Flist[j].T @ cov_ij @ Flist[i] + alist[i][mod.imultiscale].T @ phi_psi[i][j] @ alist[j][mod.imultiscale]
-                                        
-    return forecast_path_approx_sim(mod, k, lambda_mu, lambda_cov, nsamps)
+
+    if y is not None:
+        return forecast_path_approx_dens_MC(mod, y, lambda_mu, lambda_cov, t_dist, nu, nsamps)
+    else:
+        return forecast_path_approx_sim(mod, k, lambda_mu, lambda_cov, nsamps, t_dist, nu)
 
 
 ################# FUNCTIONS FOR WORKING WITH SEASONAL LATENT FACTORS FROM THE HIGHER LEVEL NORMAL DLM ##############
