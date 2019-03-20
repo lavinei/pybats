@@ -13,7 +13,7 @@ from forecasting.multiscale import get_latent_factor, forecast_latent_factor, sa
 data = np.load("../data/dcmm_multiscale_data.npz")
 Y = data['Y'].T
 X = data['X']
-Y_total = data['Y_totalsales']
+Y_total = np.log(data['Y_totalsales'])
 X_total = data['X_totalsales']
 T = len(Y)
 prior_length = 21
@@ -25,8 +25,8 @@ period = totalsales_mod.seasPeriods[0]
 
 
 ## Define multiscale DCMM
-rho = .6
-dcmm_multiscale = define_dcmm(Y, X, prior_length = prior_length, multiscale = True, rho = rho)
+rho = .5
+dcmm_multiscale = define_dcmm(Y, X, prior_length = prior_length, multiscale = True, rho = rho, delpois=.99, delbern=.99)
 
 #Initialize parameters and storage variables
 k = 14 # Number of days ahead that we will forecast
@@ -89,6 +89,6 @@ def plot_sales_forecast(forecast_samps, sales, time, filename):
     plt.savefig(filename+'.jpg', dpi=300)
 
 
-filename = "dcmm_multiscale_forecast"
+filename = "dcmm_multiscale_forecast2"
 time = np.arange(forecast_start, forecast_end)
 plot_sales_forecast(forecast_samps[:,:,0], Y[forecast_start:forecast_end], time, filename)

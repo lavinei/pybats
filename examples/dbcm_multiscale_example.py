@@ -18,7 +18,7 @@ Y_transaction = data['Y_transaction']
 X_transaction = data['X_transaction']
 Y_cascade = data['Y_cascade']
 X_cascade = data['X_cascade']
-Y_total = np.log(data['Y_totalsales'])
+Y_total = np.log(1 + data['Y_totalsales'])
 X_total = data['X_totalsales']
 excess = list(data['excess'])
 sales = data['sales']
@@ -32,9 +32,9 @@ totalsales_mod = define_normal_dlm(Y_total, prior_length)
 period = totalsales_mod.seasPeriods[0]
 
 ## Define multiscale DBCM
-rho = 0.4
+rho = 1
 dbcm_multiscale = define_dbcm(Y_transaction, X_transaction, Y_cascade, X_cascade, excess_values = excess, multiscale=True,
-                              rho = rho, deltrend=.98, delregn = .99, delmultiscale=.99, delseas=.99, prior_length= prior_length)
+                              rho = rho, deltrend=.99, delregn = .99, delmultiscale=.99, delseas=.99, prior_length= prior_length)
 
 
 k = 14 # Number of days ahead that we will forecast
@@ -83,9 +83,6 @@ for t in range(prior_length, T):
                                              phi_mu=phi_mu, phi_sigma=phi_sigma,
                                              excess = excess[t])
 
-dbcm_multiscale.dcmm.pois_mod.a
-dbcm_multiscale.dcmm.pois_mod.param1
-np.round(dbcm_multiscale.dcmm.pois_mod.R, 2)
 
 ## Plot forecasts against true sales, along with 95% credible intervals
 def plot_sales_forecast(forecast_samps, sales, time, filename):
