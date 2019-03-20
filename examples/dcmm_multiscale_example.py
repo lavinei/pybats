@@ -26,7 +26,7 @@ period = totalsales_mod.seasPeriods[0]
 
 ## Define multiscale DCMM
 rho = .6
-dcmm_multiscale = define_dcmm(Y, prior_length = prior_length, multiscale = True, rho = rho)
+dcmm_multiscale = define_dcmm(Y, X, prior_length = prior_length, multiscale = True, rho = rho)
 
 #Initialize parameters and storage variables
 k = 14 # Number of days ahead that we will forecast
