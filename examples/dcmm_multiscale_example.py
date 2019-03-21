@@ -85,7 +85,6 @@ def plot_sales_forecast(forecast_samps, sales, time, filename):
     plt.legend(["Forecast Mean", "Sales", "95% Credible Interval"])
     plt.ylabel('Sales')
     plt.xlabel('Time')
-    plt.ylim(0,75)
     plt.savefig(filename+'.jpg', dpi=300)
 
 
