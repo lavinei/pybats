@@ -182,6 +182,7 @@ def define_dbcm(Y_transaction, X_transaction = None, Y_cascade = None, X_cascade
         
     return mod
 
+
 def define_dcmm_params(Y, X, prior_length):
     nonzeros = Y[:prior_length].nonzero()[0]
     pois_mod = sm.GLM(Y[nonzeros] - 1,
@@ -202,3 +203,4 @@ def define_dcmm_params(Y, X, prior_length):
         bern_params = bern_mod.fit().params
 
     return pois_params, bern_params
+
