@@ -10,8 +10,8 @@ def forecast_marginal(mod, k, X = None, nsamps = 1, mean_only = False):
     # Plug in the correct F values
     if mod.nregn > 0:
         F = np.copy(mod.F)
-        F[mod.iregn] = X
-        
+        F[mod.iregn] = X.reshape(mod.nregn, 1)
+
     # Evolve to the prior for time t + k
     Gk = np.linalg.matrix_power(mod.G, k-1)
     a = Gk @ mod.a
@@ -19,10 +19,10 @@ def forecast_marginal(mod, k, X = None, nsamps = 1, mean_only = False):
 
     # Mean and variance
     ft, qt = mod.get_mean_and_var(F, a, R)
-        
+
     # Choose conjugate prior, match mean and variance
     param1, param2 = mod.get_conjugate_params(ft, qt, mod.param1, mod.param2)
-    
+
     if mean_only:
         return mod.get_mean(param1, param2)
         

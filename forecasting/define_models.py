@@ -20,28 +20,37 @@ def define_normal_dlm(Y, prior_length, period=[7]):
     
     return nmod
 
-def define_dcmm(Y, X, prior_length = 30, seasPeriods = [7], seasHarmComponents = [[1,2,3]], multiscale = False, rho=1, delbern = .999, delpois =.995):
+def define_dcmm(Y, X, prior_length = 30, seasPeriods = [7], seasHarmComponents = [[1,2,3]], multiscale = False, rho=1,
+                delbern = .999, delpois =.995, delregn = None, delseas = None):
+    # suppport overwrite the defaults with regression and seasonal discounts
+    nregn = X.shape[1]
+    nseas = 2*sum(map(len, seasHarmComponents))
+    delregn_bern = delbern if delregn is None else delregn
+    delregn_pois = delpois if delregn is None else delregn
+    delseas_bern = delbern if delseas is None else delseas
+    delseas_pois = delpois if delseas is None else delseas
+
     pois_params, bern_params = define_dcmm_params(Y, X, prior_length)
     if not multiscale:
         # Define a standard DCMM for a single item's sales (as a comparison)
-        a0_bern = np.array([[bern_params[0], bern_params[1], 0, 0, 0, 0, 0, 0]]).reshape(-1, 1)
-        R0_bern = np.identity(8)/2
-        a0_pois = np.array([[pois_params[0], pois_params[1], 0, 0, 0, 0, 0, 0]])
-        R0_pois = np.diag([.3, .3, .5, .5, .5, .5, .5, .5])
+        a0_bern = np.array([[bern_params[0]] + [0]*(nregn + nseas)]).reshape(-1, 1)
+        R0_bern = np.identity(1 + nregn + nseas)/2
+        a0_pois = np.array([[pois_params[0]] + [0]*(nregn + nseas)]).reshape(-1, 1)
+        R0_pois = np.diag([.3] + [0.5]*(nregn + nseas))
         mod = dcmm(a0_bern = a0_bern, R0_bern = R0_bern,
-                    nregn_bern = 1,
+                    nregn_bern = nregn,
                     ntrend_bern = 1,
                     seasPeriods_bern = seasPeriods,
                     seasHarmComponents_bern = seasHarmComponents,
-                    deltrend_bern = delbern, delregn_bern = delbern,
-                    delhol_bern = delbern, delseas_bern = delbern,
+                    deltrend_bern = delbern, delregn_bern = delregn_bern,
+                    delhol_bern = delbern, delseas_bern = delseas_bern,
               a0_pois = a0_pois, R0_pois = R0_pois,
-                    nregn_pois = 1,
+                    nregn_pois = nregn,
                     ntrend_pois = 1,
                     seasPeriods_pois = seasPeriods,
                     seasHarmComponents_pois = seasHarmComponents,
-                    deltrend_pois = delpois, delregn_pois = delpois,
-                    delhol_pois = delpois, delseas_pois = delpois,
+                    deltrend_pois = delpois, delregn_pois = delregn_pois,
+                    delhol_pois = delpois, delseas_pois = delseas_pois,
                    rho = rho)
     elif multiscale:
         # Define a multiscale DCMM for that single item's sales
@@ -53,15 +62,15 @@ def define_dcmm(Y, X, prior_length = 30, seasPeriods = [7], seasHarmComponents =
                     nregn_bern = 1,
                     ntrend_bern = 1,
                     nmultiscale_bern = 7,
-                    deltrend_bern = delbern, delregn_bern = delbern,
-                    delhol_bern = delbern, delseas_bern = delbern,
+                    deltrend_bern = delbern, delregn_bern = delregn_bern,
+                    delhol_bern = delbern, delseas_bern = delseas_bern,
                     delmultiscale_bern = delbern,
               a0_pois = a0_pois, R0_pois = R0_pois,
                     nregn_pois = 1,
                     ntrend_pois = 1,
                     nmultiscale_pois = 7,
-                    deltrend_pois = delpois, delregn_pois = delpois,
-                    delhol_pois = delpois, delseas_pois = delpois,
+                    deltrend_pois = delpois, delregn_pois = delregn_pois,
+                    delhol_pois = delpois, delseas_pois = delseas_pois,
                     delmultiscale_pois = delpois,
                    rho=rho)
         

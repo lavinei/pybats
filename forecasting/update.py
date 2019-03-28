@@ -3,7 +3,7 @@ import numpy as np
 
 def update(mod, y = None, X = None):
     if mod.nregn > 0:
-        mod.F[mod.iregn] = X
+        mod.F[mod.iregn] = X.reshape(mod.nregn, 1)
                     
     # If data is missing then skip discounting and updating, posterior = prior
     if y is None or np.isnan(y):

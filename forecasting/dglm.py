@@ -13,6 +13,7 @@ from scipy.special import beta as beta_fxn
 from scipy import optimize as opt
 from functools import partial
 from scipy import stats
+from collections import Iterable
 
 class dglm:
     
@@ -55,7 +56,15 @@ class dglm:
         if nregn == 0:
             Fregn = np.empty([0]).reshape(-1,1)
             Gregn = np.empty([0, 0])
+        elif isinstance(delregn, Iterable):
+            # in this case, we passed a list of deltas for regression
+            nregn = len(delregn)
+            Gregn = np.diag(np.asarray(delregn))
+            Fregn = np.ones([nregn]).reshape(-1, 1)
+            self.iregn = list(range(i, i + nregn))
+            i += nregn
         else:
+            # in this case, we have one discount factor with multiple regn columns
             Gregn = np.identity(nregn)
             Fregn = np.ones([nregn]).reshape(-1,1)
             self.iregn = list(range(i, i + nregn))
@@ -95,7 +104,7 @@ class dglm:
             i += nseas
             for Fs, Gs in output:
                 idx2 = idx + Fs.shape[0]
-                Fseas[idx:idx2,0] = Fs
+                Fseas[idx:idx2,0] = Fs.squeeze()
                 Gseas[idx:idx2, idx:idx2] = Gs
                 idx = idx2
 
