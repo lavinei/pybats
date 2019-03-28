@@ -2,9 +2,8 @@ import sys
 sys.path.insert(0,'../')
 import numpy as np
 import pandas as pd
-from forecasting.define_models import define_dbcm, define_normal_dlm
-from forecasting.multiscale import get_latent_factor, forecast_latent_factor, sample_latent_factor
-from forecasting.update import update_normaldlm
+from forecasting.define_models import define_normal_dlm
+from forecasting.analysis import analysis_lognormal_seasonalms, analysis_dbcm
 import matplotlib.pyplot as plt
 
 ## Load in data:
@@ -25,64 +24,26 @@ sales = data['sales']
 T = len(Y_transaction)
 prior_length = 21
 
-
-## Define normal DLM for the log of total sales
-## Include a day-of-week seasonal factor - This coefficient will be the multiscale factor we care about
-totalsales_mod = define_normal_dlm(Y_total, prior_length)
-period = totalsales_mod.seasPeriods[0]
-
-## Define multiscale DBCM
-rho = 1
-dbcm_multiscale = define_dbcm(Y_transaction, X_transaction, Y_cascade, X_cascade, excess_values = excess, multiscale=True,
-                              rho = rho, deltrend=.99, delregn = .99, delmultiscale=.99, delseas=.99, prior_length= prior_length)
-
-
+# Set parameters
+period = 7 # Period of the seasonal component that is coming from the log-normal
 k = 14 # Number of days ahead that we will forecast
-horizons = np.arange(1,k+1)
+rho = 1 # Random effect discount factor to increase variance of forecast distribution
+
+# Define period to forecast over
 forecast_start = prior_length + 150
 forecast_end = T - k
 nsamps = 500
-forecast_samps = np.zeros([nsamps, forecast_end - forecast_start, k])
 
-# Now update and forecast
-for t in range(prior_length, T):
-    # Get the day-of-week
-    today = t % period
+# Get multiscale signal from higher level log-normal model
+period = 7 # Include a day-of-week seasonal factor - This coefficient will be the multiscale factor we care about
+phi_mu_prior, phi_sigma_prior, phi_mu_post, phi_sigma_post = analysis_lognormal_seasonalms(
+    Y_total, X_total, prior_length, k, forecast_start, forecast_end, period)
 
-    if t % 100 == 0:
-        print(t)
-
-    if t >= forecast_start and t < forecast_end:
-
-        # Forecast the mean and variance of the latent factor 1:k steps ahead
-        future_latent_factors = list(map(lambda k: forecast_latent_factor(totalsales_mod, k=k, today=today, period=period),
-                                         horizons))
-        phi_mu = [lf[0] for lf in future_latent_factors]
-        phi_sigma = [lf[1] for lf in future_latent_factors]
-
-        # Get the forecast 1:14-steps ahead with the multiscale DCMM
-        forecast_samps[:, t - forecast_start, :] = dbcm_multiscale.multiscale_forecast_path_approx(
-            k,
-            X_transaction[t + horizons - 1],
-            X_cascade[t + horizons - 1],
-            phi_mu = phi_mu,
-            phi_sigma = phi_sigma,
-            nsamps = nsamps
-                                                                                                   )
-
-    # Now observe the true y value, and update:
-
-    # Update the normal DLM for total sales
-    totalsales_mod.update(Y_total[t], X_total[t])
-
-    # Get posterior mean and variance of the latent factors
-    phi_mu, phi_sigma = get_latent_factor(totalsales_mod, day=today)
-    # Update a multiscale DCMM of a single item's sales
-    dbcm_multiscale.multiscale_update_approx(Y_transaction[t], X_transaction[t],
-                                             Y_cascade[t,:], X_cascade[t],
-                                             phi_mu=phi_mu, phi_sigma=phi_sigma,
-                                             excess = excess[t])
-
+# Update and forecast the model
+forecast_samples = analysis_dbcm(Y_transaction, X_transaction, Y_cascade, X_cascade, excess, prior_length,
+                               k, forecast_start, forecast_end, nsamps, rho,
+                               phi_mu_prior, phi_sigma_prior, None, phi_mu_post, phi_sigma_post,
+                               period=period, mean_only=False, delregn=.98)
 
 ## Plot forecasts against true sales, along with 95% credible intervals
 def plot_sales_forecast(forecast_samps, sales, time, filename):
@@ -101,4 +62,4 @@ def plot_sales_forecast(forecast_samps, sales, time, filename):
 
 filename = "dbcm_multiscale_forecast"
 time = np.arange(forecast_start, forecast_end)
-plot_sales_forecast(forecast_samps[:,:,0], sales[forecast_start:forecast_end], time, filename)
+plot_sales_forecast(forecast_samples[:,:,0], sales[forecast_start:forecast_end], time, filename)
