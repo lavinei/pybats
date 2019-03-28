@@ -1,6 +1,7 @@
 # These are for the general DGLM
 import numpy as np
 import scipy as sc
+from collections import Iterable
 from .seasonal import seascomp, createFourierToSeasonalL
 from .update import update, update_normaldlm, update_bindglm
 from .forecast import forecast_marginal, forecast_path, forecast_path_approx, forecast_marginal_bindglm, forecast_path_normaldlm
@@ -113,7 +114,7 @@ class dglm:
         component_discount = []
         for discount, n in zip([deltrend, delregn, delmultiscale, delseas], [ntrend, nregn, nmultiscale, nseas]):
             if n > 0:
-                if type(discount) == list:
+                if isinstance(discount, Iterable):
                     if len(discount) < n:
                         print('Error: Length of discount factors must be 1 or match component length')
                     for disc in discount[:n]:

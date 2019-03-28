@@ -34,7 +34,7 @@ phi_mu_prior, phi_sigma_prior, phi_mu_post, phi_sigma_post = analysis_lognormal_
 # Update and forecast the model
 forecast_samples = analysis_dcmm(Y, X, prior_length,
                                k, forecast_start, forecast_end, nsamps, rho,
-                               phi_mu_prior, phi_sigma_prior, None, phi_mu_post, phi_sigma_post, mean_only=False)
+                               phi_mu_prior, phi_sigma_prior, None, phi_mu_post, phi_sigma_post)
 
 
 ## Plot forecasts against true sales, along with 95% credible intervals

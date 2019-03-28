@@ -153,8 +153,6 @@ def analysis_dbcm(Y_transaction, X_transaction, Y_cascade, X_cascade, excess,
                       seasPeriods = seasPeriods, seasHarmComponents=seasHarmComponents,
                       nmultiscale = nmultiscale, rho = rho, **kwargs)
 
-    print(mod.dcmm.pois_mod.Discount)
-
     # Initialize updating + forecasting
     horizons = np.arange(1,k+1)
 
