@@ -10,8 +10,8 @@ def forecast_marginal(mod, k, X = None, nsamps = 1, mean_only = False):
     # Plug in the correct F values
     if mod.nregn > 0:
         F = np.copy(mod.F)
-        F[mod.iregn] = X.reshape(mod.nregn, 1)
-
+        F[mod.iregn] = X.reshape(mod.nregn,1)
+        
     # Evolve to the prior for time t + k
     Gk = np.linalg.matrix_power(mod.G, k-1)
     a = Gk @ mod.a
@@ -19,10 +19,10 @@ def forecast_marginal(mod, k, X = None, nsamps = 1, mean_only = False):
 
     # Mean and variance
     ft, qt = mod.get_mean_and_var(F, a, R)
-
+        
     # Choose conjugate prior, match mean and variance
     param1, param2 = mod.get_conjugate_params(ft, qt, mod.param1, mod.param2)
-
+    
     if mean_only:
         return mod.get_mean(param1, param2)
         
@@ -53,7 +53,7 @@ def forecast_path(mod, k, X = None, nsamps = 1):
 
             # Plug in the correct F values
             if mod.nregn > 0:
-                F[mod.iregn] = X[i,:]
+                F[mod.iregn] = X[i,:].reshape(mod.nregn,1)
 
             # Get mean and variance
             ft, qt = mod.get_mean_and_var(F, a, R)
@@ -109,7 +109,7 @@ def forecast_path_approx(mod, k, X = None, nsamps = 1, t_dist=False, y=None, nu=
 
         # Plug in the correct F values
         if mod.nregn > 0:
-            F[mod.iregn] = X[i,:]
+            F[mod.iregn] = X[i,:].reshape(mod.nregn,1)
             
         Flist[i] = np.copy(F)
             
@@ -138,7 +138,7 @@ def forecast_marginal_bindglm(mod, n, k, X=None, nsamps=1, mean_only=False):
     # Plug in the correct F values
     if mod.nregn > 0:
         F = np.copy(mod.F)
-        F[mod.iregn] = X
+        F[mod.iregn] = X.reshape(mod.nregn,1)
 
     # Evolve to the prior for time t + k
     Gk = np.linalg.matrix_power(mod.G, k - 1)
@@ -170,7 +170,7 @@ def forecast_path_normaldlm(mod, k, X = None, nsamps = 1, multiscale=False, AR=F
     for i in range(k):
         # Plug in the correct F values
         if mod.nregn > 0:
-            F[mod.iregn] = X[i, :]
+            F[mod.iregn] = X[i, :].reshape(mod.nregn,1)
 
         # mean
         ft = np.array(list(map(lambda theta: F.T @ theta,

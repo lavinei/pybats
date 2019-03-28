@@ -1,6 +1,5 @@
 import numpy as np
 
-
 def seascomp(period, harmComponents):
     p = len(harmComponents)
     n = 2*p
@@ -15,7 +14,6 @@ def seascomp(period, harmComponents):
         G[idx:(idx+2), idx:(idx+2)] = np.array([[c, s],[-s, c]])
 
     return [F, G]
-
 
 def createFourierToSeasonalL(period, harmComponents, Fseas, Gseas):
     p = len(harmComponents)
@@ -32,10 +30,11 @@ def fourierToSeasonal(mod):
     var = mod.L @ mod.C[np.ix_(mod.iseas, mod.iseas)] @ mod.L.T
     return phi, var
 
-
 def fourierToSeasonalFxnl(L, m, C, iseas):
     phi = L @ m[iseas]
     var = L @ C[np.ix_(iseas, iseas)] @ L.T
     return phi, var
-
-
+    
+    
+    
+    

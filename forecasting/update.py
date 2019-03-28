@@ -3,7 +3,7 @@ import numpy as np
 
 def update(mod, y = None, X = None):
     if mod.nregn > 0:
-        mod.F[mod.iregn] = X.reshape(mod.nregn, 1)
+        mod.F[mod.iregn] = X.reshape(mod.nregn,1)
                     
     # If data is missing then skip discounting and updating, posterior = prior
     if y is None or np.isnan(y):
@@ -48,7 +48,7 @@ def update(mod, y = None, X = None):
 
 def update_bindglm(mod, n=None, y=None, X=None):
     if mod.nregn > 0:
-        mod.F[mod.iregn] = X
+        mod.F[mod.iregn] = X.reshape(mod.nregn,1)
 
     # If data is missing then skip discounting and updating, posterior = prior
     if y is None or np.isnan(y) or n is None or n == 0:
@@ -93,7 +93,7 @@ def update_bindglm(mod, n=None, y=None, X=None):
 
 def update_normaldlm(mod, y = None, X = None):
     if mod.nregn > 0:
-        mod.F[mod.iregn] = X
+        mod.F[mod.iregn] = X.reshape(mod.nregn,1)
             
     # If data is missing then skip discounting and updating, posterior = prior
     if y is None or np.isnan(y):

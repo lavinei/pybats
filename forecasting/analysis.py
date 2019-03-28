@@ -1,12 +1,14 @@
 import numpy as np
 import pandas as pd
-from forecasting.define_models import define_dcmm, define_normal_dlm, define_dbcm
-from forecasting.multiscale import get_latent_factor, forecast_latent_factor, sample_latent_factor
+from .define_models import define_dcmm, define_normal_dlm, define_dbcm
+from .multiscale import get_latent_factor, forecast_latent_factor, sample_latent_factor
+from pandas.tseries.holiday import AbstractHolidayCalendar, Holiday
 
 
 def analysis_dcmm(Y, X, prior_length, k, forecast_start, forecast_end, nsamps = 500, rho = .6,
                   phi_mu_prior = None, phi_sigma_prior = None, phi_psi_prior = None,
-                  phi_mu_post = None, phi_sigma_post = None, mean_only=False, **kwargs):
+                  phi_mu_post = None, phi_sigma_post = None, mean_only=False, dates=None,
+                  holidays = [], seasPeriods = [], seasHarmComponents = [], **kwargs):
     """
     # Run updating + forecasting using a dcmm. Multiscale option available
     :param Y: Array of daily sales (n * 1)
@@ -22,24 +24,35 @@ def analysis_dcmm(Y, X, prior_length, k, forecast_start, forecast_end, nsamps = 
     :param phi_psi_prior: Covariance of latent factors over k-step horizon (if using a multiscale DCMM)
     :param phi_mu_post: Daily mean of latent factors for updating (if using a multiscale DCMM)
     :param phi_sigma_post: Daily variance of latent factors for updating (if using a multiscale DCMM)
-    :param kwargs: Other keyword arguments for forecast function
+    :param holidays: List of holiday dates
+    :param kwargs: Other keyword arguments for initializing the model. e.g. delregn = [.99, .98] discount factors.
     :return: Array of forecasting samples, dimension (nsamps * (forecast_end - forecast_start) * k)
     """
 
 
-    # Initialize the dcmm
     if phi_mu_prior is not None:
         multiscale = True
+        nmultiscale = len(phi_mu_post[0])
     else:
         multiscale = False
+        nmultiscale = 0
 
-    if kwargs.get('period') is not None:
-        period = kwargs.get('period') # This line is used for a seasonal multiscale latent factor
+    # Add the holiday indicator variables to the regression matrix
+    if holidays is not None:
+        X = define_holiday_regressors(X, dates, holidays)
 
-    mod = define_dcmm(Y, X, prior_length = prior_length, multiscale = multiscale, rho = rho)
+    # Initialize the DCMM
+    mod = define_dcmm(Y, X, prior_length = prior_length, seasPeriods = seasPeriods, seasHarmComponents = seasHarmComponents,
+                      nmultiscale = nmultiscale, rho = rho, **kwargs)
 
     # Initialize updating + forecasting
     horizons = np.arange(1,k+1)
+
+    # Convert dates into row numbers
+    if dates is not None and type(forecast_start) == type(dates[0]):
+        forecast_start = np.where(dates == forecast_start)[0][0]
+    if dates is not None and type(forecast_end) == type(dates[0]):
+        forecast_end = np.where(dates == forecast_end)[0][0]
 
     if mean_only:
         forecast = np.zeros([1, forecast_end - forecast_start, k])
@@ -97,7 +110,8 @@ def analysis_dcmm(Y, X, prior_length, k, forecast_start, forecast_end, nsamps = 
 def analysis_dbcm(Y_transaction, X_transaction, Y_cascade, X_cascade, excess,
                   prior_length, k, forecast_start, forecast_end, nsamps = 500, rho = .6,
                   phi_mu_prior = None, phi_sigma_prior = None, phi_psi_prior = None,
-                  phi_mu_post = None, phi_sigma_post = None, mean_only=False, **kwargs):
+                  phi_mu_post = None, phi_sigma_post = None, mean_only=False, dates=None,
+                  holidays = [], seasPeriods = [], seasHarmComponents = [], **kwargs):
     """
     # Run updating + forecasting using a dcmm. Multiscale option available
     :param Y_transaction: Array of daily transactions (n * 1)
@@ -115,25 +129,40 @@ def analysis_dbcm(Y_transaction, X_transaction, Y_cascade, X_cascade, excess,
     :param phi_psi_prior: Covariance of latent factors over k-step horizon (if using a multiscale DCMM)
     :param phi_mu_post: Daily mean of latent factors for updating (if using a multiscale DCMM)
     :param phi_sigma_post: Daily variance of latent factors for updating (if using a multiscale DCMM)
-    :param kwargs: Other keyword arguments for forecast function
+    :param kwargs: Other keyword arguments for initializing the model
     :return: Array of forecasting samples, dimension (nsamps * (forecast_end - forecast_start) * k)
     """
 
-
-    # Initialize the dcmm
     if phi_mu_prior is not None:
         multiscale = True
+        nmultiscale = len(phi_mu_post[0])
     else:
         multiscale = False
+        nmultiscale = 0
+
 
     if kwargs.get('period') is not None:
         period = kwargs.get('period') # This line is used for a seasonal multiscale latent factor
 
-    mod = define_dbcm(Y_transaction, X_transaction, Y_cascade, X_cascade, excess_values = excess,
-                      prior_length = prior_length, multiscale = multiscale, rho = rho)
+    # Add the holiday indicator variables to the regression matrix
+    if holidays is not None:
+        X_transaction = define_holiday_regressors(X_transaction, dates, holidays)
+
+    mod = define_dbcm(Y_transaction, X_transaction, Y_cascade, X_cascade,
+                      excess_values = excess, prior_length = prior_length,
+                      seasPeriods = seasPeriods, seasHarmComponents=seasHarmComponents,
+                      nmultiscale = nmultiscale, rho = rho, **kwargs)
+
+    print(mod.dcmm.pois_mod.Discount)
 
     # Initialize updating + forecasting
     horizons = np.arange(1,k+1)
+
+    # Convert dates into row numbers
+    if dates is not None and type(forecast_start) == type(dates[0]):
+        forecast_start = np.where(dates == forecast_start)[0][0]
+    if dates is not None and type(forecast_end) == type(dates[0]):
+        forecast_end = np.where(dates == forecast_end)[0][0]
 
     if mean_only:
         forecast = np.zeros([1, forecast_end - forecast_start, k])
@@ -190,13 +219,31 @@ def analysis_dbcm(Y_transaction, X_transaction, Y_cascade, X_cascade, excess,
     return forecast
 
 
-def analysis_lognormal_seasonalms(Y, X, prior_length, k, forecast_start, forecast_end, period=7, **kwargs):
-    nmod = define_normal_dlm(Y, prior_length)
+def analysis_lognormal_seasonalms(Y, X, prior_length, k, forecast_start, forecast_end, period=7, dates=None, **kwargs):
+    """
+    :param Y: Array of daily sales (typically on the log scale) (n * 1)
+    :param X: Array of covariates (n * p)
+    :param prior_length: number of datapoints to use for prior specification
+    :param k: forecast horizon (how many days ahead to forecast)
+    :param forecast_start: day to start forecasting (beginning with 0)
+    :param forecast_end: day to end forecasting
+    :param period: Integer, giving periodicity of the seasonal component that we want to extract for multiscale inference
+    :param kwargs: Extra arguments used to initialized the model
+    :return:
+    """
+    nmod = define_normal_dlm(Y, prior_length, **kwargs)
     horizons = np.arange(1, k + 1)
     phi_mu_prior = []
     phi_sigma_prior = []
     phi_mu_post = []
     phi_sigma_post = []
+
+    # Convert dates into row numbers
+    if dates is not None and type(forecast_start) == type(dates[0]):
+        forecast_start = np.where(dates == forecast_start)[0][0]
+    if dates is not None and type(forecast_end) == type(dates[0]):
+        forecast_end = np.where(dates == forecast_end)[0][0]
+
     T = np.min([len(Y), forecast_end])
 
     for t in range(prior_length, T):
@@ -225,3 +272,15 @@ def analysis_lognormal_seasonalms(Y, X, prior_length, k, forecast_start, forecas
         phi_sigma_post.append(phi_sigma)
 
     return phi_mu_prior, phi_sigma_prior, phi_mu_post, phi_sigma_post
+
+
+def define_holiday_regressors(X, dates, holidays=None):
+    n = X.shape[0]
+    for holiday in holidays:
+        cal = AbstractHolidayCalendar()
+        cal.rules = [holiday]
+        x = np.zeros(n)
+        x[dates.isin(cal.holidays())] = 1
+        X = np.c_[X, x]
+
+    return X

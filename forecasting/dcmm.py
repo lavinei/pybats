@@ -12,8 +12,8 @@ class dcmm:
                  nregn_bern = None,
                  ntrend_bern = 0,
                  nmultiscale_bern = 0,
-                 seasPeriods_bern = None,
-                 seasHarmComponents_bern = None,
+                 seasPeriods_bern = [],
+                 seasHarmComponents_bern = [],
                  deltrend_bern = 1, delregn_bern = 1,
                  delhol_bern = 1, delseas_bern = 1,
                  delmultiscale_bern = 1,
@@ -22,12 +22,39 @@ class dcmm:
                  nregn_pois = None,
                  ntrend_pois = 0,
                  nmultiscale_pois = 0,
-                 seasPeriods_pois = None,
-                 seasHarmComponents_pois = None,
+                 seasPeriods_pois = [],
+                 seasHarmComponents_pois = [],
                  deltrend_pois = 1, delregn_pois = 1,
                  delhol_pois = 1, delseas_pois = 1,
                  delmultiscale_pois = 1,
                  rho = 1):
+        """
+        :param a0_bern: Prior mean vector for bernoulli DGLM
+        :param R0_bern: Prior covariance matrix for bernoulli DGLM
+        :param nregn_bern: Number of regression components in bernoulli DGLM
+        :param ntrend_bern: Number of trend components in bernoulli DGLM
+        :param nmultiscale_bern: Number of multiscale components in bernoulli DGLM
+        :param seasPeriods_bern: List of periods of seasonal components in bernoulli DGLM
+        :param seasHarmComponents_bern: List of harmonic components included for each period in bernoulli DGLM
+        :param deltrend_bern: Discount factor on trend components in bernoulli DGLM
+        :param delregn_bern: Discount factor on regression components in bernoulli DGLM
+        :param delhol_bern: Discount factor on holiday component in bernoulli DGLM (currently deprecated)
+        :param delseas_bern: Discount factor on seasonal components in bernoulli DGLM
+        :param delmultiscale_bern: Discount factor on multiscale components in bernoulli DGLM
+        :param a0_pois: Prior mean vector for poisson DGLM
+        :param R0_pois: Prior covariance matrix for poisson DGLM
+        :param nregn_pois: Number of regression components in poisson DGLM
+        :param ntrend_pois: Number of trend components in poisson DGLM
+        :param nmultiscale_pois: Number of multiscale components in poisson DGLM
+        :param seasPeriods_pois: List of periods of seasonal components in poisson DGLM
+        :param seasHarmComponents_pois: List of harmonic components included for each period in poisson DGLM
+        :param deltrend_pois: Discount factor on trend components in poisson DGLM
+        :param delregn_pois: Discount factor on regression components in poisson DGLM
+        :param delhol_pois: Discount factor on holiday component in poisson DGLM (currently deprecated)
+        :param delseas_pois: Discount factor on seasonal components in poisson DGLM
+        :param delmultiscale_pois: Discount factor on multiscale components in poisson DGLM
+        :param rho: Discount factor for random effects extension in poisson DGLM (smaller rho increases variance)
+        """
         
         self.bern_mod = bern_dglm(a0 = a0_bern,
                             R0 = R0_bern,

@@ -13,7 +13,6 @@ from scipy.special import beta as beta_fxn
 from scipy import optimize as opt
 from functools import partial
 from scipy import stats
-from collections import Iterable
 
 class dglm:
     
@@ -23,20 +22,25 @@ class dglm:
                  nregn = 0,
                  ntrend = 0,
                  nmultiscale = 0,
-                 seasPeriods = None,
-                 seasHarmComponents = None,
+                 seasPeriods = [],
+                 seasHarmComponents = [],
                  deltrend = 1, delregn = 1,
                  delmultiscale = 1,
                  delhol = 1, delseas = 1):
         """
-        a0, R0: time 0 prior means/covariance for the state vector
-        nregn: Number of regression components
-        nmultiscale: Number of regression components associated with latent factors (for multi-scale inference)
-        ntrend: Number of trend components (local level = 1, local trend = 2)
-        seasPeriods: list of periods of seasonal components
-        seasHarmComponents: List of Lists of harmonic components associated with each seasonal period
-        delX: Discount factors associated with the different parts of the DLM        
-        """        
+        :param a0: Prior mean vector
+        :param R0: Prior covariance matrix
+        :param nregn: Number of regression components
+        :param ntrend: Number of trend components
+        :param nmultiscale: Number of multiscale components
+        :param seasPeriods: List of periods of seasonal components
+        :param seasHarmComponents: List of harmonic components included for each period
+        :param deltrend: Discount factor on trend components
+        :param delregn: Discount factor on regression components
+        :param delmultiscale: Discount factor on multiscale components
+        :param delhol: Discount factor on holiday components (currently deprecated)
+        :param delseas: Discount factor on seasonal components
+        """
                 
         # Setting up trend F, G matrices
         Ftrend = np.ones([ntrend]).reshape(-1,1)
@@ -56,15 +60,7 @@ class dglm:
         if nregn == 0:
             Fregn = np.empty([0]).reshape(-1,1)
             Gregn = np.empty([0, 0])
-        elif isinstance(delregn, Iterable):
-            # in this case, we passed a list of deltas for regression
-            nregn = len(delregn)
-            Gregn = np.diag(np.asarray(delregn))
-            Fregn = np.ones([nregn]).reshape(-1, 1)
-            self.iregn = list(range(i, i + nregn))
-            i += nregn
         else:
-            # in this case, we have one discount factor with multiple regn columns
             Gregn = np.identity(nregn)
             Fregn = np.ones([nregn]).reshape(-1,1)
             self.iregn = list(range(i, i + nregn))
@@ -81,7 +77,7 @@ class dglm:
             i += nmultiscale
 
         # Setting up seasonal F, G matrices
-        if seasPeriods is None:
+        if len(seasPeriods) == 0:
             Fseas = np.empty([0]).reshape(-1,1)
             Gseas = np.empty([0, 0])
             nseas = 0
@@ -114,10 +110,19 @@ class dglm:
         G = sc.linalg.block_diag(Gtrend, Gregn, Gmultiscale, Gseas)
 
         # Set up discount matrix
-        Discount = sc.linalg.block_diag(deltrend*np.ones([ntrend, ntrend]),
-                                        delregn*np.ones([nregn, nregn]),
-                                        delmultiscale*np.ones([nmultiscale, nmultiscale]),
-                                        delseas*np.ones([nseas, nseas]))
+        component_discount = []
+        for discount, n in zip([deltrend, delregn, delmultiscale, delseas], [ntrend, nregn, nmultiscale, nseas]):
+            if n > 0:
+                if type(discount) == list:
+                    if len(discount) < n:
+                        print('Error: Length of discount factors must be 1 or match component length')
+                    for disc in discount[:n]:
+                        component_discount.append(disc*np.ones([1,1]))
+                else:
+                    component_discount.append(discount*np.ones([n,n]))
+
+        Discount = sc.linalg.block_diag(*component_discount)
+
         Discount[Discount == 0] = 1
         
         
@@ -145,8 +150,8 @@ class dglm:
     def forecast_path(self, k, X = None, nsamps = 1):
         return forecast_path(self, k, X, nsamps)
 
-    def forecast_path_approx(self, k, X = None, nsamps = 1, t_dist=False):
-        return forecast_path_approx(self, k, X, nsamps, t_dist)
+    def forecast_path_approx(self, k, X = None, nsamps = 1, **kwargs):
+        return forecast_path_approx(self, k, X, nsamps, **kwargs)
 
     def multiscale_update(self, y = None, X = None, phi_samps = None, parallel=False):
         multiscale_update(self, y, X, phi_samps, parallel)

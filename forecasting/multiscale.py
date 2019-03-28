@@ -11,7 +11,7 @@ def multiscale_update(mod, y = None, X = None, phi_samps = None, parallel=False)
     phi_samps: array of samples of the latent factor vector
     """
     if mod.nregn > 0:
-        mod.F[mod.iregn] = X
+        mod.F[mod.iregn] = X.reshape(mod.nregn,1)
                         
     # If data is missing then skip discounting and updating, posterior = prior
     if y is None or np.isnan(y):
@@ -79,7 +79,7 @@ def multiscale_update_approx(mod, y = None, X = None, phi_mu = None, phi_sigma =
     Implementing approximation: Assume the latent factor is independent of the state vector
     """
     if mod.nregn > 0:
-        mod.F[mod.iregn] = X
+        mod.F[mod.iregn] = X.reshape(mod.nregn,1)
             
     # Put the mean of the latent factor phi_mu into the F vector    
     if mod.nmultiscale > 0:
@@ -127,7 +127,7 @@ def multiscale_update_approx(mod, y = None, X = None, phi_mu = None, phi_sigma =
 
 def multiscale_update_normaldlm_approx(mod, y=None, X=None, phi_mu = None, phi_sigma = None):
     if mod.nregn > 0:
-        mod.F[mod.iregn] = X
+        mod.F[mod.iregn] = X.reshape(mod.nregn,1)
 
     # Put the mean of the latent factor phi_mu into the F vector
     if mod.nmultiscale > 0:
@@ -199,7 +199,7 @@ def multiscale_forecast_marginal(mod, k, X = None, phi_samps = None, mean_only =
     # Plug in the correct F values
     if mod.nregn > 0:
         F = np.copy(mod.F)
-        F[mod.iregn] = X
+        F[mod.iregn] = X.reshape(mod.nregn,1)
         
     Gk = np.linalg.matrix_power(mod.G, k-1)
     a = Gk @ mod.a
@@ -228,7 +228,7 @@ def multiscale_forecast_marginal_approx(mod, k, X = None, phi_mu = None, phi_sig
     # Plug in the correct F values
     if mod.nregn > 0:
         F = np.copy(mod.F)
-        F[mod.iregn] = X
+        F[mod.iregn] = X.reshape(mod.nregn,1)
             
     # Put the mean of the latent factor phi_mu into the F vector    
     if mod.nmultiscale > 0:
@@ -283,7 +283,7 @@ def multiscale_forecast_path_approx(mod, k, X = None, phi_mu = None, phi_sigma =
 
         # Plug in the correct F values
         if mod.nregn > 0:
-            F[mod.iregn] = X[i,:]
+            F[mod.iregn] = X[i,:].reshape(mod.nregn,1)
             
         # Put the mean of the latent factor phi_mu into the F vector    
         if mod.nmultiscale > 0:
