@@ -206,11 +206,13 @@ class dglm:
         ft_star = qt_star = None
         return param1, param2, ft_star, qt_star
 
+    ## some universal helpers
+    @staticmethod
+    def trigamma(x):
+        return sc.special.polygamma(x = x, n = 1)
+
 
 class bern_dglm(dglm):
-    
-    def trigamma(self, x):
-        return sc.special.polygamma(x = x, n = 1)
 
     def beta_approx(self, x, ft, qt):
         x = x**2
@@ -281,9 +283,6 @@ class pois_dglm(dglm):
                 R[np.ix_(imultiscale, imultiscale)] @ phi_sigma)
 
         return F.T @ a, (F.T @ R @ F + extra_var) / self.rho
-    
-    def trigamma(self, x):
-        return sc.special.polygamma(x = x, n = 1)
 
     def gamma_approx(self, x, ft, qt):
         x = x**2 
@@ -364,9 +363,6 @@ class normal_dlm(dglm):
     
     
 class bin_dglm(dglm):
-    
-    def trigamma(self, x):
-        return sc.special.polygamma(x = x, n = 1)
 
     def beta_approx(self, x, ft, qt):
         x = x**2
