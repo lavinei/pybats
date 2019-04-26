@@ -7,4 +7,5 @@ setup(
     author="Isaac Lavine",
     packages=['forecasting'],
     package_dir={'forecasting': 'forecasting'},
+    package_data={'forecasting': ['pkg_data/*.pickle.gzip']}
 )
