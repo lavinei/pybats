@@ -1,14 +1,16 @@
 import numpy as np
 import pandas as pd
+
+from .multiscale import forecast_holiday_effect
 from .define_models import define_dcmm, define_normal_dlm, define_dbcm
-from .multiscale import get_latent_factor, forecast_latent_factor, sample_latent_factor
+from .seasonal import get_seasonal_effect_fxnl, forecast_weekly_seasonal_factor
 from pandas.tseries.holiday import AbstractHolidayCalendar, Holiday
 
 
 def analysis_dcmm(Y, X, prior_length, k, forecast_start, forecast_end, nsamps = 500, rho = .6,
                   phi_mu_prior = None, phi_sigma_prior = None, phi_psi_prior = None,
                   phi_mu_post = None, phi_sigma_post = None, mean_only=False, dates=None,
-                  holidays = [], seasPeriods = [], seasHarmComponents = [], **kwargs):
+                  holidays = [], seasPeriods = [], seasHarmComponents = [], ret=['forecast'], **kwargs):
     """
     # Run updating + forecasting using a dcmm. Multiscale option available
     :param Y: Array of daily sales (n * 1)
@@ -37,37 +39,42 @@ def analysis_dcmm(Y, X, prior_length, k, forecast_start, forecast_end, nsamps = 
         multiscale = False
         nmultiscale = 0
 
+    # Convert dates into row numbers
+    if dates is not None:
+        dates = pd.to_datetime(dates, format='%y/%m/%d')
+        if type(forecast_start) == type(dates.iloc[0]):
+            forecast_start = np.where(dates == forecast_start)[0][0]
+        if type(forecast_end) == type(dates.iloc[0]):
+            forecast_end = np.where(dates == forecast_end)[0][0]
+
     # Add the holiday indicator variables to the regression matrix
-    if holidays is not None:
+    nhol = len(holidays)
+    if nhol > 0:
         X = define_holiday_regressors(X, dates, holidays)
 
     # Initialize the DCMM
     mod = define_dcmm(Y, X, prior_length = prior_length, seasPeriods = seasPeriods, seasHarmComponents = seasHarmComponents,
-                      nmultiscale = nmultiscale, rho = rho, **kwargs)
+                      nmultiscale = nmultiscale, rho = rho, nhol = nhol, **kwargs)
 
     # Initialize updating + forecasting
     horizons = np.arange(1,k+1)
 
-    # Convert dates into row numbers
-    if dates is not None and type(forecast_start) == type(dates[0]):
-        forecast_start = np.where(dates == forecast_start)[0][0]
-    if dates is not None and type(forecast_end) == type(dates[0]):
-        forecast_end = np.where(dates == forecast_end)[0][0]
-
     if mean_only:
-        forecast = np.zeros([1, forecast_end - forecast_start, k])
+        forecast = np.zeros([1, forecast_end - forecast_start + 1, k])
     else:
-        forecast = np.zeros([nsamps, forecast_end - forecast_start, k])
+        forecast = np.zeros([nsamps, forecast_end - forecast_start + 1, k])
 
-    T = np.min([len(Y), forecast_end])
+    T = np.min([len(Y), forecast_end]) + 1
     nu = 9
 
     # Run updating + forecasting
     for t in range(prior_length, T):
-        if t % 100 == 0:
-            print(t)
+        # if t % 100 == 0:
+        #     print(t)
 
-        if t >= forecast_start and t < forecast_end:
+        if t >= forecast_start and t <= forecast_end:
+            if t == forecast_start:
+                print('beginning forecasting')
 
             # Get the forecast samples for all the items over the 1:14 step ahead path
             if multiscale:
@@ -105,13 +112,16 @@ def analysis_dcmm(Y, X, prior_length, k, forecast_start, forecast_end, nsamps = 
         else:
             mod.update(y = Y[t], X=(X[t], X[t]))
 
-    return forecast
+    out = []
+    if ret.__contains__('forecast'): out.append(forecast)
+    if ret.__contains__('model'): out.append(mod)
+    return out
 
 def analysis_dbcm(Y_transaction, X_transaction, Y_cascade, X_cascade, excess,
                   prior_length, k, forecast_start, forecast_end, nsamps = 500, rho = .6,
                   phi_mu_prior = None, phi_sigma_prior = None, phi_psi_prior = None,
                   phi_mu_post = None, phi_sigma_post = None, mean_only=False, dates=None,
-                  holidays = [], seasPeriods = [], seasHarmComponents = [], **kwargs):
+                  holidays = [], seasPeriods = [], seasHarmComponents = [], ret=['forecast'], **kwargs):
     """
     # Run updating + forecasting using a dcmm. Multiscale option available
     :param Y_transaction: Array of daily transactions (n * 1)
@@ -140,42 +150,46 @@ def analysis_dbcm(Y_transaction, X_transaction, Y_cascade, X_cascade, excess,
         multiscale = False
         nmultiscale = 0
 
-
-    if kwargs.get('period') is not None:
-        period = kwargs.get('period') # This line is used for a seasonal multiscale latent factor
+    # Convert dates into row numbers
+    if dates is not None:
+        dates = pd.to_datetime(dates, format='%y/%m/%d')
+        if type(forecast_start) == type(dates.iloc[0]):
+            forecast_start = np.where(dates == forecast_start)[0][0]
+        if type(forecast_end) == type(dates.iloc[0]):
+            forecast_end = np.where(dates == forecast_end)[0][0]
 
     # Add the holiday indicator variables to the regression matrix
-    if holidays is not None:
+    nhol = len(holidays)
+    if nhol > 0:
         X_transaction = define_holiday_regressors(X_transaction, dates, holidays)
+
 
     mod = define_dbcm(Y_transaction, X_transaction, Y_cascade, X_cascade,
                       excess_values = excess, prior_length = prior_length,
                       seasPeriods = seasPeriods, seasHarmComponents=seasHarmComponents,
-                      nmultiscale = nmultiscale, rho = rho, **kwargs)
+                      nmultiscale = nmultiscale, rho = rho, nhol=nhol, **kwargs)
 
     # Initialize updating + forecasting
     horizons = np.arange(1,k+1)
 
-    # Convert dates into row numbers
-    if dates is not None and type(forecast_start) == type(dates[0]):
-        forecast_start = np.where(dates == forecast_start)[0][0]
-    if dates is not None and type(forecast_end) == type(dates[0]):
-        forecast_end = np.where(dates == forecast_end)[0][0]
-
     if mean_only:
-        forecast = np.zeros([1, forecast_end - forecast_start, k])
+        forecast = np.zeros([1, forecast_end - forecast_start + 1, k])
     else:
-        forecast = np.zeros([nsamps, forecast_end - forecast_start, k])
+        forecast = np.zeros([nsamps, forecast_end - forecast_start + 1, k])
 
-    T = np.min([len(Y_transaction), forecast_end])
+    T = np.min([len(Y_transaction)- k, forecast_end]) + 1
     nu = 9
 
     # Run updating + forecasting
     for t in range(prior_length, T):
-        if t % 100 == 0:
-            print(t)
+        # if t % 100 == 0:
+        #     print(t)
+            # print(mod.dcmm.pois_mod.param1)
+            # print(mod.dcmm.pois_mod.param2)
 
-        if t >= forecast_start and t < forecast_end:
+        if t >= forecast_start and t <= forecast_end:
+            if t == forecast_start:
+                print('beginning forecasting')
 
             # Get the forecast samples for all the items over the 1:14 step ahead path
             if multiscale:
@@ -214,10 +228,15 @@ def analysis_dbcm(Y_transaction, X_transaction, Y_cascade, X_cascade, excess,
         else:
             mod.update(Y_transaction[t], X_transaction[t, :], Y_cascade[t,:], X_cascade[t, :], excess[t])
 
-    return forecast
+    out = []
+    if ret.__contains__('forecast'): out.append(forecast)
+    if ret.__contains__('model'): out.append(mod)
+    return out
 
 
-def analysis_lognormal_seasonalms(Y, X, prior_length, k, forecast_start, forecast_end, period=7, dates=None, **kwargs):
+def analysis_dlm(Y, X, prior_length, k, forecast_start, forecast_end, holidays = [],
+                 seasPeriods = [7], seasHarmComponents = [[1,2,3]], nsamps = 500,
+                 dates=None, ret=['seasonal_weekly'], **kwargs):
     """
     :param Y: Array of daily sales (typically on the log scale) (n * 1)
     :param X: Array of covariates (n * p)
@@ -225,16 +244,51 @@ def analysis_lognormal_seasonalms(Y, X, prior_length, k, forecast_start, forecas
     :param k: forecast horizon (how many days ahead to forecast)
     :param forecast_start: day to start forecasting (beginning with 0)
     :param forecast_end: day to end forecasting
-    :param period: Integer, giving periodicity of the seasonal component that we want to extract for multiscale inference
+    :param ret: Vector of items to return. Options include:
+        'seasonal_weekly' - a vector of length 7, with day-of-week seasonal effects, and 6 zeros at all times
+        'seasonal' - a single number capturing seasonal effects (less flexiblility for lower level models)
+        'holidays' - a vector of length nhol, with the forecast holiday effects
     :param kwargs: Extra arguments used to initialized the model
     :return:
     """
-    nmod = define_normal_dlm(Y, prior_length, **kwargs)
+
+    # Add the holiday indicator variables to the regression matrix
+    nhol = len(holidays)
+    if nhol > 0:
+        X = define_holiday_regressors(X, dates, holidays)
+
+    nmod = define_normal_dlm(Y, X, prior_length, ntrend=2, nhol=nhol,
+                             seasPeriods=seasPeriods, seasHarmComponents=seasHarmComponents,
+                             **kwargs)
+
     horizons = np.arange(1, k + 1)
-    phi_mu_prior = []
-    phi_sigma_prior = []
-    phi_mu_post = []
-    phi_sigma_post = []
+
+    if ret.__contains__('seasonal_weekly'):
+        period = 7
+        idx = np.where(np.array(nmod.seasPeriods) == 7)[0][0]
+        weekly_seas_mean_prior = []
+        weekly_seas_var_prior = []
+        weekly_seas_mean_post = []
+        weekly_seas_var_post = []
+
+    if ret.__contains__('seasonal'):
+        seas_mean_prior = []
+        seas_var_prior = []
+        seas_mean_post = []
+        seas_var_post = []
+
+    if ret.__contains__('holidays'):
+        hol_mean_prior = []
+        hol_var_prior = []
+        hol_mean_post = []
+        hol_var_post = []
+
+    if ret.__contains__('Y'):
+        Y_mean_prior = []
+        Y_var_prior = []
+        Y_mean_post = []
+        Y_var_post = []
+
 
     # Convert dates into row numbers
     if dates is not None and type(forecast_start) == type(dates[0]):
@@ -242,34 +296,101 @@ def analysis_lognormal_seasonalms(Y, X, prior_length, k, forecast_start, forecas
     if dates is not None and type(forecast_end) == type(dates[0]):
         forecast_end = np.where(dates == forecast_end)[0][0]
 
-    T = np.min([len(Y), forecast_end])
+    T = np.min([len(Y), forecast_end]) + 1
 
     for t in range(prior_length, T):
-        # Forecast the latent factors (for forecasting and updating)
-        today = t % period
 
-        if t % 100 == 0:
-            print(t)
+        # if t % 100 == 0:
+        #     print(t)
 
-        if t >= forecast_start and t < forecast_end:
-            # Forecast the latent factor
-            future_latent_factors = list(map(lambda k: forecast_latent_factor(nmod, k=k, today=today, period=period),
+        if forecast_start <= t <= forecast_end:
+            if t == forecast_start:
+                print('beginning forecasting')
+
+            # Forecast the weekly seasonal factor
+            if ret.__contains__('seasonal_weekly'):
+                future_weekly_seas = list(map(lambda k: forecast_weekly_seasonal_factor(nmod, k=k),
                                              horizons))
-            phi_mu = [lf[0] for lf in future_latent_factors]
-            phi_sigma = [lf[1] for lf in future_latent_factors]
 
-            phi_mu_prior.append(phi_mu)
-            phi_sigma_prior.append(phi_sigma)
+                # Place the weekly seasonal factor into the correct spot in a length 7 vector
+                today = t % period
+                weekly_seas_mean = [np.zeros(period) for i in range(k)]
+                weekly_seas_var = [np.zeros([period, period]) for i in range(k)]
+                for i in range(k):
+                    day = (today + i) % period
+                    weekly_seas_mean[i][day] = future_weekly_seas[i][0]
+                    weekly_seas_var[i][day, day] = future_weekly_seas[i][1]
+                weekly_seas_mean_prior.append(weekly_seas_mean)
+                weekly_seas_var_prior.append(weekly_seas_var)
+
+            # Forecast the future holiday effects
+            if ret.__contains__('holidays'):
+                future_holiday_eff = list(map(lambda X, k: forecast_holiday_effect(nmod, X, k),
+                                              X[t + horizons - 1, -nmod.nhol:], horizons))
+                hol_mean = [h[0] for h in future_holiday_eff]
+                hol_var = [h[1] for h in future_holiday_eff]
+                hol_mean_prior.append(hol_mean)
+                hol_var_prior.append(hol_var)
+
+            # Forecast sales (could also do this analytically, currently using samples)
+            if ret.__contains__('Y'):
+                forecast = list(map(lambda X, k: nmod.forecast_marginal(k=k, X = X, nsamps=nsamps),
+                                    X[t + horizons - 1],
+                                    horizons))
+                Y_mean = [f.mean() for f in forecast]
+                Y_var = [f.var() for f in forecast]
+                Y_mean_prior.append(Y_mean)
+                Y_var_prior.append(Y_var)
 
         # Now observe the true y value, and update:
 
         # Update the normal DLM for total sales
         nmod.update(y=Y[t], X=X[t])
-        phi_mu, phi_sigma = get_latent_factor(nmod, day=today)
-        phi_mu_post.append(phi_mu)
-        phi_sigma_post.append(phi_sigma)
 
-    return phi_mu_prior, phi_sigma_prior, phi_mu_post, phi_sigma_post
+
+        # Get the weekly seasonal factor for updating
+        if ret.__contains__('seasonal_weekly'):
+            today = t % period
+            m, v = get_seasonal_effect_fxnl(nmod.L[idx], nmod.m, nmod.C, nmod.iseas[idx])
+            weekly_seas_mean = np.zeros(period)
+            weekly_seas_var = np.zeros([period, period])
+            weekly_seas_mean[today] = m
+            weekly_seas_var[today, today] = v
+            weekly_seas_mean_post.append(weekly_seas_mean)
+            weekly_seas_var_post.append(weekly_seas_var)
+
+        # Get the holiday effects for updating
+        if ret.__contains__('holidays'):
+            hol_mean_post.append(X[t, -nmod.nhol:] @ nmod.m[nmod.ihol])
+            hol_var_post.append(X[t, -nmod.nhol:] @ nmod.C[np.ix_(nmod.ihol, nmod.ihol)] @ X[t, -nmod.nhol:])
+
+        # Get the sales
+        if ret.__contains__('Y'):
+            Y_mean_post.append(Y[t])
+            Y_var_post.append(0)
+
+    out = []
+    if ret.__contains__('seasonal_weekly'):
+        out.append(weekly_seas_mean_prior)
+        out.append(weekly_seas_var_prior)
+        out.append(weekly_seas_mean_post)
+        out.append(weekly_seas_var_post)
+
+    if ret.__contains__('holidays'):
+        out.append(hol_mean_prior)
+        out.append(hol_var_prior)
+        out.append(hol_mean_post)
+        out.append(hol_var_post)
+
+    if ret.__contains__('Y'):
+        out.append(Y_mean_prior)
+        out.append(Y_var_prior)
+        out.append(Y_mean_post)
+        out.append(Y_var_post)
+
+    if ret.__contains__('model'): out.append(nmod)
+
+    return out
 
 
 def define_holiday_regressors(X, dates, holidays=None):

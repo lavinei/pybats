@@ -23,6 +23,7 @@ class dglm:
                  nregn = 0,
                  ntrend = 0,
                  nmultiscale = 0,
+                 nhol=0,
                  seasPeriods = [],
                  seasHarmComponents = [],
                  deltrend = 1, delregn = 1,
@@ -44,18 +45,21 @@ class dglm:
         """
                 
         # Setting up trend F, G matrices
-        Ftrend = np.ones([ntrend]).reshape(-1,1)
+
         i = 0
         self.itrend = list(range(i, ntrend))
         i += ntrend
         if ntrend == 0:
             Gtrend = np.empty([0, 0])
+            Ftrend = np.zeros([ntrend]).reshape(-1, 1)
         # Local level
         elif ntrend == 1: 
             Gtrend = np.identity(ntrend)
+            Ftrend = np.array([1]).reshape(-1, 1)
         # Locally linear
         elif ntrend == 2:
             Gtrend = np.array([[1, 1], [0, 1]])
+            Ftrend = np.array([1, 0]).reshape(-1, 1)
 
         # Setting up regression F, G matrices
         if nregn == 0:
@@ -66,6 +70,17 @@ class dglm:
             Fregn = np.ones([nregn]).reshape(-1,1)
             self.iregn = list(range(i, i + nregn))
             i += nregn
+
+        # Setting up holiday F, G matrices (additional regression indicators components)
+        if nhol == 0:
+            Fhol = np.empty([0]).reshape(-1, 1)
+            Ghol = np.empty([0, 0])
+        else:
+            Ghol = np.identity(nhol)
+            Fhol = np.ones([nhol]).reshape(-1, 1)
+            self.ihol = list(range(i, i + nhol))
+            self.iregn.extend(self.ihol) # Adding on to the self.iregn
+            i += nhol
             
         # Setting up multiscale F, G matrices and replacing necessary functions
         if nmultiscale == 0:
@@ -82,13 +97,14 @@ class dglm:
             Fseas = np.empty([0]).reshape(-1,1)
             Gseas = np.empty([0, 0])
             nseas = 0
-        elif len(seasPeriods) == 1:
-            Fseas, Gseas = seascomp(seasPeriods[0], seasHarmComponents[0])
-            nseas = Gseas.shape[0]
-            self.L = createFourierToSeasonalL(seasPeriods[0], seasHarmComponents[0], Fseas, Gseas)
-            self.iseas = list(range(i, i + nseas))
-            i += nseas
-        elif len(seasPeriods) > 1:
+        # elif len(seasPeriods) == 1:
+        #     Fseas, Gseas = seascomp(seasPeriods[0], seasHarmComponents[0])
+        #     nseas = Gseas.shape[0]
+        #     self.L = createFourierToSeasonalL(seasPeriods[0], seasHarmComponents[0], Fseas, Gseas)
+        #     self.iseas = list(range(i, i + nseas))
+        #     i += nseas
+        # elif len(seasPeriods) > 1:
+        else:
             output = list(map(seascomp, seasPeriods, seasHarmComponents))
             Flist = [x[0] for x in output]
             Glist = [x[1] for x in output]
@@ -97,8 +113,10 @@ class dglm:
             Fseas = np.zeros([nseas]).reshape(-1,1)
             Gseas = np.zeros([nseas, nseas])
             idx = 0
-            self.iseas = list(range(i, i + nseas))
-            i += nseas
+            self.iseas = []
+            for harmComponents in seasHarmComponents:
+                self.iseas.append(list(range(i, i + 2*len(harmComponents))))
+                i += 2*len(harmComponents)
             for Fs, Gs in output:
                 idx2 = idx + Fs.shape[0]
                 Fseas[idx:idx2,0] = Fs.squeeze()
@@ -107,12 +125,12 @@ class dglm:
 
 
         # Combine the F and G components together
-        F = np.vstack([Ftrend, Fregn, Fmultiscale, Fseas])
-        G = sc.linalg.block_diag(Gtrend, Gregn, Gmultiscale, Gseas)
+        F = np.vstack([Ftrend, Fregn, Fhol, Fmultiscale, Fseas])
+        G = sc.linalg.block_diag(Gtrend, Gregn, Ghol, Gmultiscale, Gseas)
 
         # Set up discount matrix
         component_discount = []
-        for discount, n in zip([deltrend, delregn, delmultiscale, delseas], [ntrend, nregn, nmultiscale, nseas]):
+        for discount, n in zip([deltrend, delregn, delhol, delmultiscale, delseas], [ntrend, nregn, nhol, nmultiscale, nseas]):
             if n > 0:
                 if isinstance(discount, Iterable):
                     if len(discount) < n:
@@ -129,8 +147,9 @@ class dglm:
         
         self.param1 = 2 # Random initial guess
         self.param2 = 2 # Random initial guess
-        self.nregn = nregn
+        self.nregn = nregn + nhol # Adding on nhol
         self.ntrend = ntrend
+        self.nhol = nhol
         self.nmultiscale = nmultiscale
         self.seasPeriods = seasPeriods
         self.nseas = nseas
@@ -320,6 +339,9 @@ class pois_dglm(dglm):
     def marginal_cdf(self, y, alpha, beta):
         return stats.nbinom.cdf(y, alpha, beta/(1 + beta))
 
+    def marginal_inverse_cdf(self, cdf, alpha, beta):
+        return stats.nbinom.ppf(cdf, alpha, beta / (1 + beta))
+
     def loglik(self, y, alpha, beta):
         return stats.nbinom.logpmf(y, alpha, beta/(1 + beta))
     
@@ -357,7 +379,6 @@ class normal_dlm(dglm):
 
     def update(self, y=None, X=None):
         update_normaldlm(self, y, X)
-
 
     def forecast_path(self, k, X = None, nsamps = 1):
         return forecast_path_normaldlm(self, k, X, nsamps)

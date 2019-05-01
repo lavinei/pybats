@@ -1,7 +1,6 @@
 # These are for the general DGLM
 import numpy as np
 import scipy as sc
-from .seasonal import fourierToSeasonalFxnl, fourierToSeasonal
 from .forecast import forecast_path_approx_sim, forecast_path_approx_dens_MC
 import multiprocessing
 from functools import partial
@@ -83,7 +82,7 @@ def multiscale_update_approx(mod, y = None, X = None, phi_mu = None, phi_sigma =
             
     # Put the mean of the latent factor phi_mu into the F vector    
     if mod.nmultiscale > 0:
-        mod.F[mod.imultiscale] = phi_mu
+        mod.F[mod.imultiscale] = phi_mu.reshape(mod.nmultiscale,1)
             
     # If data is missing then skip discounting and updating, posterior = prior
     if y is None or np.isnan(y):
@@ -102,9 +101,19 @@ def multiscale_update_approx(mod, y = None, X = None, phi_mu = None, phi_sigma =
             
         # Mean and variance
         ft, qt = mod.multiscale_get_mean_and_var(mod.F, mod.a, mod.R, phi_mu, phi_sigma, mod.imultiscale)
+        # if qt[0] < 0:
+        #     print('correcting matrix')
+        #     while qt<0:
+        #         mod.R[np.diag_indices_from(mod.R)] += 0.001
+        #         ft, qt = mod.multiscale_get_mean_and_var(mod.F, mod.a, mod.R, phi_mu, phi_sigma, mod.imultiscale)
+        #     print(ft, qt)
 
         # Choose conjugate prior, match mean and variance
-        mod.param1, mod.param2 = mod.get_conjugate_params(ft, qt, mod.param1, mod.param2)
+        # Initializing the optimization routine at 1,1 is important. At bad initializations, optimizer can shoot off to infinity.
+        mod.param1, mod.param2 = mod.get_conjugate_params(ft, qt, 1, 1)
+        if mod.param1 > 1E7:
+            print('Numerical instabilities appearing in params of ' + str(type(mod)))
+
         # See time t observation y (which was passed into the update function)
         mod.t += 1
         
@@ -232,7 +241,7 @@ def multiscale_forecast_marginal_approx(mod, k, X = None, phi_mu = None, phi_sig
             
     # Put the mean of the latent factor phi_mu into the F vector    
     if mod.nmultiscale > 0:
-        F[mod.imultiscale] = phi_mu
+        F[mod.imultiscale] = phi_mu.reshape(mod.nmultiscale,1)
         
     Gk = np.linalg.matrix_power(mod.G, k-1)
     a = Gk @ mod.a
@@ -287,7 +296,7 @@ def multiscale_forecast_path_approx(mod, k, X = None, phi_mu = None, phi_sigma =
             
         # Put the mean of the latent factor phi_mu into the F vector    
         if mod.nmultiscale > 0:
-            F[mod.imultiscale] = phi_mu[i]
+            F[mod.imultiscale] = phi_mu[i].reshape(mod.nmultiscale,1)
             
         Flist[i] = np.copy(F)
             
@@ -313,82 +322,38 @@ def multiscale_forecast_path_approx(mod, k, X = None, phi_mu = None, phi_sigma =
     else:
         return forecast_path_approx_sim(mod, k, lambda_mu, lambda_cov, nsamps, t_dist, nu)
 
-
-################# FUNCTIONS FOR WORKING WITH SEASONAL LATENT FACTORS FROM THE HIGHER LEVEL NORMAL DLM ##############
-
-
-def get_latent_factor(mod, day):
-    phi_mu = np.zeros([mod.seasPeriods[0], 1])
-    phi_sigma = np.zeros([mod.seasPeriods[0], mod.seasPeriods[0]])
-    phi, var = fourierToSeasonal(mod)
-    phi_mu[day] = phi[0]
-    phi_sigma[day, day] = var[0, 0]
-    return phi_mu, phi_sigma
-
-def get_latent_factor_fxnl(day, L, m, C, iseas, seasPeriods):
-    phi_mu = np.zeros([seasPeriods, 1])
-    phi_sigma = np.zeros([seasPeriods, seasPeriods])
-    phi, var = fourierToSeasonalFxnl(L, m, C, iseas)
-    phi_mu[day] = phi[0]
-    phi_sigma[day, day] = var[0, 0]
-    return phi_mu, phi_sigma
-
-def sample_latent_factor(mod, day, nsamps):
-    phi_samps = np.zeros([nsamps, mod.seasPeriods[0]])
-    phi, var = fourierToSeasonalFxnl(mod.L, mod.m, mod.C, mod.iseas)
-    phi_samps[:, day] = phi[0] + np.sqrt(var[0,0])*np.random.standard_t(mod.delVar*mod.n, size = [nsamps])
-    return phi_samps
-
-def sample_latent_factor_fxnl(day, L, m, C, iseas, seasPeriods, delVar, n, nsamps):
-    phi_samps = np.zeros([nsamps, seasPeriods])
-    phi, var = fourierToSeasonalFxnl(L, m, C, iseas)
-    phi_samps[:, day] = phi[0] + np.sqrt(var[0,0])*np.random.standard_t(delVar*n, size = [nsamps])
-    return phi_samps
-
-def forecast_latent_factor(mod, k, today, period, sample = False, nsamps = 1):
+################ FUNCTIONS TO EXTRACT MULTISCALE SIGNAL... E.G. HOLIDAY REGRESSION COEFFICIENTS ###############
+def forecast_holiday_effect(mod, X, k):
     Gk = np.linalg.matrix_power(mod.G, k-1)
     a = Gk @ mod.a
     R = Gk @ mod.R @ Gk.T + (k-1)*mod.W
-    
-    if sample:
-        return sample_latent_factor_fxnl((today + k - 1) % period, mod.L, a, R, mod.iseas, mod.seasPeriods[0], mod.delVar, mod.n, nsamps)
-    else:
-        return get_latent_factor_fxnl((today + k - 1) % period, mod.L, a, R, mod.iseas, mod.seasPeriods[0])
-    
-def forecast_path_latent_factor(mod, k, today, period, sample = False, nsamps = 1):
-    phi_mu = [None for x in range(k)]
-    phi_sigma = [None for x in range(k)]
-    phi_psi = [[None for y in range(x)] for x in range(k)]
-    phi_samps = np.zeros([k, nsamps])
-    p = mod.seasPeriods[0]
-    Rlist = [None for x in range(k)]
-            
-    for i in range(k):
-        
-        # Get the marginal a, R
-        Gk = np.linalg.matrix_power(mod.G, i)
-        a = Gk @ mod.a
-        R = Gk @ mod.R @ Gk.T + (i)*mod.W
-            
-        Rlist[i] = R
-        
-        if sample:
-            phi_samps[i, :] = sample_latent_factor_fxnl((today + i) % period, mod.L, a, R, mod.iseas, mod.seasPeriods[0], mod.delVar, mod.n, nsamps)
-        else:
-            phi_mu[i], phi_sigma[i] = get_latent_factor_fxnl((today + i) % period, mod.L, a, R, mod.iseas, mod.seasPeriods[0])
-            
-            # Find covariances with previous latent factor values
-            for j in range(i):
-                # Covariance matrix between the state vector at times j, i, i > j
-                idx_i = (today + i) % period
-                idx_j = (today + j) % period
-                cov_ij = (np.linalg.matrix_power(mod.G, i-j) @ Rlist[j])[np.ix_(mod.iseas, mod.iseas)]
-                phi_psi[i][j] = np.zeros([p, p])
-                phi_psi[i][j][idx_i,idx_j] = (mod.L @ cov_ij @ mod.L.T)[idx_i, idx_j]
-                            
-    if sample:
-        return phi_samps
-    else:
-        return phi_mu, phi_sigma, phi_psi
-    
-    
+
+    mean = X.T @ a[mod.ihol]
+    var = X.T @ R[np.ix_(mod.ihol, mod.ihol)] @ X
+    return mean, var
+
+def combine_multiscale(*signals):
+    phi_mu_prior = []
+    phi_sigma_prior = []
+    phi_mu_post = []
+    phi_sigma_post = []
+    num_signals = len(signals)
+    k = len(signals[0][0][0]) # Forecast length
+    prior_len = len(signals[0][0])
+    post_len = len(signals[0][2])
+
+    for i in range(post_len):
+        mean = np.concatenate([signals[n][2][i] for n in range(num_signals)])
+        var = sc.linalg.block_diag(*[signals[n][3][i] for n in range(num_signals)])
+        phi_mu_post.append(mean)
+        phi_sigma_post.append(var)
+
+    for i in range(prior_len):
+        mean = [np.concatenate([signals[n][0][i][j] if isinstance(signals[n][0][i][j], np.ndarray) else
+                                np.array(signals[n][0][i][j]).reshape(-1) for n in range(num_signals)]) for j in range(k)]
+        # mean = [np.concatenate([signals[n][0][i][j] for n in range(num_signals)]) for j in range(k)]
+        var = [sc.linalg.block_diag(*[signals[n][1][i][j] for n in range(num_signals)]) for j in range(k)]
+        phi_mu_prior.append(mean)
+        phi_sigma_prior.append(var)
+
+    return phi_mu_prior, phi_sigma_prior, phi_mu_post, phi_sigma_post
