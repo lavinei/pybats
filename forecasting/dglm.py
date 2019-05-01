@@ -7,6 +7,7 @@ from .update import update, update_normaldlm, update_bindglm
 from .forecast import forecast_marginal, forecast_path, forecast_path_approx, forecast_marginal_bindglm, forecast_path_normaldlm
 from .multiscale import multiscale_forecast_marginal, multiscale_forecast_marginal_approx, multiscale_forecast_path_approx
 from .multiscale import multiscale_update, multiscale_update_approx, multiscale_get_mean_and_var
+from .conjugates import trigamma, bern_conjugate_params, bin_conjugate_params, pois_conjugate_params
 
 # These are for the bernoulli and Poisson DGLMs
 from scipy.special import digamma
@@ -227,18 +228,16 @@ class dglm:
 
 
 class bern_dglm(dglm):
-    
-    def trigamma(self, x):
-        return sc.special.polygamma(x = x, n = 1)
 
-    def beta_approx(self, x, ft, qt):
-        x = x**2
-        return np.array([digamma(x[0]) - digamma(x[1]) - ft, self.trigamma(x = x[0]) + self.trigamma(x = x[1]) - qt]).reshape(-1)
-    
+    def get_mean_and_var(self, F, a, R):
+        ft, qt =  F.T @ a, F.T @ R @ F
+        ft, qt = ft.flatten()[0], qt.flatten()[0]
+        return ft, qt
+
     def get_conjugate_params(self, ft, qt, alpha, beta):
+        # print('beta', ft, qt, np.sqrt(qt))
         # Choose conjugate prior, beta, and match mean & variance
-        sol = opt.root(partial(self.beta_approx, ft = ft, qt = qt), x0 = np.sqrt(np.array([alpha, beta])))
-        return sol.x**2
+        return bern_conjugate_params(ft, qt, alpha, beta)
     
     def update_conjugate_params(self, y, alpha, beta):
         # Update alpha and beta to the conjugate posterior coefficients
@@ -247,7 +246,11 @@ class bern_dglm(dglm):
 
         # Get updated ft* and qt*
         ft_star = digamma(alpha) - digamma(beta)
-        qt_star = self.trigamma(alpha) + self.trigamma(beta)
+        qt_star = trigamma(alpha) + trigamma(beta)
+
+        # constrain this thing from going to crazy places?
+        ft_star = max(-5.5, min(ft_star, 5.5))
+        qt_star = max(0.0001, min(qt_star, 6))
         
         return alpha, beta, ft_star, qt_star
     
@@ -301,17 +304,10 @@ class pois_dglm(dglm):
 
         return F.T @ a, (F.T @ R @ F + extra_var) / self.rho
     
-    def trigamma(self, x):
-        return sc.special.polygamma(x = x, n = 1)
-
-    def gamma_approx(self, x, ft, qt):
-        x = x**2 
-        return np.array([digamma(x[0]) - np.log(x[1]) - ft, self.trigamma(x = x[0]) - qt]).reshape(-1)
-    
     def get_conjugate_params(self, ft, qt, alpha, beta):
         # Choose conjugate prior, gamma, and match mean & variance
-        sol = opt.root(partial(self.gamma_approx, ft = ft, qt = qt), x0 = np.sqrt(np.array([alpha, beta])))
-        return sol.x**2
+        # print('gamma', ft, qt)
+        return pois_conjugate_params(ft, qt, alpha, beta)
     
     def update_conjugate_params(self, y, alpha, beta):
         # Update alpha and beta to the conjugate posterior coefficients
@@ -320,7 +316,11 @@ class pois_dglm(dglm):
 
         # Get updated ft* and qt*
         ft_star = digamma(alpha) - np.log(beta)
-        qt_star = self.trigamma(alpha)
+        qt_star = trigamma(alpha)
+
+        # constrain this thing from going to crazy places?
+        ft_star = max(-5, ft_star)
+        qt_star = max(0.0001, min(qt_star, 6))
         
         return alpha, beta, ft_star, qt_star
     
@@ -385,18 +385,10 @@ class normal_dlm(dglm):
     
     
 class bin_dglm(dglm):
-    
-    def trigamma(self, x):
-        return sc.special.polygamma(x = x, n = 1)
 
-    def beta_approx(self, x, ft, qt):
-        x = x**2
-        return np.array([digamma(x[0]) - digamma(x[1]) - ft, self.trigamma(x = x[0]) + self.trigamma(x = x[1]) - qt]).reshape(-1)
-    
     def get_conjugate_params(self, ft, qt, alpha, beta):
         # Choose conjugate prior, beta, and match mean & variance
-        sol = opt.root(partial(self.beta_approx, ft = ft, qt = qt), x0 = np.sqrt(np.array([alpha, beta])))
-        return sol.x**2
+        return bin_conjugate_params(ft, qt, alpha, beta)
     
     def update_conjugate_params(self, n, y, alpha, beta):
         # Update alpha and beta to the conjugate posterior coefficients
@@ -405,7 +397,11 @@ class bin_dglm(dglm):
 
         # Get updated ft* and qt*
         ft_star = digamma(alpha) - digamma(beta)
-        qt_star = self.trigamma(alpha) + self.trigamma(beta)
+        qt_star = trigamma(alpha) + trigamma(beta)
+
+        # constrain this thing from going to crazy places?
+        ft_star = max(-5.5, min(ft_star, 5.5))
+        qt_star = max(0.0001, min(qt_star, 6))
         
         return alpha, beta, ft_star, qt_star
     
@@ -440,3 +436,4 @@ class bin_dglm(dglm):
 
     def forecast_marginal(self, n, k, X = None, nsamps = 1, mean_only = False):
         return forecast_marginal_bindglm(self, n, k, X, nsamps, mean_only)
+
