@@ -36,15 +36,16 @@ def gamma_approx(x, ft, qt):
 
 # generic conj function
 def conj_params(ft, qt, alpha=1., beta=1., interp=False, approx_fn=None, interp_fn=None):
+    # the shape of these can vary a lot, so standardizing here.
+    ft, qt = np.ravel(ft)[0], np.ravel(qt)[0]
     # do we want to interpolate?
     if interp and interp_fn is not None:
         # we may be asking for a value that's outside the interp range
         if interp_fn.ft_lb < ft < interp_fn.ft_ub and \
-                interp_fn.qt_lb < qt < interp_fn.qt_ub:
+                interp_fn.qt_lb**2 < qt < interp_fn.qt_ub**2:
             return interp_fn(ft, qt)
-
     # all else fails, do the optimization
-    sol = opt.root(partial(approx_fn, ft=ft, qt=qt), x0=np.sqrt(np.array([alpha, beta])))
+    sol = opt.root(partial(approx_fn, ft=ft, qt=qt), x0=np.sqrt(np.array([alpha, beta])), method='lm')
     return sol.x ** 2
 
 
