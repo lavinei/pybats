@@ -237,7 +237,7 @@ class bern_dglm(dglm):
     def get_conjugate_params(self, ft, qt, alpha, beta):
         # print('beta', ft, qt, np.sqrt(qt))
         # Choose conjugate prior, beta, and match mean & variance
-        return bern_conjugate_params(ft, qt, alpha, beta)
+        return bern_conjugate_params(ft, qt, alpha, beta).flatten()
     
     def update_conjugate_params(self, y, alpha, beta):
         # Update alpha and beta to the conjugate posterior coefficients
@@ -307,7 +307,7 @@ class pois_dglm(dglm):
     def get_conjugate_params(self, ft, qt, alpha, beta):
         # Choose conjugate prior, gamma, and match mean & variance
         # print('gamma', ft, qt)
-        return pois_conjugate_params(ft, qt, alpha, beta)
+        return pois_conjugate_params(ft, qt, alpha, beta).flatten()
     
     def update_conjugate_params(self, y, alpha, beta):
         # Update alpha and beta to the conjugate posterior coefficients
@@ -388,7 +388,7 @@ class bin_dglm(dglm):
 
     def get_conjugate_params(self, ft, qt, alpha, beta):
         # Choose conjugate prior, beta, and match mean & variance
-        return bin_conjugate_params(ft, qt, alpha, beta)
+        return bin_conjugate_params(ft, qt, alpha, beta).flatten()
     
     def update_conjugate_params(self, n, y, alpha, beta):
         # Update alpha and beta to the conjugate posterior coefficients
