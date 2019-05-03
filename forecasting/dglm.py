@@ -12,8 +12,6 @@ from .conjugates import trigamma, bern_conjugate_params, bin_conjugate_params, p
 # These are for the bernoulli and Poisson DGLMs
 from scipy.special import digamma
 from scipy.special import beta as beta_fxn
-from scipy import optimize as opt
-from functools import partial
 from scipy import stats
 
 class dglm:
@@ -29,7 +27,8 @@ class dglm:
                  seasHarmComponents = [],
                  deltrend = 1, delregn = 1,
                  delmultiscale = 1,
-                 delhol = 1, delseas = 1):
+                 delhol = 1, delseas = 1,
+                 interpolate=True):
         """
         :param a0: Prior mean vector
         :param R0: Prior covariance matrix
@@ -43,6 +42,7 @@ class dglm:
         :param delmultiscale: Discount factor on multiscale components
         :param delhol: Discount factor on holiday components (currently deprecated)
         :param delseas: Discount factor on seasonal components
+        :param interpolate: Whether to use interpolation for conjugate parameters
         """
                 
         # Setting up trend F, G matrices
@@ -161,6 +161,7 @@ class dglm:
         self.R = R0
         self.W = self.get_W()
         self.t = 0
+        self.interpolate = interpolate
         
     def update(self, y = None, X = None):
         update(self, y, X)
@@ -237,8 +238,8 @@ class bern_dglm(dglm):
     def get_conjugate_params(self, ft, qt, alpha, beta):
         # print('beta', ft, qt, np.sqrt(qt))
         # Choose conjugate prior, beta, and match mean & variance
-        return bern_conjugate_params(ft, qt, alpha, beta).flatten()
-    
+        return bern_conjugate_params(ft, qt, alpha, beta, interp=self.interpolate)
+
     def update_conjugate_params(self, y, alpha, beta):
         # Update alpha and beta to the conjugate posterior coefficients
         alpha = alpha + y
@@ -249,8 +250,8 @@ class bern_dglm(dglm):
         qt_star = trigamma(alpha) + trigamma(beta)
 
         # constrain this thing from going to crazy places?
-        ft_star = max(-5.5, min(ft_star, 5.5))
-        qt_star = max(0.0001, min(qt_star, 6))
+        ft_star = max(-8, min(ft_star, 8))
+        qt_star = max(0.001**2, min(qt_star, 4**2))
         
         return alpha, beta, ft_star, qt_star
     
@@ -307,8 +308,8 @@ class pois_dglm(dglm):
     def get_conjugate_params(self, ft, qt, alpha, beta):
         # Choose conjugate prior, gamma, and match mean & variance
         # print('gamma', ft, qt)
-        return pois_conjugate_params(ft, qt, alpha, beta).flatten()
-    
+        return pois_conjugate_params(ft, qt, alpha, beta, interp=self.interpolate)
+
     def update_conjugate_params(self, y, alpha, beta):
         # Update alpha and beta to the conjugate posterior coefficients
         alpha = alpha + float(y)
@@ -319,8 +320,7 @@ class pois_dglm(dglm):
         qt_star = trigamma(alpha)
 
         # constrain this thing from going to crazy places?
-        ft_star = max(-5, ft_star)
-        qt_star = max(0.0001, min(qt_star, 6))
+        #qt_star = max(0.001**2, min(qt_star, 4**2))
         
         return alpha, beta, ft_star, qt_star
     
@@ -388,8 +388,8 @@ class bin_dglm(dglm):
 
     def get_conjugate_params(self, ft, qt, alpha, beta):
         # Choose conjugate prior, beta, and match mean & variance
-        return bin_conjugate_params(ft, qt, alpha, beta).flatten()
-    
+        return bin_conjugate_params(ft, qt, alpha, beta, interp=self.interpolate)
+
     def update_conjugate_params(self, n, y, alpha, beta):
         # Update alpha and beta to the conjugate posterior coefficients
         alpha = alpha + y
@@ -400,8 +400,8 @@ class bin_dglm(dglm):
         qt_star = trigamma(alpha) + trigamma(beta)
 
         # constrain this thing from going to crazy places?
-        ft_star = max(-5.5, min(ft_star, 5.5))
-        qt_star = max(0.0001, min(qt_star, 6))
+        ft_star = max(-8, min(ft_star, 8))
+        qt_star = max(0.001**2, min(qt_star, 4**2))
         
         return alpha, beta, ft_star, qt_star
     

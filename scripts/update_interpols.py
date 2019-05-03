@@ -5,8 +5,9 @@ import sys
 sys.path.insert(0, '.')
 
 from forecasting.conjugates import bern_conjugate_params, pois_conjugate_params, pois_alpha_param
-from forecasting.shared import transformer, _interp_fn_log_wrap, gamma_interp_fn_log_beta, gamma_interp_fn_log_alpha
+from forecasting.shared import transformer, trigamma, gamma_transformer
 from scipy import interpolate
+from scipy import optimize as opt
 from scipy.special import digamma
 
 import pickle
@@ -14,43 +15,36 @@ import zlib
 from functools import partial
 
 
-def _get_grid(ft_lb, ft_ub, qt_lb, qt_ub, num=250j):
-    ft, qt = np.mgrid[ft_lb:ft_ub:num, qt_lb:qt_ub:num]
-    return ft.flatten(), qt.flatten()
-
+def _get_grid(ft_lb, ft_ub, qt_lb, qt_ub, num=300j):
+    # get a grid of means on a linear scale and std devs on log scale
+    ft, qt = np.mgrid[ft_lb:ft_ub:num, np.log(qt_lb):np.log(qt_ub):num]
+    return ft.flatten(), np.exp(qt.flatten())
 
 def interp_gamma():
     """
-    We will interpolate based on reasonable values of the mean and std dev.
+    We will interpolate based on reasonable values of the std dev and use the exact mean.
 
-    For gamma, -4 is pretty small on the log scale and 8 is quite large. Similarly,
-    0.01 is a very small std dev and 2 is a pretty big spread (on the log scale).
+    For the std dev, 0.001 is a very small std dev and 4 is a pretty big spread (on the log scale).
 
     :return: a stand in fn for interpolating the conjugate map
     """
     # get the grid we will search
-    ft_lb, ft_ub, qt_lb, qt_ub = -4, 8, 0.01, 2
-    ft, qt = _get_grid(ft_lb, ft_ub, qt_lb, qt_ub)
+    qt_lb, qt_ub = 0.0001, 4
+    qt = np.exp(np.linspace(np.log(qt_lb), np.log(qt_ub), 5000))
 
     # do a bunch of solves
-    z = np.empty((len(ft), 2))
-    for i in range(len(ft)):
-        alpha = pois_alpha_param(qt[i]**2, alpha=1.)
-        beta = np.exp(digamma(alpha) - ft[i])
-        z[i, :] = np.log(np.array([alpha, beta])).reshape(-1)
+    z = np.empty(len(qt))
+    for i in range(len(qt)):
+        z[i] = np.log(pois_alpha_param(qt[i] ** 2))
 
-    _interp_fn_log_alpha = interpolate.LSQUnivariateSpline(qt[:250], z[:250, 0],
-                                                           np.linspace(qt_lb * 1.01, qt_ub * 0.99, 50),
-                                                           bbox=[0., qt_ub + 3],
-                                                           k=2)
-
+    knots = np.exp(np.linspace(np.log(qt[5]), np.log(qt[-5]), 100))
+    bbox = [0, qt_ub + 2]
+    _interp_fn_log_alpha = interpolate.LSQUnivariateSpline(qt, z,
+                                                           knots, bbox=bbox, k=1)
 
     # transform to original scale and variance instead of std dev
-    fn = partial(transformer,
-                 fn1=partial(gamma_interp_fn_log_alpha, _interp_fn_log_alpha = _interp_fn_log_alpha),
-                 fn2=partial(gamma_interp_fn_log_beta, _interp_fn_log_alpha = _interp_fn_log_alpha))
-
-    fn.ft_lb, fn.ft_ub, fn.qt_lb, fn.qt_ub = -5, 9, 0.01 ** 2, 2 ** 2
+    fn = partial(gamma_transformer, fn=_interp_fn_log_alpha)
+    fn.ft_lb, fn.ft_ub, fn.qt_lb, fn.qt_ub = -np.inf, np.inf, bbox[0], bbox[1]
     return fn
 
 
@@ -58,40 +52,39 @@ def interp_beta():
     """
     We will interpolate based on reasonable values of the mean and std dev.
 
-    For beta, -4 is pretty small on the log scale and 4 is quite large. Similarly,
-    0.01 is a very small std dev and 2 is a pretty big spread (on the log scale).
+    For beta, -8 is pretty small on the log scale and 8 is quite large. Similarly,
+    0.001 is a very small std dev and 4 is a pretty big spread (on the log scale).
 
     :return: a stand in fn for interpolating the conjugate map
     """
     # get the grid we will search
-    ft_lb, ft_ub, qt_lb, qt_ub = -6, 6, 0.05, 2
-    ft, qt = _get_grid(ft_lb, ft_ub, qt_lb, qt_ub, num=350j)
+    ft_lb, ft_ub, qt_lb, qt_ub = -8, 8, 0.0001, 4
+    ft, qt = _get_grid(ft_lb, ft_ub, qt_lb, qt_ub)
 
     # do a bunch of solves
     z = np.empty((len(ft), 2))
     for i in range(len(ft)):
         z[i, :] = np.log(bern_conjugate_params(ft[i], qt[i] ** 2, alpha=1, beta=1, interp=False))
 
-    npts = 100
+    # ft and qt knots
+    num_knots = 75
+    ftv, qtv = np.sort(np.unique(ft)), np.sort(np.unique(qt))
+    # make sure there are a few points outside the knots
+    ft_knots = np.linspace(ftv[3], ftv[-3], num_knots)
+    qt_knots = np.exp(np.linspace(np.log(qtv[3]), np.log(qtv[-3]), num_knots))
+    bbox = [ft_lb - 2, ft_ub + 2, 0., qt_ub + 2]
 
     _interp_fn_log_alpha = interpolate.LSQBivariateSpline(ft, qt, z[:, 0],
-                                                          np.linspace(ft_lb * 0.99, ft_ub * 0.99, npts),
-                                                          np.linspace(qt_lb * 1.01, qt_ub * 0.99, npts),
-                                                          bbox=[ft_lb - 2, ft_ub + 2, 0., qt_ub + 3],
-                                                          kx=2, ky=2)
-
+                                                          ft_knots, qt_knots,
+                                                          bbox=bbox,
+                                                          kx=1, ky=1)
     _interp_fn_log_beta = interpolate.LSQBivariateSpline(ft, qt, z[:, 1],
-                                                         np.linspace(ft_lb * 0.99, ft_ub * 0.99, npts),
-                                                         np.linspace(qt_lb * 1.01, qt_ub * 0.99, npts),
-                                                         bbox=[ft_lb - 2, ft_ub + 2, 0., qt_ub + 3],
-                                                         kx=2, ky=2)
-
+                                                         ft_knots, qt_knots,
+                                                         bbox=bbox,
+                                                         kx=1, ky=1)
     # transform to original scale and variance instead of std dev
-    fn = partial(transformer,
-                 fn1=partial(_interp_fn_log_wrap, _interp_fn_log = _interp_fn_log_alpha),
-                 fn2=partial(_interp_fn_log_wrap, _interp_fn_log = _interp_fn_log_beta))
-
-    fn.ft_lb, fn.ft_ub, fn.qt_lb, fn.qt_ub = -7, 7, np.round(0.05 ** 2, 4), 2 ** 2
+    fn = partial(transformer, fn1=_interp_fn_log_alpha, fn2=_interp_fn_log_beta)
+    fn.ft_lb, fn.ft_ub, fn.qt_lb, fn.qt_ub = bbox
     return fn
 
 
