@@ -170,36 +170,44 @@ class dglm:
     def build_discount_matrix(self, X=None):
         # build up discount factors while possibly taking special care to not discount when the "regn"
         # type factors are zero
-        component_discounts = []
+
+        # do this all with matrix slicing which is much faster than the block diag
+        p = np.sum([self.ntrend, self.nregn_exhol, self.nhol, self.nmultiscale, self.nseas])
+        # start with no discounting
+        component_discounts = np.ones([p, p])
+        i = 0 # this will be the offset of the current block
         for discount_pair, n in zip([('std', self.deltrend), ('regn', self.delregn), ('regn', self.delhol),
                                      ('std', self.delmultiscale), ('std', self.delseas)],
                                     [self.ntrend, self.nregn_exhol, self.nhol, self.nmultiscale, self.nseas]):
-            component_discount = []
             discount_type, discount = discount_pair
             if n > 0:
                 if isinstance(discount, Iterable):
                     if len(discount) < n:
                         raise ValueError('Error: Length of discount factors must be 1 or match component length')
-                    for disc in discount[:n]:
-                        component_discount.append(disc * np.ones([1, 1]))
+                    for j, disc in enumerate(discount[:n]):
+                        # fill the diags one at a time
+                        component_discounts[i+j, i+j] = disc
                 else:
-                    component_discount.append(discount * np.ones([n, n]))
-                component_discount = sc.linalg.block_diag(*component_discount)
+                    # fill the block with the constant
+                    component_discounts[i:(i+n), i:(i+n)] = discount
 
                 # overwrite with ones if doing the positive logic
                 if X is not None and self.positive_regn_discount and discount_type == 'regn':
+                    # offset of the regression params
                     regn_i = 0
-                    for i in range(n):
+                    # look through the regression params and set that slice on the
+                    # discount to 1 if 0
+                    for j in range(n):
                         if X[regn_i] == 0:
-                            # set all discounnts to one
-                            component_discount[i, :] = 0.
-                            component_discount[:, i] = 0.
+                            # set all discounts to one (i offsets the block and j offsets the regn param)
+                            component_discounts[i + j, :] = 1.
+                            component_discounts[:, i + j] = 1.
                         regn_i += 1
-                component_discounts.append(component_discount)
 
-        Discount = sc.linalg.block_diag(*component_discounts)
-        Discount[Discount == 0] = 1
-        return Discount
+                # move on to the next block
+                i += n
+
+        return component_discounts
 
     def update(self, y=None, X=None):
         update(self, y, X)
