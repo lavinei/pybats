@@ -173,13 +173,13 @@ class dglm:
         component_discounts = []
         for discount_pair, n in zip([('std', self.deltrend), ('regn', self.delregn), ('regn', self.delhol),
                                      ('std', self.delmultiscale), ('std', self.delseas)],
-                                    [self.ntrend, self.nregn, self.nhol, self.nmultiscale, self.nseas]):
+                                    [self.ntrend, self.nregn_exhol, self.nhol, self.nmultiscale, self.nseas]):
             component_discount = []
             discount_type, discount = discount_pair
             if n > 0:
                 if isinstance(discount, Iterable):
                     if len(discount) < n:
-                        print('Error: Length of discount factors must be 1 or match component length')
+                        raise ValueError('Error: Length of discount factors must be 1 or match component length')
                     for disc in discount[:n]:
                         component_discount.append(disc * np.ones([1, 1]))
                 else:
