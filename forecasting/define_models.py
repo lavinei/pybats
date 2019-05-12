@@ -68,27 +68,13 @@ def define_dcmm(Y, X, prior_length = 30, seasPeriods = [7], seasHarmComponents =
     ntrend = 1
     nseas = 2*sum(map(len, seasHarmComponents))
 
-
-    # deltrend_bern = deltrend if delbern is None else delbern
-    # deltrend_pois = deltrend if delpois is None else delpois
-    #
-    # delregn_bern = delregn if delbern is None else delbern
-    # delregn_pois = delregn if delpois is None else delpois
-    #
-    # delseas_bern = delseas if delbern is None else delbern
-    # delseas_pois = delseas if delpois is None else delpois
-    #
-    # delmultiscale_bern = delmultiscale if delbern is None else delbern
-    # delmultiscale_pois = delmultiscale if delpois is None else delpois
-    #
-    # delhol_bern = delhol if delbern is None else delbern
-    # delhol_pois = delhol if delpois is None else delpois
-
     pois_params, bern_params = define_dcmm_params(Y, X, prior_length)
+
+    #print(pois_params, bern_params)
 
     prior = [[*bern_params], [0] * nseas, [1] * nmultiscale]
     a0_bern = np.array([m for ms in prior for m in ms]).reshape(-1, 1)
-    R0_bern = np.identity(a0_bern.shape[0])/2
+    R0_bern = np.identity(a0_bern.shape[0])
 
     prior =[ [*pois_params], [0] * nseas, [1] * nmultiscale]
     a0_pois = np.array([m for ms in prior for m in ms]).reshape(-1, 1)

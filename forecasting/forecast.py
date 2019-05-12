@@ -15,7 +15,9 @@ def forecast_marginal(mod, k, X = None, nsamps = 1, mean_only = False):
     # Evolve to the prior for time t + k
     Gk = np.linalg.matrix_power(mod.G, k-1)
     a = Gk @ mod.a
-    R = Gk @ mod.R @ Gk.T + (k-1)*mod.W
+    R = Gk @ mod.R @ Gk.T
+    if mod.discount_forecast:
+        R += (k-1)*mod.W
 
     # Mean and variance
     ft, qt = mod.get_mean_and_var(F, a, R)
@@ -77,8 +79,9 @@ def forecast_path(mod, k, X = None, nsamps = 1):
             R = (R + R.T)/2
                 
             # Discount information
-            R = R + mod.W
-                
+            if mod.discount_forecast:
+                R = R + mod.W
+
     return samps
 
 

@@ -90,8 +90,16 @@ class dcmm:
         if y == 0:
             self.bern_mod.update(y = 0, X = X[0])
             self.pois_mod.update(y = np.nan, X = X[1])
-        else:
-            self.bern_mod.update(y = 1, X = X[0])
+        else: # only update beta model if we have significant uncertainty in the forecast
+            # get the lower end forecast on the logit scale
+            F = update_F(self.bern_mod, X[0], return_F=True)
+            ft, qt = self.bern_mod.get_mean_and_var(F, self.bern_mod.a, self.bern_mod.R)
+            fcast_logit_lb = ft - np.sqrt(qt)
+            # translate to a prod for a rough idea of whether we're already pretty confident for this forecast
+            if 1 / (1 + np.exp(-fcast_logit_lb)) < 0.975:
+                self.bern_mod.update(y=1, X = X[0])
+            else:
+                self.bern_mod.update(y=np.nan, X=X[0])
             self.pois_mod.update(y = y - 1, X = X[1]) # Shifted Y values in the Poisson DGLM
             
         self.t += 1
