@@ -4,7 +4,8 @@ import scipy as sc
 from collections import Iterable
 from .seasonal import seascomp, createFourierToSeasonalL
 from .update import update, update_normaldlm, update_bindglm
-from .forecast import forecast_marginal, forecast_path, forecast_path_approx, forecast_marginal_bindglm, forecast_path_normaldlm
+from .forecast import forecast_marginal, forecast_path, forecast_path_approx,\
+    forecast_marginal_bindglm, forecast_path_normaldlm, forecast_state_mean_and_var
 from .multiscale import multiscale_forecast_marginal, multiscale_forecast_marginal_approx, multiscale_forecast_path_approx
 from .multiscale import multiscale_update, multiscale_update_approx, multiscale_get_mean_and_var
 from .conjugates import trigamma, bern_conjugate_params, bin_conjugate_params, pois_conjugate_params
@@ -28,7 +29,9 @@ class dglm:
                  deltrend = 1, delregn = 1,
                  delmultiscale = 1,
                  delhol = 1, delseas = 1,
-                 interpolate=True):
+                 interpolate=True,
+                 adapt_discount=False,
+                 adapt_factor = 0.5):
         """
         :param a0: Prior mean vector
         :param R0: Prior covariance matrix
@@ -159,21 +162,26 @@ class dglm:
         self.Discount = Discount     
         self.a = a0.reshape(-1,1)
         self.R = R0
-        self.W = self.get_W()
         self.t = 0
         self.interpolate = interpolate
+        self.adapt_discount = adapt_discount
+        self.k = adapt_factor
+        self.W = self.get_W()
         
     def update(self, y = None, X = None):
         update(self, y, X)
 
-    def forecast_marginal(self, k, X = None, nsamps = 1, mean_only = False):
-        return forecast_marginal(self, k, X, nsamps, mean_only)
+    def forecast_marginal(self, k, X = None, nsamps = 1, mean_only = False, state_mean_var = False):
+        return forecast_marginal(self, k, X, nsamps, mean_only, state_mean_var)
 
     def forecast_path(self, k, X = None, nsamps = 1):
         return forecast_path(self, k, X, nsamps)
 
     def forecast_path_approx(self, k, X = None, nsamps = 1, **kwargs):
         return forecast_path_approx(self, k, X, nsamps, **kwargs)
+
+    def forecast_state_mean_and_var(self, k, X = None):
+        return forecast_state_mean_and_var(self, k, X)
 
     def multiscale_update(self, y = None, X = None, phi_samps = None, parallel=False):
         multiscale_update(self, y, X, phi_samps, parallel)
@@ -184,8 +192,8 @@ class dglm:
     def multiscale_forecast_marginal(self, k, X = None, phi_samps = None, mean_only = False):
         return multiscale_forecast_marginal(self, k, X, phi_samps, mean_only)
 
-    def multiscale_forecast_marginal_approx(self, k, X = None, phi_mu = None, phi_sigma = None, nsamps = 1, mean_only = False):
-        return multiscale_forecast_marginal_approx(self, k, X, phi_mu, phi_sigma, nsamps, mean_only)
+    def multiscale_forecast_marginal_approx(self, k, X = None, phi_mu = None, phi_sigma = None, nsamps = 1, mean_only = False, state_mean_var = False):
+        return multiscale_forecast_marginal_approx(self, k, X, phi_mu, phi_sigma, nsamps, mean_only, state_mean_var)
 
     def multiscale_forecast_path_approx(self, k, X = None, phi_mu = None, phi_sigma = None, phi_psi = None, nsamps = 1, **kwargs):
         return multiscale_forecast_path_approx(self, k, X, phi_mu, phi_sigma, phi_psi, nsamps, **kwargs)
@@ -196,8 +204,20 @@ class dglm:
     def multiscale_get_mean_and_var(self, F, a, R, phi_mu, phi_sigma, imultiscale):
         return multiscale_get_mean_and_var(F, a, R, phi_mu, phi_sigma, imultiscale)
     
+    # def get_W(self):
+    #     return self.R/self.Discount - self.R
+
     def get_W(self):
-        return self.R/self.Discount - self.R        
+        if self.adapt_discount:
+            info = np.abs(self.a.flatten() / np.sqrt(self.R.diagonal()))
+            diag = self.Discount.diagonal()
+            diag = np.round(diag + (1 - diag) * np.exp(-self.k * info), 5)
+            Discount = np.ones(self.Discount.shape)
+            np.fill_diagonal(Discount, diag)
+
+            return self.R / Discount - self.R
+        else:
+            return self.R / self.Discount - self.R
 
     def save_params(self):
         """

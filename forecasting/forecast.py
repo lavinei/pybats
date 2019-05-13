@@ -3,13 +3,13 @@ import numpy as np
 from scipy import stats
 from scipy.special import gamma
 
-def forecast_marginal(mod, k, X = None, nsamps = 1, mean_only = False):
+def forecast_marginal(mod, k, X = None, nsamps = 1, mean_only = False, state_mean_var = False):
     """
     Forecast function k steps ahead (marginal)
     """
     # Plug in the correct F values
+    F = np.copy(mod.F)
     if mod.nregn > 0:
-        F = np.copy(mod.F)
         F[mod.iregn] = X.reshape(mod.nregn,1)
         
     # Evolve to the prior for time t + k
@@ -19,6 +19,9 @@ def forecast_marginal(mod, k, X = None, nsamps = 1, mean_only = False):
 
     # Mean and variance
     ft, qt = mod.get_mean_and_var(F, a, R)
+
+    if state_mean_var:
+        return ft, qt
         
     # Choose conjugate prior, match mean and variance
     param1, param2 = mod.get_conjugate_params(ft, qt, mod.param1, mod.param2)
@@ -136,8 +139,8 @@ def forecast_marginal_bindglm(mod, n, k, X=None, nsamps=1, mean_only=False):
     Forecast function k steps ahead (marginal)
     """
     # Plug in the correct F values
+    F = np.copy(mod.F)
     if mod.nregn > 0:
-        F = np.copy(mod.F)
         F[mod.iregn] = X.reshape(mod.nregn,1)
 
     # Evolve to the prior for time t + k
@@ -297,4 +300,21 @@ def multivariate_t_density(y, mean, scale, nu):
 
     return 1. * constant * dens
 
+def forecast_state_mean_and_var(mod, k = 1, X = None):
+    """
+       Forecast function that returns the mean and variance of lambda = state vector * predictors
+       """
+    # Plug in the correct F values
+    F = np.copy(mod.F)
+    if mod.nregn > 0:
+        F[mod.iregn] = X.reshape(mod.nregn, 1)
 
+    # Evolve to the prior for time t + k
+    Gk = np.linalg.matrix_power(mod.G, k - 1)
+    a = Gk @ mod.a
+    R = Gk @ mod.R @ Gk.T + (k - 1) * mod.W
+
+    # Mean and variance
+    ft, qt = mod.get_mean_and_var(F, a, R)
+
+    return ft, qt

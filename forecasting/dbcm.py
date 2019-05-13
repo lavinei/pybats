@@ -7,7 +7,7 @@ class dbcm:
     def __init__(self,
                  a0_bern = None, 
                  R0_bern = None,
-                 nregn_bern = None,
+                 nregn_bern = 0,
                  ntrend_bern = 0,
                  nmultiscale_bern = 0,
                  nhol_bern = 0,
@@ -19,7 +19,7 @@ class dbcm:
                  
                  a0_pois = None, 
                  R0_pois = None,
-                 nregn_pois = None,
+                 nregn_pois = 0,
                  ntrend_pois = 0,
                  nmultiscale_pois = 0,
                  nhol_pois = 0,
@@ -29,11 +29,13 @@ class dbcm:
                  delhol_pois = 1, delseas_pois = 1,
                  delmultiscale_pois = 1,
                  rho = 1,
+                 interpolate=True,
+                 adapt_discount=False,
                 
                  ncascade = 4,
                  a0_cascade = None, # List of length ncascade
                  R0_cascade = None, # List of length ncascade
-                 nregn_cascade = None,
+                 nregn_cascade = 0,
                  ntrend_cascade = 0,
                  nmultiscale_cascade = 0,
                  nhol_cascade = 0,
@@ -74,16 +76,16 @@ class dbcm:
         :param ncascade: Number of cascade components in binary cascade
         :param a0_cascade: List of prior mean vectors for each binomial DGLM in cascade
         :param R0_cascade: List of prior covariance vectors for each binomial DGLM in cascade
-        :param nregn_cascade: Number of regression components in poisson DGLM
-        :param ntrend_cascade: Number of trend components in poisson DGLM
-        :param nmultiscale_cascade: Number of multiscale components in poisson DGLM
-        :param seasPeriods_cascade: List of periods of seasonal components in poisson DGLM
-        :param seasHarmComponents_cascade: List of harmonic components included for each period in poisson DGLM
-        :param deltrend_cascade: Discount factor on trend components in poisson DGLM
-        :param delregn_cascade: Discount factor on regression components in poisson DGLM
-        :param delhol_cascade: Discount factor on holiday component in poisson DGLM (currently deprecated)
-        :param delseas_cascade: Discount factor on seasonal components in poisson DGLM
-        :param delmultiscale_cascade: Discount factor on multiscale components in poisson DGLM
+        :param nregn_cascade: Number of regression components in each binomial DGLM in cascade
+        :param ntrend_cascade: Number of trend components in each binomial DGLM in cascade
+        :param nmultiscale_cascade: Number of multiscale components in each binomial DGLM in cascade (not implemented yet)
+        :param seasPeriods_cascade: List of periods of seasonal components in each binomial DGLM in cascade
+        :param seasHarmComponents_cascade: List of harmonic components included for each period in each binomial DGLM in cascade
+        :param deltrend_cascade: Discount factor on trend components in each binomial DGLM in cascade
+        :param delregn_cascade: Discount factor on regression components in each binomial DGLM in cascade
+        :param delhol_cascade: Discount factor on holiday component in each binomial DGLM in cascade (currently deprecated)
+        :param delseas_cascade: Discount factor on seasonal components in each binomial DGLM in cascade
+        :param delmultiscale_cascade: Discount factor on multiscale components in each binomial DGLM in cascade
         :param excess: List of prior observed excess basket sizes >ncascade.
         """
         
@@ -110,7 +112,10 @@ class dbcm:
                  deltrend_pois=deltrend_pois, delregn_pois=delregn_pois,
                  delhol_pois=delhol_pois, delseas_pois=delseas_pois,
                  delmultiscale_pois=delmultiscale_pois,
-                 rho = rho)
+                 rho = rho,
+                 interpolate=interpolate,
+                 adapt_discount=adapt_discount
+                         )
         
         self.ncascade = ncascade
         self.cascade = list(map(lambda a0, R0: bin_dglm(a0, R0,
@@ -132,10 +137,14 @@ class dbcm:
         self.excess = excess
 
     def update_cascade(self, y_transaction = None, y_cascade = None, X_cascade = None):
-        # Update the cascade of binomial DGLMs for basket sizes
-        self.cascade[0].update(y_transaction, y_cascade[0], X_cascade)
-        for i in range(1, self.ncascade):
-            self.cascade[i].update(y_cascade[i - 1], y_cascade[i], X_cascade)
+        if y_cascade is None:
+            for i in range(self.ncascade):
+                self.cascade[i].update()
+        else:
+            # Update the cascade of binomial DGLMs for basket sizes
+            self.cascade[0].update(y_transaction, y_cascade[0], X_cascade)
+            for i in range(1, self.ncascade):
+                self.cascade[i].update(y_cascade[i - 1], y_cascade[i], X_cascade)
 
 
     def forecast_cascade(self, k, transaction_samps, X_cascade = None, nsamps = 1, mean_only=False):
@@ -202,7 +211,7 @@ class dbcm:
                 
         self.t += 1
             
-    def forecast_marginal(self, k, X_transaction = None, X_cascade = None, nsamps = 1, mean_only = False, return_separate = False):
+    def forecast_marginal(self, k, X_transaction = None, X_cascade = None, nsamps = 1, mean_only = False, return_separate = False, **kwargs):
         transaction_samps = self.dcmm.forecast_marginal(k, (X_transaction, X_transaction), nsamps, mean_only)
         cascade_samps = self.forecast_cascade(k, transaction_samps, X_cascade, nsamps, mean_only)
         excess_samps = self.forecast_excess(cascade_samps[self.ncascade-1,:], nsamps, mean_only)
@@ -214,7 +223,7 @@ class dbcm:
         samps = np.r_[transaction_samps.reshape(1, -1), cascade_samps, excess_samps.reshape(1, -1)]
         return np.sum(samps, axis = 0)
         
-    def multiscale_forecast_marginal(self, k, X_transaction = None, X_cascade = None, phi_samps = None, nsamps = 1, mean_only = False, return_separate = False):
+    def multiscale_forecast_marginal(self, k, X_transaction = None, X_cascade = None, phi_samps = None, nsamps = 1, mean_only = False, return_separate = False, **kwargs):
         transaction_samps = self.dcmm.multiscale_forecast_marginal(k, (X_transaction, X_transaction), (phi_samps, phi_samps), nsamps, mean_only)
         cascade_samps = self.forecast_cascade(k, transaction_samps, X_cascade, nsamps, mean_only)
         excess_samps = self.forecast_excess(cascade_samps[self.ncascade-1, :], nsamps, mean_only)
@@ -223,10 +232,10 @@ class dbcm:
         if return_separate:
             return transaction_samps, cascade_samps, excess_samps
 
-        samps = np.r_[transaction_samps, cascade_samps, excess_samps]
+        samps = np.r_[transaction_samps.reshape(1,-1), cascade_samps, excess_samps.reshape(1,-1)]
         return np.sum(samps, axis=0)
 
-    def multiscale_forecast_marginal_approx(self, k, X_transaction = None, X_cascade = None, phi_mu = None, phi_sigma = None, nsamps = 1, mean_only = False, return_separate=False):
+    def multiscale_forecast_marginal_approx(self, k, X_transaction = None, X_cascade = None, phi_mu = None, phi_sigma = None, nsamps = 1, mean_only = False, return_separate=False, **kwargs):
         transaction_samps = self.dcmm.multiscale_forecast_marginal_approx(k, (X_transaction, X_transaction), (phi_mu, phi_mu), (phi_sigma, phi_sigma), nsamps, mean_only)
         cascade_samps = self.forecast_cascade(k, transaction_samps, X_cascade, nsamps, mean_only)
         excess_samps = self.forecast_excess(cascade_samps[self.ncascade-1, :], nsamps, mean_only)
@@ -235,7 +244,7 @@ class dbcm:
         if return_separate:
             return transaction_samps, cascade_samps, excess_samps
 
-        samps = np.r_[transaction_samps, cascade_samps, excess_samps]
+        samps = np.r_[transaction_samps.reshape(1,-1), cascade_samps, excess_samps.reshape(1,-1)]
         return np.sum(samps, axis=0)
     
     def forecast_path(self, k, X_transaction = None, X_cascade = None, nsamps = 1, return_separate = False):

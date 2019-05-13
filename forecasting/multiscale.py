@@ -77,13 +77,7 @@ def multiscale_update_approx(mod, y = None, X = None, phi_mu = None, phi_sigma =
         
     Implementing approximation: Assume the latent factor is independent of the state vector
     """
-    if mod.nregn > 0:
-        mod.F[mod.iregn] = X.reshape(mod.nregn,1)
-            
-    # Put the mean of the latent factor phi_mu into the F vector    
-    if mod.nmultiscale > 0:
-        mod.F[mod.imultiscale] = phi_mu.reshape(mod.nmultiscale,1)
-            
+
     # If data is missing then skip discounting and updating, posterior = prior
     if y is None or np.isnan(y):
         mod.t += 1
@@ -98,6 +92,13 @@ def multiscale_update_approx(mod, y = None, X = None, phi_mu = None, phi_sigma =
         mod.W = mod.get_W()
             
     else:
+
+        if mod.nregn > 0:
+            mod.F[mod.iregn] = X.reshape(mod.nregn, 1)
+
+        # Put the mean of the latent factor phi_mu into the F vector
+        if mod.nmultiscale > 0:
+            mod.F[mod.imultiscale] = phi_mu.reshape(mod.nmultiscale, 1)
             
         # Mean and variance
         ft, qt = mod.multiscale_get_mean_and_var(mod.F, mod.a, mod.R, phi_mu, phi_sigma, mod.imultiscale)
@@ -230,13 +231,13 @@ def multiscale_sim_with_samp(mod, F, a, R, phi):
     return mod.simulate(param1, param2, 1)
 
 
-def multiscale_forecast_marginal_approx(mod, k, X = None, phi_mu = None, phi_sigma = None, nsamps = 1, mean_only = False):
+def multiscale_forecast_marginal_approx(mod, k, X = None, phi_mu = None, phi_sigma = None, nsamps = 1, mean_only = False, state_mean_var = False):
     """
     Forecast function k steps ahead (marginal)
     """
     # Plug in the correct F values
+    F = np.copy(mod.F)
     if mod.nregn > 0:
-        F = np.copy(mod.F)
         F[mod.iregn] = X.reshape(mod.nregn,1)
             
     # Put the mean of the latent factor phi_mu into the F vector    
@@ -249,6 +250,9 @@ def multiscale_forecast_marginal_approx(mod, k, X = None, phi_mu = None, phi_sig
             
     # Mean and variance
     ft, qt = mod.multiscale_get_mean_and_var(F, a, R, phi_mu, phi_sigma, mod.imultiscale)
+
+    if state_mean_var:
+        return ft, qt
         
     # Choose conjugate prior, match mean and variance
     param1, param2 = mod.get_conjugate_params(ft, qt, mod.param1, mod.param2)
@@ -258,6 +262,26 @@ def multiscale_forecast_marginal_approx(mod, k, X = None, phi_mu = None, phi_sig
         
     # Simulate from the forecast distribution
     return mod.simulate(param1, param2, nsamps)
+
+def multiscale_forecast_state_mean_and_var(mod, k, X = None, phi_mu = None, phi_sigma = None):
+    """
+       Forecast function k steps ahead (marginal)
+       """
+    # Plug in the correct F values
+    if mod.nregn > 0:
+        F = np.copy(mod.F)
+        F[mod.iregn] = X.reshape(mod.nregn, 1)
+
+    # Put the mean of the latent factor phi_mu into the F vector
+    if mod.nmultiscale > 0:
+        F[mod.imultiscale] = phi_mu.reshape(mod.nmultiscale, 1)
+
+    Gk = np.linalg.matrix_power(mod.G, k - 1)
+    a = Gk @ mod.a
+    R = Gk @ mod.R @ Gk.T + (k - 1) * mod.W
+
+    # Mean and variance
+    ft, qt = mod.multiscale_get_mean_and_var(F, a, R, phi_mu, phi_sigma, mod.imultiscale)
 
 
 def multiscale_forecast_path_approx(mod, k, X = None, phi_mu = None, phi_sigma = None, phi_psi = None, nsamps = 1, t_dist=False, y = None, nu=9):

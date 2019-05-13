@@ -3,7 +3,10 @@ import pandas as pd
 from .dglm import normal_dlm
 from .dcmm import dcmm
 from .dbcm import dbcm
+from .amhm import amhm
+from .shared import define_holiday_regressors
 import statsmodels.api as sm
+from pandas.tseries.holiday import AbstractHolidayCalendar
 
 def define_normal_dlm(Y, X, prior_length, ntrend=2, nmultiscale=0, nhol=0, seasPeriods=[7], seasHarmComponents = [[1, 2, 3]],
                       deltrend = .995, delregn =.995, delseas = .999, delVar = 0.999, delhol=1, **kwargs):
@@ -43,7 +46,7 @@ def define_normal_dlm(Y, X, prior_length, ntrend=2, nmultiscale=0, nhol=0, seasP
 def define_dcmm(Y, X, prior_length = 30, seasPeriods = [7], seasHarmComponents = [[1,2,3]], nmultiscale=0, rho=1, nhol = 0,
                 deltrend_bern=.995, delregn_bern=.995, delseas_bern=.995, delmultiscale_bern=.999, delhol_bern=1,
                 deltrend_pois=.998, delregn_pois=.995, delseas_pois=.995, delmultiscale_pois=.999, delhol_pois=1,
-                # delbern = None, delpois = None,
+                interpolate=True, adapt_discount=False,
                 **kwargs):
     """
     :param Y: Observation array, must have length at least as long as prior_length
@@ -67,22 +70,6 @@ def define_dcmm(Y, X, prior_length = 30, seasPeriods = [7], seasHarmComponents =
     nregn = ncol(X) - nhol
     ntrend = 1
     nseas = 2*sum(map(len, seasHarmComponents))
-
-
-    # deltrend_bern = deltrend if delbern is None else delbern
-    # deltrend_pois = deltrend if delpois is None else delpois
-    #
-    # delregn_bern = delregn if delbern is None else delbern
-    # delregn_pois = delregn if delpois is None else delpois
-    #
-    # delseas_bern = delseas if delbern is None else delbern
-    # delseas_pois = delseas if delpois is None else delpois
-    #
-    # delmultiscale_bern = delmultiscale if delbern is None else delbern
-    # delmultiscale_pois = delmultiscale if delpois is None else delpois
-    #
-    # delhol_bern = delhol if delbern is None else delbern
-    # delhol_pois = delhol if delpois is None else delpois
 
     pois_params, bern_params = define_dcmm_params(Y, X, prior_length)
 
@@ -122,7 +109,10 @@ def define_dcmm(Y, X, prior_length = 30, seasPeriods = [7], seasHarmComponents =
                 delseas_pois = delseas_pois,
                 delmultiscale_pois=delmultiscale_pois,
                 delhol_pois = delhol_pois,
-               rho = rho)
+               rho = rho,
+               interpolate=interpolate,
+               adapt_discount=adapt_discount
+               )
         
     return mod
 
@@ -133,7 +123,7 @@ def define_dbcm(Y_transaction, X_transaction = None, Y_cascade = None, X_cascade
                 deltrend_bern = .995, delregn_bern =.995, delseas_bern = .995, delmultiscale_bern = .999, delhol_bern = 1,
                 deltrend_pois = .998, delregn_pois =.995, delseas_pois = .995, delmultiscale_pois = .999, delhol_pois = 1,
                 deltrend_cascade = .999, delregn_cascade =1., delseas_cascade = .999, delmultiscale_cascade = .999, delhol_cascade = 1.,
-                # delbern = None, delpois = None, delcascade = None,
+                interpolate=True, adapt_discount=False,
                 **kwargs):
     """
     :param Y_transaction: Observation array of transactions, must have length at least as long as prior_length
@@ -161,26 +151,6 @@ def define_dbcm(Y_transaction, X_transaction = None, Y_cascade = None, X_cascade
     nregn = ncol(X_transaction) - nhol
     ntrend = 1
     nseas = 2 * sum(map(len, seasHarmComponents))
-
-    # deltrend_bern = deltrend if delbern is None else delbern
-    # deltrend_pois = deltrend if delpois is None else delpois
-    # deltrend_cascade = deltrend if delcascade is None else delcascade
-    #
-    # delregn_bern = delregn if delbern is None else delbern
-    # delregn_pois = delregn if delpois is None else delpois
-    # delregn_cascade = delregn if delcascade is None else delcascade
-    #
-    # delseas_bern = delseas if delbern is None else delbern
-    # delseas_pois = delseas if delpois is None else delpois
-    # delseas_cascade = delseas if delcascade is None else delcascade
-    #
-    # delmultiscale_bern = delmultiscale if delbern is None else delbern
-    # delmultiscale_pois = delmultiscale if delpois is None else delpois
-    # delmultiscale_cascade = delmultiscale if delcascade is None else delcascade
-    #
-    # delhol_bern = delhol if delbern is None else delbern
-    # delhol_pois = delhol if delpois is None else delpois
-    # delhol_cascade = delhol if delcascade is None else delcascade
 
     # Fit a GLM for the poisson and bernoulli components of the DCMM on transactions
     pois_params, bern_params = define_dcmm_params(Y_transaction, X_transaction, prior_length)
@@ -251,6 +221,8 @@ def define_dbcm(Y_transaction, X_transaction = None, Y_cascade = None, X_cascade
                 seasHarmComponents_pois = seasHarmComponents,
                 deltrend_pois = deltrend_pois, delregn_pois = delregn_pois, delseas_pois = delseas_pois,
                 delmultiscale_pois = delmultiscale_pois, delhol_pois = delhol_pois, rho = rho,
+               interpolate=interpolate,
+               adapt_discount=adapt_discount,
 
           ncascade = ncascade,
              a0_cascade = a0_cascade, # List of length ncascade
@@ -296,6 +268,65 @@ def define_dcmm_params(Y, X, prior_length):
         bern_params = bern_mod.fit().params
 
     return pois_params, bern_params
+
+def define_amhm(mod, dates, holidays = [], prior_length = 21, interpolate=True, adapt_discount=True):
+    nhol = len(holidays)
+
+    # Define X matrix based on the holiday regressors
+    dates = pd.to_datetime(dates[prior_length:], format='%y/%m/%d')
+    cal = AbstractHolidayCalendar()
+    cal.rules = holidays
+    X = define_holiday_regressors(X=None,
+                                  dates=dates,
+                                  holidays=holidays)
+
+    if isinstance(mod, dbcm):
+        rho = mod.dcmm.pois_mod.rho
+
+        # Initialize a multiscale DBCM as our holiday model
+        a0_bern = np.ones(nhol)
+        R0_bern = np.identity(nhol) / 2
+        a0_pois = np.ones(nhol)
+        R0_pois = np.identity(nhol) / 2
+        a0_cascade = [np.zeros(1)] * mod.ncascade
+        R0_cascade = [np.identity(1)] * mod.ncascade
+        holmod = dbcm(a0_bern=a0_bern, R0_bern=R0_bern,
+                      nmultiscale_bern=nhol,
+                      delmultiscale_bern=1,
+                      a0_pois=a0_pois, R0_pois=R0_pois,
+                      nmultiscale_pois=nhol,
+                      delmultiscale_pois=1,
+                      rho=rho,
+                      ncascade=mod.ncascade,
+                      a0_cascade=a0_cascade,  # List of length ncascade
+                      R0_cascade=R0_cascade,  # List of length ncascade
+                      ntrend_cascade=1,
+                      deltrend_cascade=1,
+                      excess=mod.excess,
+                      interpolate=True,
+                      adapt_discount=True)
+
+    elif isinstance(mod, dcmm):
+        rho = mod.pois_mod.rho
+
+        # Initialize a multiscale DCMM as our holiday model
+        a0_bern = np.ones(nhol)
+        R0_bern = np.identity(nhol) / 2
+        a0_pois = np.ones(nhol)
+        R0_pois = np.identity(nhol) / 2
+        holmod = dcmm(a0_bern=a0_bern, R0_bern=R0_bern,
+                      nmultiscale_bern=nhol,
+                      delmultiscale_bern=1,
+                      a0_pois=a0_pois, R0_pois=R0_pois,
+                      nmultiscale_pois=nhol,
+                      delmultiscale_pois=1,
+                      rho=rho,
+                      interpolate=interpolate,
+                      adapt_discount=adapt_discount)
+
+    amhm_mod = amhm(mod, nhol, holmod, holidays, X, cal, dates)
+
+    return amhm_mod
 
 def ncol(x):
     if len(np.shape(x)) == 1:

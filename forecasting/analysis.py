@@ -2,8 +2,9 @@ import numpy as np
 import pandas as pd
 
 from .multiscale import forecast_holiday_effect
-from .define_models import define_dcmm, define_normal_dlm, define_dbcm
+from .define_models import define_dcmm, define_normal_dlm, define_dbcm, define_amhm
 from .seasonal import get_seasonal_effect_fxnl, forecast_weekly_seasonal_factor
+from .shared import define_holiday_regressors
 from pandas.tseries.holiday import AbstractHolidayCalendar, Holiday
 
 
@@ -88,20 +89,21 @@ def analysis_dcmm(Y, X, prior_length, k, forecast_start, forecast_end, nsamps = 
                 if mean_only:
                     forecast[:, t - forecast_start, :] = np.array(list(map(
                         lambda k, x, pm, ps: mod.multiscale_forecast_marginal_approx(
-                            k, (x, x), (pm, pm), (ps, ps), nsamps=nsamps, mean_only=mean_only),
+                            k=k, X=(x, x), phi_mu=(pm, pm), phi_sigma=(ps, ps), nsamps=nsamps, mean_only=mean_only),
                         horizons, X[t + horizons - 1, :], pm, ps))).reshape(1, -1)
                 else:
                     forecast[:, t - forecast_start, :] = mod.multiscale_forecast_path_approx(
-                    k, (X[t + horizons - 1, :], X[t + horizons - 1, :]),
-                    (pm, pm), (ps, ps), (pp, pp), nsamps=nsamps, t_dist=True, nu=nu)
+                    k=k, X=(X[t + horizons - 1, :], X[t + horizons - 1, :]),
+                    phi_mu=(pm, pm), phi_sigma=(ps, ps), phi_psi=(pp, pp), nsamps=nsamps, t_dist=True, nu=nu)
             else:
                 if mean_only:
                     forecast[:, t - forecast_start, :] = np.array(list(map(
-                        lambda k, x: mod.forecast_marginal(k, (x, x), nsamps=nsamps, mean_only=mean_only),
+                        lambda k, x: mod.forecast_marginal(
+                            k=k, X=(x, x), nsamps=nsamps, mean_only=mean_only),
                         horizons, X[t + horizons - 1, :]))).reshape(1,-1)
                 else:
                     forecast[:, t - forecast_start, :] = mod.forecast_path_approx(
-                    k, (X[t + horizons - 1, :], X[t + horizons - 1, :]), nsamps=nsamps, t_dist=True, nu=nu)
+                    k=k, X=(X[t + horizons - 1, :], X[t + horizons - 1, :]), nsamps=nsamps, t_dist=True, nu=nu)
 
         # Update the DCMM
         if multiscale:
@@ -120,7 +122,7 @@ def analysis_dcmm(Y, X, prior_length, k, forecast_start, forecast_end, nsamps = 
 def analysis_dbcm(Y_transaction, X_transaction, Y_cascade, X_cascade, excess,
                   prior_length, k, forecast_start, forecast_end, nsamps = 500, rho = .6,
                   phi_mu_prior = None, phi_sigma_prior = None, phi_psi_prior = None,
-                  phi_mu_post = None, phi_sigma_post = None, mean_only=False, dates=None,
+                  phi_mu_post = None, phi_sigma_post = None, mean_only=False, dates=None, amhm=False,
                   holidays = [], seasPeriods = [], seasHarmComponents = [], ret=['forecast'], **kwargs):
     """
     # Run updating + forecasting using a dcmm. Multiscale option available
@@ -169,6 +171,9 @@ def analysis_dbcm(Y_transaction, X_transaction, Y_cascade, X_cascade, excess,
                       seasPeriods = seasPeriods, seasHarmComponents=seasHarmComponents,
                       nmultiscale = nmultiscale, rho = rho, nhol=nhol, **kwargs)
 
+    if amhm:
+        mod = define_amhm(mod, dates, holidays, prior_length=prior_length)
+
     # Initialize updating + forecasting
     horizons = np.arange(1,k+1)
 
@@ -203,30 +208,34 @@ def analysis_dbcm(Y_transaction, X_transaction, Y_cascade, X_cascade, excess,
                 if mean_only:
                     forecast[:, t - forecast_start, :] = np.array(list(map(
                         lambda k, x_trans, x_cascade, pm, ps: mod.multiscale_forecast_marginal_approx(
-                            k, x_trans, x_cascade, pm, ps, nsamps=nsamps, mean_only=mean_only),
+                            k=k, X_transaction=x_trans, X_cascade=x_cascade,
+                            phi_mu=pm, phi_sigma=ps, nsamps=nsamps, mean_only=mean_only),
                         horizons, X_transaction[t + horizons - 1, :], X_cascade[t + horizons - 1, :], pm, ps))).reshape(1, -1)
                 else:
                     forecast[:, t - forecast_start, :] = mod.multiscale_forecast_path_approx(
-                        k, X_transaction[t + horizons - 1, :], X_cascade[t + horizons - 1, :],
-                        pm, ps, pp, nsamps=nsamps, t_dist=True, nu=nu)
+                        k=k, X_transaction=X_transaction[t + horizons - 1, :], X_cascade=X_cascade[t + horizons - 1, :],
+                        phi_mu=pm, phi_sigma=ps, phi_psi=pp, nsamps=nsamps, t_dist=True, nu=nu)
             else:
                 if mean_only:
                     forecast[:, t - forecast_start, :] = np.array(list(map(
-                        lambda k, x_trans, x_cascade: mod.forecast_marginal(k, x_trans, x_cascade, nsamps=nsamps, mean_only=mean_only),
+                        lambda k, x_trans, x_cascade: mod.forecast_marginal(
+                            k=k, X_transaction=x_trans, X_cascade=x_cascade, nsamps=nsamps, mean_only=mean_only),
                         horizons, X_transaction[t + horizons - 1, :], X_cascade[t + horizons - 1, :]))).reshape(1,-1)
                 else:
                     forecast[:, t - forecast_start, :] = mod.forecast_path_approx(
-                        k, X_transaction[t + horizons - 1, :], X_cascade[t + horizons - 1, :],
+                        k=k, X_transaction=X_transaction[t + horizons - 1, :], X_cascade=X_cascade[t + horizons - 1, :],
                         nsamps=nsamps, t_dist=True, nu=nu)
 
-        # Update the DCMM
+        # Update the DBCM
         if multiscale:
             pm = phi_mu_post[t-prior_length]
             ps = phi_sigma_post[t-prior_length]
-            mod.multiscale_update_approx(Y_transaction[t], X_transaction[t, :], Y_cascade[t,:], X_cascade[t, :],
-                                         pm, ps, excess[t])
+            mod.multiscale_update_approx(y_transaction=Y_transaction[t], X_transaction= X_transaction[t, :],
+                                         y_cascade=Y_cascade[t,:], X_cascade=X_cascade[t, :],
+                                         phi_mu=pm, phi_sigma=ps, excess=excess[t])
         else:
-            mod.update(Y_transaction[t], X_transaction[t, :], Y_cascade[t,:], X_cascade[t, :], excess[t])
+            mod.update(y_transaction=Y_transaction[t], X_transaction=X_transaction[t, :],
+                       y_cascade=Y_cascade[t,:], X_cascade=X_cascade[t, :], excess=excess[t])
 
     out = []
     if ret.__contains__('forecast'): out.append(forecast)
@@ -391,15 +400,3 @@ def analysis_dlm(Y, X, prior_length, k, forecast_start, forecast_end, holidays =
     if ret.__contains__('model'): out.append(nmod)
 
     return out
-
-
-def define_holiday_regressors(X, dates, holidays=None):
-    n = X.shape[0]
-    for holiday in holidays:
-        cal = AbstractHolidayCalendar()
-        cal.rules = [holiday]
-        x = np.zeros(n)
-        x[dates.isin(cal.holidays())] = 1
-        X = np.c_[X, x]
-
-    return X
