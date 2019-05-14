@@ -1,8 +1,18 @@
 import numpy as np
 
 
+def update_F(mod, X, return_F=False):
+    if mod.nregn > 0:
+        if return_F:
+            F = mod.F.copy()
+            F[mod.iregn] = X.reshape(mod.nregn, 1)
+            return F
+        else:
+            mod.F[mod.iregn] = X.reshape(mod.nregn,1)
+
+
 def update(mod, y = None, X = None):
-                    
+
     # If data is missing then skip discounting and updating, posterior = prior
     if y is None or np.isnan(y):
         mod.t += 1
@@ -14,12 +24,11 @@ def update(mod, y = None, X = None):
         mod.R = mod.G @ mod.C @ mod.G.T
         mod.R = (mod.R + mod.R.T)/2
         
-        mod.W = mod.get_W()
+        mod.W = mod.get_W(X=X)
             
     else:
 
-        if mod.nregn > 0:
-            mod.F[mod.iregn] = X.reshape(mod.nregn, 1)
+        update_F(mod, X)
             
         # Mean and variance
         ft, qt = mod.get_mean_and_var(mod.F, mod.a, mod.R)
@@ -43,11 +52,12 @@ def update(mod, y = None, X = None):
         mod.R = (mod.R + mod.R.T)/2
                 
         # Discount information in the time t + 1 prior
-        mod.W = mod.get_W()
+        mod.W = mod.get_W(X=X)
         mod.R = mod.R + mod.W
 
 
 def update_bindglm(mod, n=None, y=None, X=None):
+
     # If data is missing then skip discounting and updating, posterior = prior
     if y is None or np.isnan(y) or n is None or n == 0:
         mod.t += 1
@@ -59,12 +69,11 @@ def update_bindglm(mod, n=None, y=None, X=None):
         mod.R = mod.G @ mod.C @ mod.G.T
         mod.R = (mod.R + mod.R.T) / 2
 
-        mod.W = mod.get_W()
+        mod.W = mod.get_W(X=X)
 
     else:
 
-        if mod.nregn > 0:
-            mod.F[mod.iregn] = X.reshape(mod.nregn, 1)
+        update_F(mod, X)
 
         # Mean and variance
         ft, qt = mod.get_mean_and_var(mod.F, mod.a, mod.R)
@@ -88,12 +97,12 @@ def update_bindglm(mod, n=None, y=None, X=None):
         mod.R = (mod.R + mod.R.T) / 2
 
         # Discount information in the time t + 1 prior
-        mod.W = mod.get_W()
+        mod.W = mod.get_W(X=X)
         mod.R = mod.R + mod.W
 
 
 def update_normaldlm(mod, y = None, X = None):
-            
+
     # If data is missing then skip discounting and updating, posterior = prior
     if y is None or np.isnan(y):
         mod.t += 1
@@ -105,11 +114,10 @@ def update_normaldlm(mod, y = None, X = None):
         mod.R = mod.G @ mod.C @ mod.G.T
         mod.R = (mod.R + mod.R.T)/2
         
-        mod.W = mod.get_W()
+        mod.W = mod.get_W(X=X)
             
     else:
-        if mod.nregn > 0:
-            mod.F[mod.iregn] = X.reshape(mod.nregn, 1)
+        update_F(mod, X)
             
         # Mean and variance
         ft, qt = mod.get_mean_and_var(mod.F, mod.a, mod.R)
@@ -140,6 +148,6 @@ def update_normaldlm(mod, y = None, X = None):
         mod.R = (mod.R + mod.R.T)/2
         
         # Discount information
-        mod.W = mod.get_W()
+        mod.W = mod.get_W(X=X)
         mod.R = mod.R + mod.W
         mod.n = mod.delVar * mod.n

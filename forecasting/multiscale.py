@@ -1,7 +1,8 @@
 # These are for the general DGLM
 import numpy as np
 import scipy as sc
-from .forecast import forecast_path_approx_sim, forecast_path_approx_dens_MC
+from .forecast import forecast_path_approx_sim, forecast_path_approx_dens_MC, forecast_aR
+from .update import update_F
 import multiprocessing
 from functools import partial
 
@@ -9,9 +10,7 @@ def multiscale_update(mod, y = None, X = None, phi_samps = None, parallel=False)
     """
     phi_samps: array of samples of the latent factor vector
     """
-    if mod.nregn > 0:
-        mod.F[mod.iregn] = X.reshape(mod.nregn,1)
-                        
+
     # If data is missing then skip discounting and updating, posterior = prior
     if y is None or np.isnan(y):
         mod.t += 1
@@ -23,9 +22,12 @@ def multiscale_update(mod, y = None, X = None, phi_samps = None, parallel=False)
         mod.R = mod.G @ mod.C @ mod.G.T
         mod.R = (mod.R + mod.R.T)/2
         
-        mod.W = mod.get_W()
+        mod.W = mod.get_W(X=X)
             
     else:
+
+        update_F(mod, X)
+
         # Update m, C using a weighted average of the samples
         if parallel:
             f = partial(multiscale_update_with_samp, mod, y, mod.F, mod.a, mod.R)
@@ -50,7 +52,7 @@ def multiscale_update(mod, y = None, X = None, phi_samps = None, parallel=False)
         mod.R = (mod.R + mod.R.T)/2 # prevent rounding issues
 
         # Discount information if observation is observed
-        mod.W = mod.get_W()
+        mod.W = mod.get_W(X=X)
         mod.R = mod.R + mod.W
         
                 
@@ -89,12 +91,11 @@ def multiscale_update_approx(mod, y = None, X = None, phi_mu = None, phi_sigma =
         mod.R = mod.G @ mod.C @ mod.G.T
         mod.R = (mod.R + mod.R.T)/2
         
-        mod.W = mod.get_W()
+        mod.W = mod.get_W(X=X)
             
     else:
 
-        if mod.nregn > 0:
-            mod.F[mod.iregn] = X.reshape(mod.nregn, 1)
+        update_F(mod, X)
 
         # Put the mean of the latent factor phi_mu into the F vector
         if mod.nmultiscale > 0:
@@ -131,17 +132,11 @@ def multiscale_update_approx(mod, y = None, X = None, phi_mu = None, phi_sigma =
         mod.R = (mod.R + mod.R.T)/2
                 
         # Discount information in the time t + 1 prior
-        mod.W = mod.get_W()
+        mod.W = mod.get_W(X=X)
         mod.R = mod.R + mod.W
 
 
 def multiscale_update_normaldlm_approx(mod, y=None, X=None, phi_mu = None, phi_sigma = None):
-    if mod.nregn > 0:
-        mod.F[mod.iregn] = X.reshape(mod.nregn,1)
-
-    # Put the mean of the latent factor phi_mu into the F vector
-    if mod.nmultiscale > 0:
-        mod.F[mod.imultiscale] = phi_mu
 
     # If data is missing then skip discounting and updating, posterior = prior
     if y is None or np.isnan(y):
@@ -154,9 +149,14 @@ def multiscale_update_normaldlm_approx(mod, y=None, X=None, phi_mu = None, phi_s
         mod.R = mod.G @ mod.C @ mod.G.T
         mod.R = (mod.R + mod.R.T) / 2
 
-        mod.W = mod.get_W()
+        mod.W = mod.get_W(X=X)
 
     else:
+        update_F(mod, X)
+
+        # Put the mean of the latent factor phi_mu into the F vector
+        if mod.nmultiscale > 0:
+            mod.F[mod.imultiscale] = phi_mu
 
         # Mean and variance
         ft, qt = mod.multiscale_get_mean_and_var(mod.F, mod.a, mod.R, phi_mu, phi_sigma, mod.imultiscale)
@@ -187,7 +187,7 @@ def multiscale_update_normaldlm_approx(mod, y=None, X=None, phi_mu = None, phi_s
         mod.R = (mod.R + mod.R.T) / 2
 
         # Discount information
-        mod.W = mod.get_W()
+        mod.W = mod.get_W(X=X)
         mod.R = mod.R + mod.W
         mod.n = mod.delVar * mod.n
         
@@ -211,9 +211,7 @@ def multiscale_forecast_marginal(mod, k, X = None, phi_samps = None, mean_only =
         F = np.copy(mod.F)
         F[mod.iregn] = X.reshape(mod.nregn,1)
         
-    Gk = np.linalg.matrix_power(mod.G, k-1)
-    a = Gk @ mod.a
-    R = Gk @ mod.R @ Gk.T + (k-1)*mod.W
+    a, R = forecast_aR(mod, k)
 
     # Simulate from the forecast distribution
     return np.array(list(map(lambda p: multiscale_sim_with_samp(mod, F, a, R, p), phi_samps))).reshape(-1)
@@ -244,9 +242,7 @@ def multiscale_forecast_marginal_approx(mod, k, X = None, phi_mu = None, phi_sig
     if mod.nmultiscale > 0:
         F[mod.imultiscale] = phi_mu.reshape(mod.nmultiscale,1)
         
-    Gk = np.linalg.matrix_power(mod.G, k-1)
-    a = Gk @ mod.a
-    R = Gk @ mod.R @ Gk.T + (k-1)*mod.W
+    a, R = forecast_aR(mod, k)
             
     # Mean and variance
     ft, qt = mod.multiscale_get_mean_and_var(F, a, R, phi_mu, phi_sigma, mod.imultiscale)
@@ -276,9 +272,7 @@ def multiscale_forecast_state_mean_and_var(mod, k, X = None, phi_mu = None, phi_
     if mod.nmultiscale > 0:
         F[mod.imultiscale] = phi_mu.reshape(mod.nmultiscale, 1)
 
-    Gk = np.linalg.matrix_power(mod.G, k - 1)
-    a = Gk @ mod.a
-    R = Gk @ mod.R @ Gk.T + (k - 1) * mod.W
+    a, R = forecast_aR(mod, k)
 
     # Mean and variance
     ft, qt = mod.multiscale_get_mean_and_var(F, a, R, phi_mu, phi_sigma, mod.imultiscale)
@@ -307,9 +301,7 @@ def multiscale_forecast_path_approx(mod, k, X = None, phi_mu = None, phi_sigma =
     for i in range(k):
 
         # Get the marginal a, R
-        Gk = np.linalg.matrix_power(mod.G, i)
-        a = Gk @ mod.a
-        R = Gk @ mod.R @ Gk.T + (i)*mod.W
+        a, R = forecast_aR(mod, i)
             
         alist[i] = a
         Rlist[i] = R
@@ -348,9 +340,7 @@ def multiscale_forecast_path_approx(mod, k, X = None, phi_mu = None, phi_sigma =
 
 ################ FUNCTIONS TO EXTRACT MULTISCALE SIGNAL... E.G. HOLIDAY REGRESSION COEFFICIENTS ###############
 def forecast_holiday_effect(mod, X, k):
-    Gk = np.linalg.matrix_power(mod.G, k-1)
-    a = Gk @ mod.a
-    R = Gk @ mod.R @ Gk.T + (k-1)*mod.W
+    a, R = forecast_aR(mod, k)
 
     mean = X.T @ a[mod.ihol]
     var = X.T @ R[np.ix_(mod.ihol, mod.ihol)] @ X

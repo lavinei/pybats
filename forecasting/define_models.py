@@ -63,6 +63,7 @@ def define_dcmm(Y, X, prior_length = 30, seasPeriods = [7], seasHarmComponents =
     :param delmultiscale: Discount factor on multiscale components in DCMM and cascade
     :param delbern: Discount factor for all components of bernoulli DGLM
     :param delpois: Discount factor for all components of poisson DGLM
+    :param adapt_discount: Can be 'info' or 'positive-regn' as 2 ways to adapt discount factors and prevent variance blowing up
     :return: Returns an initialized DCMM
     """
 
@@ -73,9 +74,11 @@ def define_dcmm(Y, X, prior_length = 30, seasPeriods = [7], seasHarmComponents =
 
     pois_params, bern_params = define_dcmm_params(Y, X, prior_length)
 
+    #print(pois_params, bern_params)
+
     prior = [[*bern_params], [0] * nseas, [1] * nmultiscale]
     a0_bern = np.array([m for ms in prior for m in ms]).reshape(-1, 1)
-    R0_bern = np.identity(a0_bern.shape[0])/2
+    R0_bern = np.identity(a0_bern.shape[0])
 
     prior =[ [*pois_params], [0] * nseas, [1] * nmultiscale]
     a0_pois = np.array([m for ms in prior for m in ms]).reshape(-1, 1)
@@ -145,6 +148,7 @@ def define_dbcm(Y_transaction, X_transaction = None, Y_cascade = None, X_cascade
     :param delmultiscale: Discount factor on multiscale components in DCMM and cascade
     :param delbern: Discount factor for all components of bernoulli DGLM
     :param delpois: Discount factor for all components of poisson DGLM
+    :param adapt_discount: Can be 'info' or 'positive-regn' as 2 ways to adapt discount factors and prevent variance blowing up
     :return: Returns an initialized DBCM
     """
 

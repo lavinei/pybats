@@ -3,6 +3,14 @@ import numpy as np
 from scipy import stats
 from scipy.special import gamma
 
+def forecast_aR(mod, k):
+    Gk = np.linalg.matrix_power(mod.G, k - 1)
+    a = Gk @ mod.a
+    R = Gk @ mod.R @ Gk.T
+    if mod.discount_forecast:
+        R += (k - 1) * mod.W
+    return a, R
+
 def forecast_marginal(mod, k, X = None, nsamps = 1, mean_only = False, state_mean_var = False):
     """
     Forecast function k steps ahead (marginal)
@@ -13,9 +21,7 @@ def forecast_marginal(mod, k, X = None, nsamps = 1, mean_only = False, state_mea
         F[mod.iregn] = X.reshape(mod.nregn,1)
         
     # Evolve to the prior for time t + k
-    Gk = np.linalg.matrix_power(mod.G, k-1)
-    a = Gk @ mod.a
-    R = Gk @ mod.R @ Gk.T + (k-1)*mod.W
+    a, R = forecast_aR(mod, k)
 
     # Mean and variance
     ft, qt = mod.get_mean_and_var(F, a, R)
@@ -80,8 +86,9 @@ def forecast_path(mod, k, X = None, nsamps = 1):
             R = (R + R.T)/2
                 
             # Discount information
-            R = R + mod.W
-                
+            if mod.discount_forecast:
+                R = R + mod.W
+
     return samps
 
 
@@ -104,9 +111,7 @@ def forecast_path_approx(mod, k, X = None, nsamps = 1, t_dist=False, y=None, nu=
     for i in range(k):
 
         # Evolve to the prior at time t + i + 1
-        Gk = np.linalg.matrix_power(mod.G, i)
-        a = Gk @ mod.a
-        R = Gk @ mod.R @ Gk.T + (i)*mod.W
+        a, R = forecast_aR(mod, i)
 
         Rlist[i] = R
 
@@ -144,9 +149,7 @@ def forecast_marginal_bindglm(mod, n, k, X=None, nsamps=1, mean_only=False):
         F[mod.iregn] = X.reshape(mod.nregn,1)
 
     # Evolve to the prior for time t + k
-    Gk = np.linalg.matrix_power(mod.G, k - 1)
-    a = Gk @ mod.a
-    R = Gk @ mod.R @ Gk.T + (k - 1) * mod.W
+    a, R = forecast_aR(mod, k)
 
     # Mean and variance
     ft, qt = mod.get_mean_and_var(F, a, R)
@@ -310,9 +313,7 @@ def forecast_state_mean_and_var(mod, k = 1, X = None):
         F[mod.iregn] = X.reshape(mod.nregn, 1)
 
     # Evolve to the prior for time t + k
-    Gk = np.linalg.matrix_power(mod.G, k - 1)
-    a = Gk @ mod.a
-    R = Gk @ mod.R @ Gk.T + (k - 1) * mod.W
+    a, R = forecast_aR(mod, k)
 
     # Mean and variance
     ft, qt = mod.get_mean_and_var(F, a, R)
