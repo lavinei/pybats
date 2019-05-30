@@ -69,7 +69,7 @@ def multiscale_update_with_samp(mod, y, F, a, R, phi):
     m = a + R @ F * (ft_star - ft)/qt
     C = R - R @ F @ F.T @ R * (1 - qt_star/qt)/qt
     
-    return m, C, loglik
+    return m, C, np.ravel(loglik)[0]
 
 
 def multiscale_update_approx(mod, y = None, X = None, phi_mu = None, phi_sigma = None):
@@ -259,6 +259,7 @@ def multiscale_forecast_marginal_approx(mod, k, X = None, phi_mu = None, phi_sig
     # Simulate from the forecast distribution
     return mod.simulate(param1, param2, nsamps)
 
+
 def multiscale_forecast_state_mean_and_var(mod, k, X = None, phi_mu = None, phi_sigma = None):
     """
        Forecast function k steps ahead (marginal)
@@ -338,13 +339,17 @@ def multiscale_forecast_path_approx(mod, k, X = None, phi_mu = None, phi_sigma =
     else:
         return forecast_path_approx_sim(mod, k, lambda_mu, lambda_cov, nsamps, t_dist, nu)
 
+
 ################ FUNCTIONS TO EXTRACT MULTISCALE SIGNAL... E.G. HOLIDAY REGRESSION COEFFICIENTS ###############
+
+
 def forecast_holiday_effect(mod, X, k):
     a, R = forecast_aR(mod, k)
 
     mean = X.T @ a[mod.ihol]
     var = X.T @ R[np.ix_(mod.ihol, mod.ihol)] @ X
     return mean, var
+
 
 def combine_multiscale(*signals):
     phi_mu_prior = []

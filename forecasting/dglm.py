@@ -8,7 +8,7 @@ from .forecast import forecast_marginal, forecast_path, forecast_path_approx,\
     forecast_marginal_bindglm, forecast_path_normaldlm, forecast_state_mean_and_var
 from .multiscale import multiscale_forecast_marginal, multiscale_forecast_marginal_approx, \
     multiscale_forecast_path_approx
-from .multiscale import multiscale_update, multiscale_update_approx, multiscale_get_mean_and_var
+from .multiscale import multiscale_update, multiscale_update_approx, multiscale_get_mean_and_var, multiscale_update_normaldlm_approx
 from .conjugates import trigamma, bern_conjugate_params, bin_conjugate_params, pois_conjugate_params
 
 # These are for the bernoulli and Poisson DGLMs
@@ -243,7 +243,8 @@ class dglm:
         return multiscale_forecast_path_approx(self, k, X, phi_mu, phi_sigma, phi_psi, nsamps, **kwargs)
 
     def get_mean_and_var(self, F, a, R):
-        return F.T @ a, F.T @ R @ F
+        mean, var = F.T @ a, F.T @ R @ F
+        return np.ravel(mean)[0], np.ravel(var)[0]
 
     def multiscale_get_mean_and_var(self, F, a, R, phi_mu, phi_sigma, imultiscale):
         return multiscale_get_mean_and_var(F, a, R, phi_mu, phi_sigma, imultiscale)
@@ -430,6 +431,9 @@ class normal_dlm(dglm):
         qt = qt + self.s
         return ft, qt
 
+    def get_mean(self, ft, qt):
+        return ft
+
     def get_conjugate_params(self, ft, qt, mean, var):
         return ft, qt
 
@@ -444,6 +448,9 @@ class normal_dlm(dglm):
 
     def forecast_path(self, k, X=None, nsamps=1):
         return forecast_path_normaldlm(self, k, X, nsamps)
+
+    def multiscale_update_approx(self, y=None, X=None, phi_mu=None, phi_sigma=None):
+        multiscale_update_normaldlm_approx(self, y, X, phi_mu, phi_sigma)
 
 
 class bin_dglm(dglm):

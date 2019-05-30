@@ -98,7 +98,7 @@ def forecast_path_seasonal_factor(mod, k, today, period, sample = False, nsamps 
 
 
 def sample_seasonal_effect_fxnl_old(day, L, m, C, iseas, seasPeriods, delVar, n, nsamps):
-    phi_samps = np.zeros([nsamps, seasPeriods[0]])
+    phi_samps = np.zeros([nsamps, seasPeriods])
     phi, var = fourierToSeasonalFxnl(L, m, C, iseas)
     phi_samps[:, day] = phi[0] + np.sqrt(var[0,0])*np.random.standard_t(delVar*n, size = [nsamps])
     return phi_samps
@@ -118,9 +118,9 @@ def forecast_weekly_seasonal_factor_old(mod, k, today, period, sample = False, n
     R = Gk @ mod.R @ Gk.T + (k-1)*mod.W
 
     if sample:
-        return sample_seasonal_effect_fxnl((today + k - 1) % period, mod.L, a, R, mod.iseas, mod.seasPeriods[0], mod.delVar, mod.n, nsamps)
+        return sample_seasonal_effect_fxnl_old((today + k - 1) % period, mod.L[0], a, R, mod.iseas[0], mod.seasPeriods[0], mod.delVar, mod.n, nsamps)
     else:
-        return get_latent_factor_fxnl_old((today + k - 1) % period, mod.L, a, R, mod.iseas, mod.seasPeriods[0])
+        return get_latent_factor_fxnl_old((today + k - 1) % period, mod.L[0], a, R, mod.iseas[0], mod.seasPeriods[0])
 
 def get_seasonal_effect_old(mod, day):
     phi_mu = np.zeros([mod.seasPeriods[0], 1])

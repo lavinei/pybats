@@ -9,7 +9,9 @@ import statsmodels.api as sm
 from pandas.tseries.holiday import AbstractHolidayCalendar
 
 def define_normal_dlm(Y, X, prior_length, ntrend=2, nmultiscale=0, nhol=0, seasPeriods=[7], seasHarmComponents = [[1, 2, 3]],
-                      deltrend = .995, delregn =.995, delseas = .999, delVar = 0.999, delhol=1, **kwargs):
+                      deltrend = .995, delregn =.995, delseas = .999, delmultiscale=.999, delVar = 0.999, delhol=1,
+                      n0 = 1, s0 = 1, a0=None, R0=None,
+                      adapt_discount=False, **kwargs):
     """
     :param Y: Observation array, length must be at least equal to or greater than the prior_length
     :param prior_length: Number of observations to be used in setting the prior
@@ -20,16 +22,21 @@ def define_normal_dlm(Y, X, prior_length, ntrend=2, nmultiscale=0, nhol=0, seasP
     # Define normal DLM for total sales
     nregn = ncol(X) - nhol
     nseas = 2 * sum(map(len, seasHarmComponents))
+    if prior_length > 0:
+        if X is None:
+            prior_OLS = sm.OLS(Y[:prior_length], np.ones([prior_length, 1])).fit()
+        else:
+            prior_OLS = sm.OLS(Y[:prior_length], sm.add_constant(X[:prior_length, :])).fit()
+        dlm_params_mean = prior_OLS.params
+        dlm_params_cov = prior_OLS.cov_params().diagonal()
 
-    prior_OLS = sm.OLS(Y[:prior_length], sm.add_constant(X[:prior_length, :])).fit()
-    dlm_params_mean = prior_OLS.params
-    dlm_params_cov = prior_OLS.cov_params().diagonal()
-
-    prior = [[dlm_params_mean[0]], [0]*(ntrend-1), [*dlm_params_mean[1:]], [0] * nseas, [1] * nmultiscale]
-    a0 = np.array([m for ms in prior for m in ms]).reshape(-1, 1)
+        prior = [[dlm_params_mean[0]], [0]*(ntrend-1), [*dlm_params_mean[1:]], [0] * nseas, [1] * nmultiscale]
+    if a0 is None:
+        a0 = np.array([m for ms in prior for m in ms]).reshape(-1, 1)
     # prior_cov = [[dlm_params_cov[0]], [1]*(ntrend-1), [*dlm_params_cov[1:]], [1] * nseas, [1]*nmultiscale]
     # R0 = np.diag([np.max(1, v) for vs in prior_cov for v in vs])
-    R0 = np.identity(a0.shape[0])*2
+    if R0 is None:
+        R0 = np.identity(a0.shape[0])*2
     nmod = normal_dlm(a0 = a0, R0 = R0,
                       nregn = nregn,
                       ntrend = ntrend,
@@ -39,7 +46,9 @@ def define_normal_dlm(Y, X, prior_length, ntrend=2, nmultiscale=0, nhol=0, seasP
                       seasHarmComponents = seasHarmComponents,
                       deltrend = deltrend, delregn = delregn,
                       delseas = delseas, delhol=delhol,
-                      n0 = 1, s0 = 1, delVar = delVar)
+                      delmultiscale=delmultiscale,
+                      n0 = n0, s0 = s0, delVar = delVar,
+                      adapt_discount=adapt_discount)
     
     return nmod
 
@@ -63,7 +72,7 @@ def define_dcmm(Y, X, prior_length = 30, seasPeriods = [7], seasHarmComponents =
     :param delmultiscale: Discount factor on multiscale components in DCMM and cascade
     :param delbern: Discount factor for all components of bernoulli DGLM
     :param delpois: Discount factor for all components of poisson DGLM
-    :param adapt_discount: Can be 'info' or 'positive-regn' as 2 ways to adapt discount factors and prevent variance blowing up
+    :param adapt_discount: Can be 'info' or 'positive_regn' as 2 ways to adapt discount factors and prevent variance blowing up
     :return: Returns an initialized DCMM
     """
 
@@ -148,7 +157,7 @@ def define_dbcm(Y_transaction, X_transaction = None, Y_cascade = None, X_cascade
     :param delmultiscale: Discount factor on multiscale components in DCMM and cascade
     :param delbern: Discount factor for all components of bernoulli DGLM
     :param delpois: Discount factor for all components of poisson DGLM
-    :param adapt_discount: Can be 'info' or 'positive-regn' as 2 ways to adapt discount factors and prevent variance blowing up
+    :param adapt_discount: Can be 'info' or 'positive_regn' as 2 ways to adapt discount factors and prevent variance blowing up
     :return: Returns an initialized DBCM
     """
 
@@ -250,26 +259,38 @@ def define_dcmm_params(Y, X, prior_length):
     :return:
     """
     nonzeros = Y[:prior_length].nonzero()[0]
-    if Y[:prior_length].max() > 1.0:
+    # if Y[:prior_length].max() > 1.0:
+    try:
         pois_mod = sm.GLM(Y[nonzeros] - 1,
                           np.c_[np.ones([len(nonzeros), 1]), X[nonzeros]],
                           family=sm.families.Poisson())
         pois_params = pois_mod.fit().params
-    else:
+    except:
         pois_params = np.zeros(ncol(X) + 1)
+    # else:
+    #     pois_params = np.zeros(ncol(X) + 1)
 
-    if len(nonzeros) + 4 >= prior_length or len(nonzeros) <= 4:
-        bernmean = len(nonzeros) / (prior_length + 1)
-        bernmean = np.log(bernmean / (1 - bernmean))
-        bern_params = np.zeros(pois_params.shape)
-        bern_params[0] = bernmean
-    else:
+    # if len(nonzeros) + 4 >= prior_length or len(nonzeros) <= 4:
+    #     bernmean = len(nonzeros) / (prior_length + 1)
+    #     bernmean = np.log(bernmean / (1 - bernmean))
+    #     bern_params = np.zeros(pois_params.shape)
+    #     bern_params[0] = bernmean
+    # else:
+    try:
         Y_bern = np.c_[np.zeros([prior_length, 1]), np.ones([prior_length, 1])]
         Y_bern[Y[:prior_length].nonzero()[0], 0] = 1
         Y_bern[Y[:prior_length].nonzero()[0], 1] = 0
         X_bern = np.c_[np.ones([prior_length, 1]), X[:prior_length]]
         bern_mod = sm.GLM(endog=Y_bern, exog=X_bern, family=sm.families.Binomial())
         bern_params = bern_mod.fit().params
+    except:
+        if len(nonzeros) > 0:
+            bernmean = len(nonzeros) / (prior_length + 1)
+            bernmean = np.log(bernmean / (1 - bernmean))
+            bern_params = np.zeros(pois_params.shape)
+            bern_params[0] = bernmean
+        else:
+            bern_params = np.zeros(pois_params.shape)
 
     return pois_params, bern_params
 
@@ -333,6 +354,8 @@ def define_amhm(mod, dates, holidays = [], prior_length = 21, interpolate=True, 
     return amhm_mod
 
 def ncol(x):
+    if x is None:
+        return 0
     if len(np.shape(x)) == 1:
         return 1
     else:
