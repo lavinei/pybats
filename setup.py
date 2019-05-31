@@ -6,7 +6,7 @@ with open("README.md", "r") as fh:
 setup(
     name="PyBATS",
     version="0.0.1",
-    description="Bayesian Forecasting of Discrete Time Series",
+    description="Bayesian Forecasting of Time Series",
     author="Isaac Lavine",
     author_email="lavine.isaac@gmail.com",
     packages=setuptools.find_packages(),

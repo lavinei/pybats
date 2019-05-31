@@ -1,5 +1,5 @@
-# forecasting
-Forecasting of discrete time series
+# PyBATS
+Bayesian forecasting of time series
 
 References:
 1. Berry, L., West, M., 2018. Bayesian forecasting of many count-valued time series. Submitted for publication. ArXiv:1805.05232
