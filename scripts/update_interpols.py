@@ -4,8 +4,8 @@ import sys
 
 sys.path.insert(0, '.')
 
-from forecasting.conjugates import bern_conjugate_params, pois_conjugate_params, pois_alpha_param
-from forecasting.shared import transformer, trigamma, gamma_transformer
+from PyBATS.conjugates import bern_conjugate_params, pois_conjugate_params, pois_alpha_param
+from PyBATS.shared import transformer, trigamma, gamma_transformer
 from scipy import interpolate
 from scipy import optimize as opt
 from scipy.special import digamma

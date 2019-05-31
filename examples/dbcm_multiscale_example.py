@@ -2,8 +2,8 @@ import sys
 sys.path.insert(0,'../')
 import numpy as np
 import pandas as pd
-from forecasting.define_models import define_normal_dlm
-from forecasting.analysis import analysis_lognormal_seasonalms, analysis_dbcm
+from PyBATS.define_models import define_normal_dlm
+from PyBATS.analysis import analysis_dlm, analysis_dbcm
 import matplotlib.pyplot as plt
 
 ## Load in data:
@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 ### transaction - total number of transactions
 ### cascade - counts of basket size per transaction
 ### excess - baskets with more items than the number of cascades (4)
-data = np.load("../data/dbcm_multiscale_data.npz")
+data = np.load("../PyBATS/data/dbcm_multiscale_data.npz")
 Y_transaction = data['Y_transaction']
 X_transaction = data['X_transaction']
 Y_cascade = data['Y_cascade']
@@ -36,7 +36,7 @@ nsamps = 500
 
 # Get multiscale signal from higher level log-normal model
 period = 7 # Include a day-of-week seasonal factor - This coefficient will be the multiscale factor we care about
-phi_mu_prior, phi_sigma_prior, phi_mu_post, phi_sigma_post = analysis_lognormal_seasonalms(
+phi_mu_prior, phi_sigma_prior, phi_mu_post, phi_sigma_post = analysis_dlm(
     Y_total, X_total, prior_length, k, forecast_start, forecast_end, period)
 
 # Update and forecast the model

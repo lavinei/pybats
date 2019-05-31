@@ -3,12 +3,12 @@ sys.path.insert(0,'../')
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from forecasting.analysis import analysis_lognormal_seasonalms, analysis_dcmm
+from PyBATS.analysis import analysis_dlm, analysis_dcmm
 
 ## Load in data:
 ### Y_totalsales = total sales of a type of item (proxy for overall store traffic)
 ### Y = sales of a single item
-data = np.load("../data/dcmm_multiscale_data.npz")
+data = np.load("../PyBATS/data/dcmm_multiscale_data.npz")
 Y = data['Y'].T
 X = data['X'].reshape(-1,1)
 Y_total = np.log(data['Y_totalsales'])
@@ -27,7 +27,7 @@ forecast_end = T - k
 nsamps = 500
 
 # Get multiscale signal from higher level log-normal model
-phi_mu_prior, phi_sigma_prior, phi_mu_post, phi_sigma_post = analysis_lognormal_seasonalms(
+phi_mu_prior, phi_sigma_prior, phi_mu_post, phi_sigma_post = analysis_dlm(
     Y_total, X_total, prior_length, k, forecast_start, forecast_end, period)
 
 
