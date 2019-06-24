@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from PyBATS.analysis import analysis_dlm, analysis_dcmm
+from PyBATS.signal import seas_weekly_signal
 
 ## Load in data:
 ### Y_totalsales = total sales of a type of item (proxy for overall store traffic)
@@ -11,30 +12,33 @@ from PyBATS.analysis import analysis_dlm, analysis_dcmm
 data = np.load("../PyBATS/data/dcmm_multiscale_data.npz")
 Y = data['Y'].T
 X = data['X'].reshape(-1,1)
-Y_total = np.log(data['Y_totalsales'])
-X_total = data['X_totalsales']
+Y_total = np.log(data['Y_totalsales']).reshape(-1,1)
+X_total = data['X_totalsales'].reshape(-1,1)
 T = len(Y)
+start_date = pd.to_datetime('2017-01-01') # Make up a start date
+dates = pd.date_range(start_date, start_date + pd.DateOffset(days=T) , freq='D')
 prior_length = 21
 
-
 #Initialize parameters
-period = 7 # Period of the seasonal component that is coming from the log-normal
 rho = .5
 k = 14 # Number of days ahead that we will forecast
 horizons = np.arange(1,k+1)
-forecast_start = prior_length + 200
-forecast_end = T - k
 nsamps = 500
 
+# Define period to forecast over
+forecast_start = prior_length + 150
+forecast_start_date = start_date + pd.DateOffset(days=forecast_start)
+forecast_end_date = dates[-1] - pd.DateOffset(days=k)
+
 # Get multiscale signal from higher level log-normal model
-phi_mu_prior, phi_sigma_prior, phi_mu_post, phi_sigma_post = analysis_dlm(
-    Y_total, X_total, prior_length, k, forecast_start, forecast_end, period)
+[multiscale_signal] = analysis_dlm(Y_total, X_total, prior_length, k, forecast_start_date, forecast_end_date, dates=dates,
+                                   ret=['new_signals'], new_signals = [seas_weekly_signal])
 
 
 # Update and forecast the model
 forecast_samples = analysis_dcmm(Y, X, prior_length,
-                               k, forecast_start, forecast_end, nsamps, rho,
-                               phi_mu_prior, phi_sigma_prior, None, phi_mu_post, phi_sigma_post)
+                               k, forecast_start_date, forecast_end_date, nsamps, rho,
+                               multiscale_signal, dates=dates)
 
 
 ## Plot forecasts against true sales, along with 95% credible intervals
@@ -53,5 +57,6 @@ def plot_sales_forecast(forecast_samps, sales, time, filename):
 
 
 filename = "./Examples/dcmm_multiscale_forecast"
+forecast_end = T - k + 1
 time = np.arange(forecast_start, forecast_end)
-plot_sales_forecast(forecast_samples[:,:,0], Y[forecast_start:forecast_end], time, filename)
+plot_sales_forecast(forecast_samples[:,:,0], Y[forecast_start:forecast_end], dates[forecast_start:forecast_end], filename)

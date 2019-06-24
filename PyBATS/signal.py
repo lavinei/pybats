@@ -87,6 +87,34 @@ class signal:
         self.forecast_end_date = np.max(self.forecast_mean.index)
         self.forecast_dates = self.forecast_mean.index
 
+    def copy(self):
+        if self.dates is None:
+            dates = None
+            mean = None
+            var = None
+        else:
+            dates = self.dates.copy()
+            mean = self.mean.copy().values
+            var = self.var.copy().values
+
+        if self.forecast_dates is None:
+            forecast_dates = None
+            forecast_mean = None
+            forecast_var = None
+        else:
+            forecast_dates = self.forecast_dates.copy()
+            forecast_mean = self.forecast_mean.copy().values
+            forecast_var = self.forecast_var.copy().values
+
+
+        newsig = signal(mean=mean, var=var,
+                        forecast_mean=forecast_mean, forecast_var=forecast_var,
+                        dates= dates, forecast_dates=forecast_dates,
+                        gen_fxn=self.gen_fxn, gen_forecast_fxn=self.gen_forecast_fxn)
+
+        return newsig
+
+
 
 class multisignal(signal):
     def __init__(self, signals):
@@ -135,6 +163,45 @@ class multisignal(signal):
             idx += sig.p
 
         return self.forecast_mean, self.forecast_var
+
+    def copy(self):
+
+        newsignals = []
+        for sig in self.signals:
+
+            newsignals.append(sig.copy())
+
+        return multisignal(newsignals)
+
+    def add_signal(self, signal):
+        """
+        :param signal: A new signal to be added to the multisignal
+        :return:
+        """
+        # Append the new signal on
+        self.signals.append(signal)
+
+        self.nsignals = len(self.signals)
+        self.p = np.sum([sig.p for sig in self.signals])
+        self.k = np.min([sig.k for sig in self.signals])
+
+        # initialize matrices that filled in when 'get_signal' and 'get_forecast_signal' are called
+        self.mean = np.zeros(self.p)
+        self.var = np.zeros([self.p, self.p])
+        self.forecast_mean = [np.zeros(self.p) for k in range(self.k)]
+        self.forecast_var = [np.zeros([self.p, self.p]) for k in range(self.k)]
+        self.forecast_covar = [np.zeros([self.p, self.p]) for k in range(self.k)]
+
+        # Set the start and end dates
+        start_date = np.max([sig.start_date for sig in self.signals])
+        end_date = np.min([sig.end_date for sig in self.signals])
+        self.dates = pd.date_range(start_date, end_date)
+
+        # Set the start and end forecast dates
+        forecast_start_date = np.max([sig.forecast_start_date for sig in self.signals])
+        forecast_end_date = np.min([sig.forecast_end_date for sig in self.signals])
+        self.forecast_dates = pd.date_range(forecast_start_date, forecast_end_date)
+
 
 #### A number of common signal generating functions
 def hol_fxn(date, mod, X, **kwargs):
@@ -305,7 +372,7 @@ def merge_forecast_fxn(date, signals, **kwargs):
 
 def merge_signals(signals):
     """
-    :param signals: list of signals to be merged. Will use precision weighted averaging
+    :param signals: list of the same signal from different sources to be combined into 1 using precision weighted averaging
     :return: A single signal
     """
     # Set the start and end dates
@@ -342,12 +409,11 @@ def merge_sig_with_predictor(sig, X, X_dates):
     :param X_dates: Dates associated with the known predictor
     :return:
     """
-    newsig = signal(mean=sig.mean.copy(), var = sig.var.copy(),
-                    forecast_mean = sig.forecast_mean.copy(), forecast_var = sig.forecast_var.copy(),
-                    dates = sig.dates.copy(), forecast_dates = sig.forecast_dates.copy(),
-                    gen_fxn = sig.gen_fxn, gen_forecast_fxn = sig.gen_forecast_fxn)
+
+    newsig = sig.copy()
 
     X = pd.DataFrame(X, index=X_dates)
+
     for date in newsig.dates:
         newsig.mean.loc[date] *= X.loc[date].values
         newsig.var.loc[date] *= (X.loc[date].values ** 2)
@@ -357,7 +423,7 @@ def merge_sig_with_predictor(sig, X, X_dates):
         v = newsig.forecast_var.loc[date]
         for h in range(newsig.k):
             m[h] *= X.loc[date + pd.DateOffset(days=h)].values
-            v[h] *= (X.loc[date + pd.DateOffset(days=h)].values**2)
+            v[h] *= (X.loc[date + pd.DateOffset(days=h)].values ** 2)
         newsig.forecast_mean.loc[date] = m
         newsig.forecast_var.loc[date] = v
 
