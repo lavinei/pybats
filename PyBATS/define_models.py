@@ -3,7 +3,7 @@ import pandas as pd
 from .dglm import normal_dlm
 from .dcmm import dcmm
 from .dbcm import dbcm
-from .amhm import amhm
+from old_code.amhm import amhm
 from .shared import define_holiday_regressors
 import statsmodels.api as sm
 from pandas.tseries.holiday import AbstractHolidayCalendar

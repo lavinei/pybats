@@ -185,8 +185,11 @@ class dbcm:
     # Note we assume that all binomials in the cascade have the same regression components
     def update(self, y_transaction = None, X_transaction = None, y_cascade = None, X_cascade = None, excess = []):
         # Update the DCMM for transactions
-        # We assume the bernoulli and poisson DGLMs have the same regression components
-        self.dcmm.update(y_transaction, (X_transaction, X_transaction))
+        if isinstance(X_transaction, (list, tuple)):
+            self.dcmm.update(y_transaction, (X_transaction[0], X_transaction[1]))
+        else:
+            self.dcmm.update(y_transaction, (X_transaction, X_transaction))
+
         self.update_cascade(y_transaction, y_cascade, X_cascade)
         # If there were any excess transactions, add that to the excess list
         self.excess.extend(excess)
@@ -194,16 +197,25 @@ class dbcm:
         
     # Note we assume that the cascade is NOT multiscale, only the DCMM for transactions 
     def multiscale_update(self, y_transaction = None, X_transaction = None, y_cascade = None, X_cascade = None, phi_samps = None, excess = []):
-        self.dcmm.multiscale_update(y_transaction, (X_transaction, X_transaction), (phi_samps, phi_samps))
+        if isinstance(X_transaction, (list, tuple)):
+            self.dcmm.multiscale_update(y_transaction, (X_transaction[0], X_transaction[1]), (phi_samps, phi_samps))
+        else:
+            self.dcmm.multiscale_update(y_transaction, (X_transaction, X_transaction), (phi_samps, phi_samps))
         self.update_cascade(y_transaction, y_cascade, X_cascade)
         self.excess.extend(excess)
         self.t += 1
         
     def multiscale_update_approx(self, y_transaction = None, X_transaction = None, y_cascade = None, X_cascade = None, phi_mu = None, phi_sigma = None, excess = []):
-        self.dcmm.multiscale_update_approx(y_transaction,
-                                           (X_transaction, X_transaction),
-                                           (phi_mu, phi_mu),
-                                           (phi_sigma, phi_sigma))
+        if isinstance(X_transaction, (list, tuple)):
+            self.dcmm.multiscale_update_approx(y_transaction,
+                                               (X_transaction[0], X_transaction[1]),
+                                               (phi_mu, phi_mu),
+                                               (phi_sigma, phi_sigma))
+        else:
+            self.dcmm.multiscale_update_approx(y_transaction,
+                                               (X_transaction, X_transaction),
+                                               (phi_mu, phi_mu),
+                                               (phi_sigma, phi_sigma))
 
         self.update_cascade(y_transaction, y_cascade, X_cascade)
 
@@ -212,7 +224,10 @@ class dbcm:
         self.t += 1
             
     def forecast_marginal(self, k, X_transaction = None, X_cascade = None, nsamps = 1, mean_only = False, return_separate = False, **kwargs):
-        transaction_samps = self.dcmm.forecast_marginal(k, (X_transaction, X_transaction), nsamps, mean_only)
+        if isinstance(X_transaction, (list, tuple)):
+            transaction_samps = self.dcmm.forecast_marginal(k, (X_transaction[0], X_transaction[1]), nsamps, mean_only)
+        else:
+            transaction_samps = self.dcmm.forecast_marginal(k, (X_transaction, X_transaction), nsamps, mean_only)
         cascade_samps = self.forecast_cascade(k, transaction_samps, X_cascade, nsamps, mean_only)
         excess_samps = self.forecast_excess(cascade_samps[self.ncascade-1,:], nsamps, mean_only)
 
@@ -224,7 +239,11 @@ class dbcm:
         return np.sum(samps, axis = 0)
         
     def multiscale_forecast_marginal(self, k, X_transaction = None, X_cascade = None, phi_samps = None, nsamps = 1, mean_only = False, return_separate = False, **kwargs):
-        transaction_samps = self.dcmm.multiscale_forecast_marginal(k, (X_transaction, X_transaction), (phi_samps, phi_samps), nsamps, mean_only)
+        if isinstance(X_transaction, (list, tuple)):
+            transaction_samps = self.dcmm.multiscale_forecast_marginal(k, (X_transaction[0], X_transaction[1]),
+                                                                       (phi_samps, phi_samps), nsamps, mean_only)
+        else:
+            transaction_samps = self.dcmm.multiscale_forecast_marginal(k, (X_transaction, X_transaction), (phi_samps, phi_samps), nsamps, mean_only)
         cascade_samps = self.forecast_cascade(k, transaction_samps, X_cascade, nsamps, mean_only)
         excess_samps = self.forecast_excess(cascade_samps[self.ncascade-1, :], nsamps, mean_only)
 
@@ -236,7 +255,12 @@ class dbcm:
         return np.sum(samps, axis=0)
 
     def multiscale_forecast_marginal_approx(self, k, X_transaction = None, X_cascade = None, phi_mu = None, phi_sigma = None, nsamps = 1, mean_only = False, return_separate=False, **kwargs):
-        transaction_samps = self.dcmm.multiscale_forecast_marginal_approx(k, (X_transaction, X_transaction), (phi_mu, phi_mu), (phi_sigma, phi_sigma), nsamps, mean_only)
+        if isinstance(X_transaction, (list, tuple)):
+            transaction_samps = self.dcmm.multiscale_forecast_marginal_approx(k, (X_transaction[0], X_transaction[1]),
+                                                                              (phi_mu, phi_mu), (phi_sigma, phi_sigma),
+                                                                              nsamps, mean_only)
+        else:
+            transaction_samps = self.dcmm.multiscale_forecast_marginal_approx(k, (X_transaction, X_transaction), (phi_mu, phi_mu), (phi_sigma, phi_sigma), nsamps, mean_only)
         cascade_samps = self.forecast_cascade(k, transaction_samps, X_cascade, nsamps, mean_only)
         excess_samps = self.forecast_excess(cascade_samps[self.ncascade-1, :], nsamps, mean_only)
 
@@ -248,7 +272,10 @@ class dbcm:
         return np.sum(samps, axis=0)
     
     def forecast_path(self, k, X_transaction = None, X_cascade = None, nsamps = 1, return_separate = False):
-        transaction_samps = self.dcmm.forecast_path(k, (X_transaction, X_transaction), nsamps)
+        if isinstance(X_transaction, (list, tuple)):
+            transaction_samps = self.dcmm.forecast_path(k, (X_transaction[0], X_transaction[1]), nsamps)
+        else:
+            transaction_samps = self.dcmm.forecast_path(k, (X_transaction, X_transaction), nsamps)
         cascade_samps = np.array(
             list(map(lambda h: self.forecast_cascade(h, transaction_samps[:, h], X_cascade[h], nsamps),
                      range(k)))).T
@@ -264,7 +291,10 @@ class dbcm:
         return np.sum(samps, axis=1)
     
     def forecast_path_approx(self, k, X_transaction = None, X_cascade = None, nsamps = 1, return_separate = False, **kwargs):
-        transaction_samps = self.dcmm.forecast_path_approx(k, (X_transaction, X_transaction), nsamps, **kwargs)
+        if isinstance(X_transaction, (list, tuple)):
+            transaction_samps = self.dcmm.forecast_path_approx(k, (X_transaction[0], X_transaction[1]), nsamps, **kwargs)
+        else:
+            transaction_samps = self.dcmm.forecast_path_approx(k, (X_transaction, X_transaction), nsamps, **kwargs)
         cascade_samps = np.array(
             list(map(lambda h: self.forecast_cascade(h, transaction_samps[:, h], X_cascade[h], nsamps),
                      range(k)))).T
@@ -279,7 +309,12 @@ class dbcm:
         return np.sum(samps, axis=1)
     
     def multiscale_forecast_path_approx(self, k, X_transaction = None, X_cascade = None, phi_mu = None, phi_sigma = None, phi_psi = None, nsamps = 1, return_separate = False, **kwargs):
-        transaction_samps = self.dcmm.multiscale_forecast_path_approx(k, (X_transaction, X_transaction), (phi_mu, phi_mu), (phi_sigma, phi_sigma), (phi_psi, phi_psi), nsamps, **kwargs)
+        if isinstance(X_transaction, (list, tuple)):
+            transaction_samps = self.dcmm.multiscale_forecast_path_approx(k, (X_transaction[0], X_transaction[1]),
+                                                                          (phi_mu, phi_mu), (phi_sigma, phi_sigma),
+                                                                          (phi_psi, phi_psi), nsamps, **kwargs)
+        else:
+            transaction_samps = self.dcmm.multiscale_forecast_path_approx(k, (X_transaction, X_transaction), (phi_mu, phi_mu), (phi_sigma, phi_sigma), (phi_psi, phi_psi), nsamps, **kwargs)
         cascade_samps = np.array(
             list(map(lambda h: self.forecast_cascade(h, transaction_samps[:, h], X_cascade[h], nsamps),
                      range(k)))).T
