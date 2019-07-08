@@ -325,6 +325,9 @@ class bern_dglm(dglm):
     def simulate_from_sampling_model(self, p, nsamps):
         return np.random.binomial(1, p, [nsamps])
 
+    def simulate_from_prior(self, alpha, beta, nsamps):
+        return stats.beta.rvs(a=alpha, b=beta, size=nsamps)
+
     def prior_inverse_cdf(self, cdf, alpha, beta):
         return stats.beta.ppf(cdf, alpha, beta)
 
@@ -392,6 +395,9 @@ class pois_dglm(dglm):
 
     def simulate_from_sampling_model(self, rate, nsamps):
         return np.random.poisson(rate, [nsamps])
+
+    def simulate_from_prior(self, alpha, beta, nsamps):
+        return stats.gamma.rvs(a=alpha, scale=1/beta, size=nsamps)
 
     def prior_inverse_cdf(self, cdf, alpha, beta):
         return stats.gamma.ppf(cdf, a=alpha, scale=1 / beta)

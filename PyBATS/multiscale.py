@@ -1,7 +1,8 @@
 # These are for the general DGLM
 import numpy as np
 import scipy as sc
-from .forecast import forecast_path_approx_sim, forecast_path_approx_dens_MC, forecast_aR
+from .forecast import forecast_path_approx_sim, forecast_path_approx_dens_MC, forecast_aR, \
+    forecast_joint_approx_dens_MC, forecast_joint_approx_sim
 from .update import update_F
 import multiprocessing
 from functools import partial
@@ -302,7 +303,7 @@ def multiscale_forecast_path_approx(mod, k, X = None, phi_mu = None, phi_sigma =
     for i in range(k):
 
         # Get the marginal a, R
-        a, R = forecast_aR(mod, i)
+        a, R = forecast_aR(mod, i+1)
             
         alist[i] = a
         Rlist[i] = R
@@ -339,6 +340,60 @@ def multiscale_forecast_path_approx(mod, k, X = None, phi_mu = None, phi_sigma =
     else:
         return forecast_path_approx_sim(mod, k, lambda_mu, lambda_cov, nsamps, t_dist, nu)
 
+def multiscale_forecast_marginal_joint_approx(mod_list, k, X_list=None, phi_mu = None, phi_sigma = None, phi_psi = None,
+                                       nsamps=1, y=None, t_dist=False, nu=9):
+    """
+    Forecast function for multiple models, marginally k-steps ahead
+    """
+
+    p = len(mod_list)
+
+    lambda_mu = np.zeros([p])
+    lambda_cov = np.zeros([p, p])
+
+    Flist = [None for x in range(p)]
+    Rlist = [None for x in range(p)]
+    alist = [None for x in range(p)]
+
+    if X_list is None:
+        X_list = [[] for i in range(p)]
+
+    for i, [X, mod] in enumerate(zip(X_list, mod_list)):
+
+        # Evolve to the prior at time t + k
+        a, R = forecast_aR(mod, k)
+
+        Rlist[i] = R
+        alist[i] = a[mod.imultiscale]
+
+        # Plug in the correct F values
+        F = np.copy(mod.F)
+        if mod.nregn > 0:
+            F[mod.iregn] = X[i, :].reshape(mod.nregn, 1)
+
+        # Put the mean of the latent factor phi_mu into the F vector
+        if mod.nmultiscale > 0:
+            F[mod.imultiscale] = phi_mu.reshape(mod.nmultiscale,1)
+
+        Flist[i] = F
+
+        # Find lambda mean and var
+        ft, qt = mod.get_mean_and_var(F, a, R)
+        lambda_mu[i] = ft
+        lambda_cov[i, i] = qt
+
+        # Find covariances with lambda values from other models
+        for j in range(i):
+            # Covariance matrix between lambda from models i, j
+            if phi_sigma.ndim == 0:
+                lambda_cov[j, i] = lambda_cov[i, j] = np.squeeze(alist[i] * phi_sigma * alist[j])
+            else:
+                lambda_cov[j, i] = lambda_cov[i, j] = alist[i].T @ phi_sigma @ alist[j]
+
+    if y is not None:
+        return forecast_joint_approx_dens_MC(mod_list, y, lambda_mu, lambda_cov, t_dist, nu, nsamps)
+    else:
+        return forecast_joint_approx_sim(mod_list, lambda_mu, lambda_cov, nsamps, t_dist, nu)
 
 ################ FUNCTIONS TO EXTRACT MULTISCALE SIGNAL... E.G. HOLIDAY REGRESSION COEFFICIENTS ###############
 

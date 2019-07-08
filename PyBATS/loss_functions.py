@@ -8,10 +8,11 @@ def MSE(y, f):
 def MAD(y, f):
     return np.mean(np.abs(y-f))
 
+def MAPE(y, f):
+    return np.mean(np.abs((y - f)) / y)
 
 def WAPE(y, f):
     return np.sum(np.abs(y-f)) / np.sum(y)
-
 
 def WAFE(y, f):
     return np.sum(np.abs(y-f)) / ((np.sum(y) + np.sum(f))/2)

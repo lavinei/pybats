@@ -111,7 +111,7 @@ def forecast_path_approx(mod, k, X = None, nsamps = 1, t_dist=False, y=None, nu=
     for i in range(k):
 
         # Evolve to the prior at time t + i + 1
-        a, R = forecast_aR(mod, i)
+        a, R = forecast_aR(mod, i+1)
 
         Rlist[i] = R
 
@@ -221,7 +221,7 @@ def forecast_path_approx_sim(mod, k, lambda_mu, lambda_cov, nsamps, t_dist = Fal
               genlist, joint_samps))
     
     # Use inverse-CDF along each margin to get implied PRIOR value (e.g. a gamma dist RV for a poisson sampling model)
-    priorlist = list(map(lambda params, cdf: mod.prior_inverse_cdf(cdf, params[0], params[1]),
+    priorlist = list(map(lambda params, unif_rv: mod.prior_inverse_cdf(unif_rv, params[0], params[1]),
                     conj_params, unif_rvs))
     
     # Simulate from the sampling model (e.g. poisson)
@@ -272,6 +272,87 @@ def forecast_path_approx_dens_MC(mod, y, lambda_mu, lambda_cov, t_dist=False, nu
     # Return their average, on the log scale
     return np.log(np.mean(path_density_list))
 
+
+def forecast_joint_approx_sim(mod_list, lambda_mu, lambda_cov, nsamps, t_dist=False, nu=9):
+    """
+    lambda_mu: kx1 Mean vector for forecast mean over t+1:t+k
+    lambda_cov: kxk Covariance matrix for the forecast over t+1:t+k
+    """
+
+    if t_dist:
+        # nu = 8
+        scale = lambda_cov * ((nu - 2) / nu)
+        joint_samps = multivariate_t(lambda_mu, scale, nu, nsamps).T
+        genlist = list(map(lambda f, q: stats.t(loc=f, scale=np.sqrt(q), df=nu),
+                           lambda_mu, np.diag(scale)))
+    else:
+        # Simulate from a joint multivariate normal with lambda_mu, lambda_cov
+        joint_samps = np.random.multivariate_normal(lambda_mu, lambda_cov, size=nsamps).T
+        genlist = list(map(lambda f, q: stats.norm(f, np.sqrt(q)),
+                           lambda_mu, np.diag(lambda_cov)))
+
+    # Find the marginal conjugate parameters
+    conj_params = []
+    for i, mod in enumerate(mod_list):
+        conj_params.append(mod.get_conjugate_params(lambda_mu[i], lambda_cov[i, i], mod.param1, mod.param2))
+
+    # Use the marginal CDF of the joint distribution to convert our samples into uniform RVs
+    unif_rvs = list(map(lambda gen, samps: gen.cdf(samps),
+                        genlist, joint_samps))
+
+    # Use inverse-CDF along each margin to get implied PRIOR value (e.g. a gamma dist RV for a poisson sampling model)
+    priorlist = list(map(lambda params, unif_rv: mod.prior_inverse_cdf(unif_rv, params[0], params[1]),
+                         conj_params, unif_rvs))
+
+    # Simulate from the sampling model (e.g. poisson)
+    return np.array(list(map(lambda prior: mod.simulate_from_sampling_model(prior, nsamps),
+                             priorlist))).T
+
+def forecast_joint_approx_dens_MC(mod_list, y, lambda_mu, lambda_cov, t_dist=False, nu = 9, nsamps = 500):
+    """
+    lambda_mu: kx1 Mean vector for forecast mean over t+1:t+k
+    lambda_cov: kxk Covariance matrix for the forecast over t+1:t+k
+    """
+    not_missing = np.logical_not(np.isnan(y))
+    y = y[not_missing]
+    lambda_mu = lambda_mu[not_missing]
+    lambda_cov = lambda_cov[np.ix_(not_missing, not_missing)]
+
+    # Get the marginals of the multivariate distribution
+    if t_dist:
+        scale = lambda_cov * ((nu - 2) / nu)
+        joint_samps = multivariate_t(lambda_mu, scale, nu, nsamps).T
+        genlist = list(map(lambda f, q: stats.t(loc=f, scale=np.sqrt(q), df=nu),
+                           lambda_mu, np.diag(scale)))
+    else:
+        joint_samps = np.random.multivariate_normal(lambda_mu, lambda_cov, size=nsamps).T
+        genlist = list(map(lambda f, q: stats.norm(f, np.sqrt(q)),
+                           lambda_mu, np.diag(lambda_cov)))
+
+    # Find the marginal distribution conjugate parameters
+    conj_params = []
+    for i, mod in enumerate(mod_list):
+        conj_params.append(mod.get_conjugate_params(lambda_mu[i], lambda_cov[i, i], mod.param1, mod.param2))
+
+    # Use the marginal CDF of the joint distribution to convert our samples into uniform RVs
+    unif_rvs = list(map(lambda gen, samps: gen.cdf(samps),
+                       genlist, joint_samps))
+
+    # Use inverse-CDF along each margin to get implied PRIOR value (e.g. a gamma dist RV for a poisson sampling model)
+    priorlist = list(map(lambda params, cdf: mod.prior_inverse_cdf(cdf, params[0], params[1]),
+                         conj_params, unif_rvs))
+
+    # Get the density of the y values, using Monte Carlo integration (i.e. an average over the samples)
+    density_list = list(map(lambda y, prior: mod.sampling_density(y, prior),
+                            y, priorlist))
+
+    # Get the product of the densities to get the joint density (they are independent, conditional upon the prior value at each time t+k)
+    joint_density_list = list(map(lambda dens: np.exp(np.sum(np.log(dens))),
+                                 zip(*density_list)))
+
+    # Return their average, on the log scale
+    return np.log(np.mean(joint_density_list))
+
 def multivariate_t(mean, scale, nu, nsamps):
     '''
     mean = mean
@@ -319,3 +400,31 @@ def forecast_state_mean_and_var(mod, k = 1, X = None):
     ft, qt = mod.get_mean_and_var(F, a, R)
 
     return ft, qt
+
+def forecast_marginal_dens_MC(mod, k, X = None, nsamps = 1, y = None):
+    """
+    Function to get marginal forecast density (marginal)
+    """
+    # Plug in the correct F values
+    F = np.copy(mod.F)
+    if mod.nregn > 0:
+        F[mod.iregn] = X.reshape(mod.nregn, 1)
+
+    # Evolve to the prior for time t + k
+    a, R = forecast_aR(mod, k)
+
+    # Mean and variance
+    ft, qt = mod.get_mean_and_var(F, a, R)
+
+    # Choose conjugate prior, match mean and variance
+    param1, param2 = mod.get_conjugate_params(ft, qt, mod.param1, mod.param2)
+
+    # Simulate from the conjugate prior
+    prior_samps = mod.simulate_from_prior(param1, param2, nsamps)
+
+    # Get the densities
+    densities = mod.sampling_density(y, prior_samps)
+
+    # Take a Monte Carlo average, and return the mean density, on the log scale
+    return np.log(np.mean(densities))
+

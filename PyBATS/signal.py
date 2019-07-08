@@ -2,6 +2,7 @@
 import numpy as np
 import pandas as pd
 from collections.abc import Iterable
+import copy
 
 from .multiscale import forecast_holiday_effect
 from .seasonal import get_seasonal_effect_fxnl, forecast_weekly_seasonal_factor
@@ -70,8 +71,8 @@ class signal:
             self.p = len(self.mean.head().values[0])
         else:
             self.p = 1
-        self.start_date = np.min(self.mean.index)
-        self.end_date = np.max(self.mean.index)
+        self.start_date = np.min(self.mean.index.values)
+        self.end_date = np.max(self.mean.index.values)
         self.dates = self.mean.index
 
     def append_forecast_signal(self):
@@ -83,34 +84,45 @@ class signal:
             self.k = len(self.forecast_mean.head().values[0])
         else:
             self.k = 1
-        self.forecast_start_date = np.min(self.forecast_mean.index)
-        self.forecast_end_date = np.max(self.forecast_mean.index)
+        self.forecast_start_date = np.min(self.forecast_mean.index.values)
+        self.forecast_end_date = np.max(self.forecast_mean.index.values)
         self.forecast_dates = self.forecast_mean.index
 
     def copy(self):
-        if self.dates is None:
-            dates = None
-            mean = None
-            var = None
-        else:
-            dates = self.dates.copy()
-            mean = self.mean.copy().values
-            var = self.var.copy().values
+        # newsig = signal(gen_fxn=copy_fxn, gen_forecast_fxn=copy_forecast_fxn)
+        # if self.dates is None:
+        #     dates = None
+        #     mean = None
+        #     var = None
+        # else:
+            # for date in self.dates:
+            #     newsig.generate_signal(date, signal = self)
 
-        if self.forecast_dates is None:
-            forecast_dates = None
-            forecast_mean = None
-            forecast_var = None
-        else:
-            forecast_dates = self.forecast_dates.copy()
-            forecast_mean = self.forecast_mean.copy().values
-            forecast_var = self.forecast_var.copy().values
+            # dates = self.dates.copy()
+            # mean = self.mean.copy().values
+            # var = self.var.copy().values
+
+        # if self.forecast_dates is None:
+        #     forecast_dates = None
+        #     forecast_mean = None
+        #     forecast_var = None
+        # else:
+            # for date in self.dates:
+            #     newsig.generate_forecast_signal(date, signal=self)
+            # forecast_dates = self.forecast_dates.copy()
+            # forecast_mean = self.forecast_mean.copy().values
+            # forecast_var = self.forecast_var.copy().values
 
 
-        newsig = signal(mean=mean, var=var,
-                        forecast_mean=forecast_mean, forecast_var=forecast_var,
-                        dates= dates, forecast_dates=forecast_dates,
-                        gen_fxn=self.gen_fxn, gen_forecast_fxn=self.gen_forecast_fxn)
+        # newsig = signal(mean=mean, var=var,
+        #                 forecast_mean=forecast_mean, forecast_var=forecast_var,
+        #                 dates= dates, forecast_dates=forecast_dates,
+        #                 gen_fxn=self.gen_fxn, gen_forecast_fxn=self.gen_forecast_fxn)
+
+        # newsig.append_signal()
+        # newsig.append_forecast_signal()
+
+        newsig = copy.deepcopy(self)
 
         return newsig
 
@@ -279,12 +291,12 @@ def pois_coef_fxn(date, mod, idx = None, **kwargs):
         if idx is None:
             idx = np.arange(0, len(mod.dcmm.pois_mod.m))
 
-        return mod.dcmm.pois_mod.m[idx].copy(), mod.dcmm.pois_mod.C.diagonal()[idx].copy()
+        return mod.dcmm.pois_mod.m[idx].copy().reshape(-1), mod.dcmm.pois_mod.C[np.ix_(idx, idx)].copy()
     if type(mod) == dcmm:
         if idx is None:
             idx = np.arange(0, len(mod.pois_mod.m))
 
-        return mod.pois_mod.m[idx].copy(), mod.pois_mod.C.diagonal()[idx].copy()
+        return mod.pois_mod.m[idx].copy().reshape(-1), mod.pois_mod.C[np.ix_(idx, idx)].copy()
 
 def pois_coef_forecast_fxn(date, mod, k, idx=None, **kwargs):
     if type(mod) == dbcm:
@@ -295,8 +307,8 @@ def pois_coef_forecast_fxn(date, mod, k, idx=None, **kwargs):
         pois_coef_var = []
         for j in range(1, k + 1):
             a, R = forecast_aR(mod.dcmm.pois_mod, j)
-            pois_coef_mean.append(a[idx].copy())
-            pois_coef_var.append(R.diagonal()[idx].copy())
+            pois_coef_mean.append(a[idx].copy().reshape(-1))
+            pois_coef_var.append(R[np.ix_(idx, idx)].copy())
         return pois_coef_mean, pois_coef_var
     if type(mod) == dcmm:
         if idx is None:
@@ -306,8 +318,8 @@ def pois_coef_forecast_fxn(date, mod, k, idx=None, **kwargs):
         pois_coef_var = []
         for j in range(1, k + 1):
             a, R = forecast_aR(mod.pois_mod, j)
-            pois_coef_mean.append(a[idx].copy())
-            pois_coef_var.append(R.diagonal()[idx].copy())
+            pois_coef_mean.append(a[idx].copy().reshape(-1))
+            pois_coef_var.append(R[np.ix_(idx, idx)].copy())
         return pois_coef_mean, pois_coef_var
 
 pois_coef_signal = signal(gen_fxn = pois_coef_fxn, gen_forecast_fxn=pois_coef_forecast_fxn)
@@ -317,12 +329,12 @@ def bern_coef_fxn(date, mod, idx = None, **kwargs):
         if idx is None:
             idx = np.arange(0, len(mod.dcmm.bern_mod.m))
 
-        return mod.dcmm.bern_mod.m[idx].copy(), mod.dcmm.bern_mod.C.diagonal()[idx].copy()
+        return mod.dcmm.bern_mod.m[idx].copy().reshape(-1), mod.dcmm.bern_mod.C[np.ix_(idx, idx)].copy()
     if type(mod) == dcmm:
         if idx is None:
             idx = np.arange(0, len(mod.bern_mod.m))
 
-        return mod.bern_mod.m[idx].copy(), mod.bern_mod.C.diagonal()[idx].copy()
+        return mod.bern_mod.m[idx].copy().reshape(-1), mod.bern_mod.C[np.ix_(idx, idx)].copy()
 
 def bern_coef_forecast_fxn(date, mod, k, idx = None, **kwargs):
     if type(mod) == dbcm:
@@ -333,8 +345,8 @@ def bern_coef_forecast_fxn(date, mod, k, idx = None, **kwargs):
         bern_coef_var = []
         for j in range(1, k + 1):
             a, R = forecast_aR(mod.dcmm.bern_mod, j)
-            bern_coef_mean.append(a[idx].copy())
-            bern_coef_var.append(R.diagonal()[idx].copy())
+            bern_coef_mean.append(a[idx].copy().reshape(-1))
+            bern_coef_var.append(R[np.ix_(idx, idx)].copy())
         return bern_coef_mean, bern_coef_var
 
     if type(mod) == dcmm:
@@ -345,30 +357,64 @@ def bern_coef_forecast_fxn(date, mod, k, idx = None, **kwargs):
         bern_coef_var = []
         for j in range(1, k + 1):
             a, R = forecast_aR(mod.dcmm.bern_mod, j)
-            bern_coef_mean.append(a[idx].copy())
-            bern_coef_var.append(R.diagonal()[idx].copy())
+            bern_coef_mean.append(a[idx].copy().reshape(-1))
+            bern_coef_var.append(R[np.ix_(idx, idx)].copy())
         return bern_coef_mean, bern_coef_var
 
 bern_coef_signal = signal(gen_fxn=bern_coef_fxn, gen_forecast_fxn=bern_coef_forecast_fxn)
 
+
+def copy_fxn(date, signal):
+    s = signal.get_signal(date)
+    return copy.deepcopy(s[0]), copy.deepcopy(s[1])
+
+def copy_forecast_fxn(date, signal):
+    means = []
+    vars = []
+    ms, vs = signal.get_forecast_signal(date)
+    for h in range(signal.k):
+        means.append(copy.deepcopy(ms[h]))
+        vars.append(copy.deepcopy(vs[h]))
+    return means, vars
+
 def merge_fxn(date, signals, **kwargs):
-    m = np.array([float(sig.get_signal(date)[0]) for sig in signals])
-    v = np.array([float(sig.get_signal(date)[1]) for sig in signals])
-    p = 1 / v
-    return np.sum(m * p) / np.sum(p), 1 / np.sum(p)
+    if signals[0].p == 1:
+        m = np.array([float(sig.get_signal(date)[0]) for sig in signals])
+        v = np.array([float(sig.get_signal(date)[1]) for sig in signals])
+        p = 1 / v
+        return np.sum(m * p) / np.sum(p), 1 / np.sum(p)
+    else:
+        ms = [sig.get_signal(date)[0] for sig in signals]
+        vs = [sig.get_signal(date)[1] for sig in signals]
+        ps = [np.linalg.inv(v) for v in vs]
+        m = np.sum([p @ m.reshape(-1,1) for m, p in zip(ms, ps)], axis=0)
+        v = np.linalg.inv(np.sum(ps, axis=0))
+        mean = v @ m
+        return mean.reshape(-1), v
 
 def merge_forecast_fxn(date, signals, **kwargs):
     k = np.min([sig.k for sig in signals])
     signal_mean = []
     signal_var = []
-    ms, vs = list(zip(*[sig.get_forecast_signal(date) for sig in signals]))
-    for h in range(k):
-        m = np.array([float(m[h]) for m in ms])
-        v = np.array([float(v[h]) for v in vs])
-        p = 1 / v
-        signal_mean.append(np.sum(m * p) / np.sum(p))
-        signal_var.append(1 / np.sum(p))
-    return signal_mean, signal_var
+    if signals[0].p == 1:
+        ms, vs = list(zip(*[sig.get_forecast_signal(date) for sig in signals]))
+        for h in range(k):
+            m = np.array([float(m[h]) for m in ms])
+            v = np.array([float(v[h]) for v in vs])
+            p = 1 / v
+            signal_mean.append(np.sum(m * p) / np.sum(p))
+            signal_var.append(1 / np.sum(p))
+        return signal_mean, signal_var
+    else:
+        ms, vs = list(zip(*[sig.get_forecast_signal(date) for sig in signals]))
+        ps = [[np.linalg.inv(var) for var in v] for v in vs]
+        for h in range(k):
+            m = np.sum([p[h] @ m[h].reshape(-1, 1) for m, p in zip(ms, ps)], axis=0)
+            v = np.linalg.inv(np.sum([p[h] for p in ps], axis=0))
+            mean = v @ m
+            signal_mean.append(mean.reshape(-1))
+            signal_var.append(v)
+        return signal_mean, signal_var
 
 def merge_signals(signals):
     """
@@ -376,13 +422,13 @@ def merge_signals(signals):
     :return: A single signal
     """
     # Set the start and end dates
-    start_date = np.max([sig.start_date for sig in signals])
-    end_date = np.min([sig.end_date for sig in signals])
+    start_date = np.min([sig.start_date for sig in signals])
+    end_date = np.max([sig.end_date for sig in signals])
     dates = pd.date_range(start_date, end_date)
 
     # Set the start and end forecast dates
-    forecast_start_date = np.max([sig.forecast_start_date for sig in signals])
-    forecast_end_date = np.min([sig.forecast_end_date for sig in signals])
+    forecast_start_date = np.min([sig.forecast_start_date for sig in signals])
+    forecast_end_date = np.max([sig.forecast_end_date for sig in signals])
     forecast_dates = pd.date_range(forecast_start_date, forecast_end_date)
 
     # Create a new signal
@@ -390,10 +436,10 @@ def merge_signals(signals):
                     gen_forecast_fxn = merge_forecast_fxn)
 
     for date in dates:
-        merged_sig.generate_signal(date, signals=signals)
+        merged_sig.generate_signal(date, signals=[sig for sig in signals if sig.dates.isin([date]).any()])
 
     for date in forecast_dates:
-        merged_sig.generate_forecast_signal(date, signals=signals)
+        merged_sig.generate_forecast_signal(date, signals=[sig for sig in signals if sig.forecast_dates.isin([date]).any()])
 
     merged_sig.append_signal()
     merged_sig.append_forecast_signal()
@@ -413,18 +459,52 @@ def merge_sig_with_predictor(sig, X, X_dates):
     newsig = sig.copy()
 
     X = pd.DataFrame(X, index=X_dates)
+    if sig.p == 1:
 
-    for date in newsig.dates:
-        newsig.mean.loc[date] *= X.loc[date].values
-        newsig.var.loc[date] *= (X.loc[date].values ** 2)
+        for date in newsig.dates:
+            if X_dates.isin([date]).any():
+                newsig.mean.loc[date] *= X.loc[date].values
+                newsig.var.loc[date] *= (X.loc[date].values ** 2)
+            else:
+                newsig.mean.drop(date, inplace=True)
+                newsig.var.drop(date, inplace=True)
 
-    for date in newsig.forecast_dates:
-        m = newsig.forecast_mean.loc[date]
-        v = newsig.forecast_var.loc[date]
-        for h in range(newsig.k):
-            m[h] *= X.loc[date + pd.DateOffset(days=h)].values
-            v[h] *= (X.loc[date + pd.DateOffset(days=h)].values ** 2)
-        newsig.forecast_mean.loc[date] = m
-        newsig.forecast_var.loc[date] = v
+        for date in newsig.forecast_dates:
+            if X_dates.isin([date]).any():
+
+                m = newsig.forecast_mean.loc[date]
+                v = newsig.forecast_var.loc[date]
+                for h in range(newsig.k):
+                    m[h] *= X.loc[date + pd.DateOffset(days=h)].values
+                    v[h] *= (X.loc[date + pd.DateOffset(days=h)].values ** 2)
+                newsig.forecast_mean.loc[date] = m
+                newsig.forecast_var.loc[date] = v
+            else:
+                newsig.forecast_mean.drop(date, inplace=True)
+                newsig.forecast_var.drop(date, inplace=True)
+
+
+    else:
+        for date in newsig.dates:
+            if X_dates.isin([date]).any():
+                newsig.mean.loc[date] *= X.loc[date].values
+                newsig.var.loc[date] *= X.loc[date].values.reshape(-1,1) @ X.loc[date].values.reshape(1,-1)
+            else:
+                newsig.mean.drop(date, inplace=True)
+                newsig.var.drop(date, inplace=True)
+
+        for date in newsig.forecast_dates:
+            if X_dates.isin([date]).any():
+                m = newsig.forecast_mean.loc[date]
+                v = newsig.forecast_var.loc[date]
+                for h in range(newsig.k):
+                    m[h] *= X.loc[date + pd.DateOffset(days=h)].values
+                    v[h] *= X.loc[date + pd.DateOffset(days=h)].values.reshape(-1,1) @ X.loc[date + pd.DateOffset(days=h)].values.reshape(1,-1)
+                newsig.forecast_mean.loc[date] = m
+                newsig.forecast_var.loc[date] = v
+            else:
+                newsig.forecast_mean.drop(date, inplace=True)
+                newsig.forecast_var.drop(date, inplace=True)
 
     return newsig
+
