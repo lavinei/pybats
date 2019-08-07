@@ -2,12 +2,12 @@ import numpy as np
 import pandas as pd
 
 from .multiscale import forecast_holiday_effect
-from .define_models import define_dcmm, define_normal_dlm, define_dbcm, define_amhm
+from .define_models import define_dcmm, define_normal_dlm, define_dbcm
 from .seasonal import get_seasonal_effect_fxnl, forecast_weekly_seasonal_factor
 from .shared import define_holiday_regressors
 from .forecast import forecast_aR
 from pandas.tseries.holiday import AbstractHolidayCalendar, Holiday
-from collections import Iterable
+from collections.abc import Iterable
 
 
 def analysis_dcmm(Y, X, prior_length, k, forecast_start, forecast_end, nsamps = 500, rho = .6,
@@ -15,7 +15,8 @@ def analysis_dcmm(Y, X, prior_length, k, forecast_start, forecast_end, nsamps = 
                   holidays = [], seasPeriods = [], seasHarmComponents = [], ret=['forecast'],
                   new_signals = None, **kwargs):
     """
-    # Run updating + forecasting using a dcmm. Multiscale option available
+    Run updating + forecasting using a dcmm. Multiscale option available
+
     :param Y: Array of daily sales (n * 1)
     :param X: Covariate array (n * p)
     :param prior_length: number of datapoints to use for prior specification
@@ -64,6 +65,9 @@ def analysis_dcmm(Y, X, prior_length, k, forecast_start, forecast_end, nsamps = 
                       nmultiscale = nmultiscale, rho = rho, nhol = nhol, **kwargs)
 
     if ret.__contains__('new_signals'):
+        if not isinstance(new_signals, Iterable):
+            new_signals = [new_signals]
+
         tmp = []
         for sig in new_signals:
             tmp.append(sig.copy())
@@ -99,7 +103,7 @@ def analysis_dcmm(Y, X, prior_length, k, forecast_start, forecast_end, nsamps = 
                     else:
                         pm, ps = multiscale_signal.get_forecast_signal(dates.iloc[t])
 
-                    pp = None  # Not including path dependency in multiscale signal
+                    pp = None  # Not including the path dependency of the multiscale signal
 
                     if mean_only:
                         forecast[:, t - forecast_start, :] = np.array(list(map(
@@ -154,7 +158,10 @@ def analysis_dcmm(Y, X, prior_length, k, forecast_start, forecast_end, nsamps = 
             for signal in new_signals:
                 signal.append_signal()
                 signal.append_forecast_signal()
-            out.append(new_signals)
+            if len(new_signals) == 1:
+                out.append(new_signals[0])
+            else:
+                out.append(new_signals)
 
     if len(out) == 1:
         return out[0]
@@ -220,6 +227,9 @@ def analysis_dbcm(Y_transaction, X_transaction, Y_cascade, X_cascade, excess,
                       nmultiscale = nmultiscale, rho = rho, nhol=nhol, **kwargs)
 
     if ret.__contains__('new_signals'):
+        if not isinstance(new_signals, Iterable):
+            new_signals = [new_signals]
+
         tmp = []
         for sig in new_signals:
             tmp.append(sig.copy())
@@ -317,7 +327,10 @@ def analysis_dbcm(Y_transaction, X_transaction, Y_cascade, X_cascade, excess,
             for signal in new_signals:
                 signal.append_signal()
                 signal.append_forecast_signal()
-            out.append(new_signals)
+            if len(new_signals) == 1:
+                out.append(new_signals[0])
+            else:
+                out.append(new_signals)
 
     if len(out) == 1:
         return out[0]
@@ -327,8 +340,7 @@ def analysis_dbcm(Y_transaction, X_transaction, Y_cascade, X_cascade, excess,
 
 def analysis_dlm(Y, X, prior_length, k, forecast_start, forecast_end, nsamps=500, holidays = [],
                  seasPeriods = [7], seasHarmComponents = [[1,2,3]],
-                 phi_mu_prior = None, phi_sigma_prior = None, phi_psi_prior = None,
-                 phi_mu_post = None, phi_sigma_post = None,
+                 multiscale_signal = None,
                  mean_only = False, dates=None, ret=['seasonal_weekly'], new_signals = None,
                  ntrend=2, **kwargs):
     """
@@ -346,14 +358,16 @@ def analysis_dlm(Y, X, prior_length, k, forecast_start, forecast_end, nsamps=500
     :return:
     """
 
-    # Check if multiscale DLM
-    if phi_mu_prior is not None:
+    if multiscale_signal is not None:
         multiscale = True
-        nmultiscale = len(phi_mu_post[0])
+        # Note: This assumes that the bernoulli & poisson components have the same number of multiscale components
+        if isinstance(multiscale_signal, (list, tuple)):
+            nmultiscale = multiscale_signal[0].p
+        else:
+            nmultiscale = multiscale_signal.p
     else:
         multiscale = False
         nmultiscale = 0
-
 
     # Add the holiday indicator variables to the regression matrix
     nhol = len(holidays)
@@ -380,11 +394,13 @@ def analysis_dlm(Y, X, prior_length, k, forecast_start, forecast_end, nsamps=500
         dof = []
 
     if ret.__contains__('new_signals'):
+        if not isinstance(new_signals, Iterable):
+            new_signals = [new_signals]
+
         tmp = []
         for sig in new_signals:
             tmp.append(sig.copy())
         new_signals = tmp
-
 
     # Convert dates into row numbers
     if dates is not None:
@@ -437,12 +453,8 @@ def analysis_dlm(Y, X, prior_length, k, forecast_start, forecast_end, nsamps=500
             if ret.__contains__('forecast'):
                 # Get the forecast samples for all the items over the 1:k step ahead path
                 if multiscale:
-                    pm = phi_mu_prior[t - forecast_start]
-                    ps = phi_sigma_prior[t - forecast_start]
-                    if phi_psi_prior is not None:
-                        pp = phi_psi_prior[t - forecast_start]
-                    else:
-                        pp = None
+                    pm, ps = multiscale_signal.get_forecast_signal(dates.iloc[t])
+                    pp = None  # Not including path dependency in multiscale signal
 
                     forecast[:, t - forecast_start, :] = np.array(list(map(
                         lambda k, x, pm, ps: nmod.multiscale_forecast_marginal_approx(
@@ -456,7 +468,6 @@ def analysis_dlm(Y, X, prior_length, k, forecast_start, forecast_end, nsamps=500
 
 
         # Now observe the true y value, and update:
-
         if ret.__contains__('mean_and_var'):
             mean, var = nmod.forecast_marginal(k=1, X = X[t], state_mean_var=True)
             # mav_mean_post.append(np.ravel(mean)[0])
@@ -469,8 +480,7 @@ def analysis_dlm(Y, X, prior_length, k, forecast_start, forecast_end, nsamps=500
 
         # Update the normal DLM
         if multiscale:
-            pm = phi_mu_post[t - prior_length]
-            ps = phi_sigma_post[t - prior_length]
+            pm, ps = multiscale_signal.get_signal(dates.iloc[t])
             nmod.multiscale_update_approx(y=Y[t], X=X[t],
                                           phi_mu=pm, phi_sigma=ps)
         else:
@@ -479,7 +489,7 @@ def analysis_dlm(Y, X, prior_length, k, forecast_start, forecast_end, nsamps=500
 
         if ret.__contains__('new_signals'):
             for signal in new_signals:
-                signal.generate_signal(date=dates[t], mod=nmod, Y=Y[t], X=X[t], k=k)
+                signal.generate_signal(date=dates[t], mod=nmod, Y=Y[t], X=X[t], k=k, nsamps=nsamps)
 
     out = []
     for obj in ret:
@@ -497,7 +507,10 @@ def analysis_dlm(Y, X, prior_length, k, forecast_start, forecast_end, nsamps=500
             for signal in new_signals:
                 signal.append_signal()
                 signal.append_forecast_signal()
-            out.append(new_signals)
+            if len(new_signals) == 1:
+                out.append(new_signals[0])
+            else:
+                out.append(new_signals)
 
         if obj == 'forecast': out.append(forecast)
         if obj == 'model': out.append(nmod)

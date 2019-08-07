@@ -3,7 +3,9 @@ import numpy as np
 import pandas as pd
 from collections.abc import Iterable
 import copy
+import pickle
 
+from .dglm import normal_dlm
 from .multiscale import forecast_holiday_effect
 from .seasonal import get_seasonal_effect_fxnl, forecast_weekly_seasonal_factor
 from .dbcm import dbcm
@@ -126,6 +128,9 @@ class signal:
 
         return newsig
 
+    def save(self, filename):
+        file = open(filename, "wb")
+        pickle.dump(self, file=file)
 
 
 class multisignal(signal):
@@ -214,6 +219,10 @@ class multisignal(signal):
         forecast_end_date = np.min([sig.forecast_end_date for sig in self.signals])
         self.forecast_dates = pd.date_range(forecast_start_date, forecast_end_date)
 
+    def save(self, filename):
+        file = open(filename, "wb")
+        pickle.dump(self, file=file)
+
 
 #### A number of common signal generating functions
 def hol_fxn(date, mod, X, **kwargs):
@@ -249,11 +258,23 @@ def Y_forecast_fxn(date, mod, X, k, nsamps, horizons, **kwargs):
     forecast = list(map(lambda X, k: mod.forecast_marginal(k=k, X=X, nsamps=nsamps),
                         X,
                         horizons))
-    Y_mean = [f.mean() for f in forecast]
+    #
+    # Y_mean = [f.mean() for f in forecast]
+
+    Y_mean = list(map(lambda X, k: mod.forecast_marginal(k=k, X=X, mean_only=True),
+                     X,
+                     horizons))
     Y_var = [f.var() for f in forecast]
     return Y_mean, Y_var
 
 Y_signal = signal(gen_fxn = Y_fxn, gen_forecast_fxn = Y_forecast_fxn)
+
+def Y_update_via_forecast_fxn(date, mod, X, nsamps=200, **kwargs):
+    mean = mod.forecast_marginal(k=1, X=X, mean_only=True)
+    forecast = mod.forecast_marginal(k=1, X=X)
+    return mean, forecast.var()
+
+Y_forecast_signal = signal(gen_fxn = Y_update_via_forecast_fxn, gen_forecast_fxn = Y_forecast_fxn)
 
 def seas_weekly_fxn(date, mod, **kwargs):
     period = 7
@@ -362,6 +383,26 @@ def bern_coef_forecast_fxn(date, mod, k, idx = None, **kwargs):
         return bern_coef_mean, bern_coef_var
 
 bern_coef_signal = signal(gen_fxn=bern_coef_fxn, gen_forecast_fxn=bern_coef_forecast_fxn)
+
+def dlm_coef_fxn(date, mod, idx = None, **kwargs):
+    if idx is None:
+        idx = np.arange(0, len(mod.m))
+
+    return mod.m[idx].copy().reshape(-1), mod.C[np.ix_(idx, idx)].copy()
+
+def dlm_coef_forecast_fxn(date, mod, k, idx=None, **kwargs):
+    if idx is None:
+        idx = np.arange(0, len(mod.m))
+
+    dlm_coef_mean = []
+    dlm_coef_var = []
+    for j in range(1, k + 1):
+        a, R = forecast_aR(mod, j)
+        dlm_coef_mean.append(a[idx].copy().reshape(-1))
+        dlm_coef_var.append(R[np.ix_(idx, idx)].copy())
+    return dlm_coef_mean, dlm_coef_var
+
+dlm_coef_signal = signal(gen_fxn = dlm_coef_fxn, gen_forecast_fxn=dlm_coef_forecast_fxn)
 
 
 def copy_fxn(date, signal):
@@ -508,3 +549,6 @@ def merge_sig_with_predictor(sig, X, X_dates):
 
     return newsig
 
+def load_sig(filename):
+    file = open(filename, 'rb')
+    return pickle.load(file)

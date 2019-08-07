@@ -101,7 +101,7 @@ class dcmm:
             self.pois_mod.update(y = np.nan, X = X[1])
         else: # only update beta model if we have significant uncertainty in the forecast
             # get the lower end forecast on the logit scale
-            F = update_F(self.bern_mod, X[0], return_F=True)
+            F = update_F(self.bern_mod, X[0], F=self.bern_mod.F.copy())
             ft, qt = self.bern_mod.get_mean_and_var(F, self.bern_mod.a, self.bern_mod.R)
             fcast_logit_lb = ft - np.sqrt(qt)
             # translate to a prod for a rough idea of whether we're already pretty confident for this forecast

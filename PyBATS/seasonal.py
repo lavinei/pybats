@@ -22,8 +22,8 @@ def createFourierToSeasonalL(period, harmComponents, Fseas, Gseas):
     for i in range(1, period):
         L[i,:] = L[i-1,:] @ Gseas
         
-    return L  
-    
+    return L
+
 
 def fourierToSeasonal(mod):
     phi = mod.L @ mod.m[mod.iseas]

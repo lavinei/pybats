@@ -7,6 +7,16 @@ from .update import update_F
 import multiprocessing
 from functools import partial
 
+def update_F_multiscale(mod, phi, F=None):
+    if F is None:
+        if mod.nmultiscale > 0:
+            mod.F[mod.imultiscale] = phi.reshape(mod.nmultiscale, 1)
+    else:
+        if mod.nmultiscale > 0:
+            F[mod.imultiscale] = phi.reshape(mod.nmultiscale, 1)
+        return F
+
+
 def multiscale_update(mod, y = None, X = None, phi_samps = None, parallel=False):
     """
     phi_samps: array of samples of the latent factor vector
@@ -58,7 +68,8 @@ def multiscale_update(mod, y = None, X = None, phi_samps = None, parallel=False)
         
                 
 def multiscale_update_with_samp(mod, y, F, a, R, phi):
-    F[mod.imultiscale] = phi.reshape(-1,1)
+    F = update_F_multiscale(mod, phi, F=F)
+    # F[mod.imultiscale] = phi.reshape(-1,1)
     ft, qt = mod.get_mean_and_var(F, a, R)
     # get the conjugate prior parameters
     param1, param2 = mod.get_conjugate_params(ft, qt, mod.param1, mod.param2)
@@ -99,9 +110,8 @@ def multiscale_update_approx(mod, y = None, X = None, phi_mu = None, phi_sigma =
         update_F(mod, X)
 
         # Put the mean of the latent factor phi_mu into the F vector
-        if mod.nmultiscale > 0:
-            mod.F[mod.imultiscale] = phi_mu.reshape(mod.nmultiscale, 1)
-            
+        update_F_multiscale(mod, phi_mu)
+
         # Mean and variance
         ft, qt = mod.multiscale_get_mean_and_var(mod.F, mod.a, mod.R, phi_mu, phi_sigma, mod.imultiscale)
         # if qt[0] < 0:
@@ -156,8 +166,7 @@ def multiscale_update_normaldlm_approx(mod, y=None, X=None, phi_mu = None, phi_s
         update_F(mod, X)
 
         # Put the mean of the latent factor phi_mu into the F vector
-        if mod.nmultiscale > 0:
-            mod.F[mod.imultiscale] = phi_mu
+        update_F_multiscale(mod, phi_mu)
 
         # Mean and variance
         ft, qt = mod.multiscale_get_mean_and_var(mod.F, mod.a, mod.R, phi_mu, phi_sigma, mod.imultiscale)
@@ -208,10 +217,8 @@ def multiscale_forecast_marginal(mod, k, X = None, phi_samps = None, mean_only =
     Forecast function k steps ahead (marginal)
     """
     # Plug in the correct F values
-    if mod.nregn > 0:
-        F = np.copy(mod.F)
-        F[mod.iregn] = X.reshape(mod.nregn,1)
-        
+    F = update_F(mod, X, F=mod.F.copy())
+
     a, R = forecast_aR(mod, k)
 
     # Simulate from the forecast distribution
@@ -222,7 +229,8 @@ def multiscale_sim_with_samp(mod, F, a, R, phi):
     """
     Simulate 'y' values using a single sample of the latent factor phi
     """
-    F[mod.imultiscale] = phi.reshape(-1,1)
+    F = update_F_multiscale(mod, phi, F=F)
+    # F[mod.imultiscale] = phi.reshape(-1,1)
     ft, qt = mod.get_mean_and_var(F, a, R)
     # get the conjugate prior parameters
     param1, param2 = mod.get_conjugate_params(ft, qt, mod.param1, mod.param2)
@@ -230,18 +238,80 @@ def multiscale_sim_with_samp(mod, F, a, R, phi):
     return mod.simulate(param1, param2, 1)
 
 
+def multiscale_forecast_path(mod, k, X=None, phi_samps = None):
+    """
+    Forecast function for the k-step path with samples of the latent factor phi
+    k: steps ahead to forecast
+    X: array with k rows for the future regression components
+    phi_samps: An nsamps length list of k-length lists with samples of the latent factor
+    """
+
+    nsamps = len(phi_samps)
+    samps = np.zeros([nsamps, k])
+
+    F = np.copy(mod.F)
+
+    for n in range(nsamps):
+        param1 = mod.param1
+        param2 = mod.param2
+
+        a = np.copy(mod.a)
+        R = np.copy(mod.R)
+
+        for i in range(k):
+
+            # Plug in X values
+            if mod.nregn > 0:
+                F = update_F(mod, X[i, :], F=F)
+            # if mod.nregn > 0:
+            #     F[mod.iregn] = X[i, :].reshape(mod.nregn, 1)
+
+            # Plug in phi sample
+            F = update_F_multiscale(mod, phi_samps[n][i], F=F)
+            # F[mod.imultiscale] = phi_samps[n][i].reshape(-1, 1)
+
+            # Get mean and variance
+            ft, qt = mod.get_mean_and_var(F, a, R)
+
+            # Choose conjugate prior, match mean and variance
+            param1, param2 = mod.get_conjugate_params(ft, qt, param1, param2)
+
+            # Simulate next observation
+            samps[n, i] = mod.simulate(param1, param2, nsamps=1)
+
+            # Update based on that observation
+            param1, param2, ft_star, qt_star = mod.update_conjugate_params(samps[n, i], param1, param2)
+
+            # Kalman filter update on the state vector (using Linear Bayes approximation)
+            m = a + R @ F * (ft_star - ft) / qt
+            C = R - R @ F @ F.T @ R * (1 - qt_star / qt) / qt
+
+            # Get priors a, R for the next time step
+            a = mod.G @ m
+            R = mod.G @ C @ mod.G.T
+            R = (R + R.T) / 2
+
+            # Discount information
+            if mod.discount_forecast:
+                R = R + mod.W
+
+    return samps
+
+
 def multiscale_forecast_marginal_approx(mod, k, X = None, phi_mu = None, phi_sigma = None, nsamps = 1, mean_only = False, state_mean_var = False):
     """
     Forecast function k steps ahead (marginal)
     """
     # Plug in the correct F values
-    F = np.copy(mod.F)
-    if mod.nregn > 0:
-        F[mod.iregn] = X.reshape(mod.nregn,1)
+    F = update_F(mod, X, F=mod.F.copy())
+    # F = np.copy(mod.F)
+    # if mod.nregn > 0:
+    #     F[mod.iregn] = X.reshape(mod.nregn,1)
             
-    # Put the mean of the latent factor phi_mu into the F vector    
-    if mod.nmultiscale > 0:
-        F[mod.imultiscale] = phi_mu.reshape(mod.nmultiscale,1)
+    # Put the mean of the latent factor phi_mu into the F vector
+    F = update_F_multiscale(mod, phi_mu, F=F)
+    # if mod.nmultiscale > 0:
+    #     F[mod.imultiscale] = phi_mu.reshape(mod.nmultiscale,1)
         
     a, R = forecast_aR(mod, k)
             
@@ -266,13 +336,15 @@ def multiscale_forecast_state_mean_and_var(mod, k, X = None, phi_mu = None, phi_
        Forecast function k steps ahead (marginal)
        """
     # Plug in the correct F values
-    if mod.nregn > 0:
-        F = np.copy(mod.F)
-        F[mod.iregn] = X.reshape(mod.nregn, 1)
+    F = update_F(mod, X, F=mod.F.copy())
+    # if mod.nregn > 0:
+    #     F = np.copy(mod.F)
+    #     F[mod.iregn] = X.reshape(mod.nregn, 1)
 
     # Put the mean of the latent factor phi_mu into the F vector
-    if mod.nmultiscale > 0:
-        F[mod.imultiscale] = phi_mu.reshape(mod.nmultiscale, 1)
+    F = update_F_multiscale(mod, phi_mu, F=F)
+    # if mod.nmultiscale > 0:
+    #     F[mod.imultiscale] = phi_mu.reshape(mod.nmultiscale, 1)
 
     a, R = forecast_aR(mod, k)
 
@@ -282,13 +354,18 @@ def multiscale_forecast_state_mean_and_var(mod, k, X = None, phi_mu = None, phi_
 
 def multiscale_forecast_path_approx(mod, k, X = None, phi_mu = None, phi_sigma = None, phi_psi = None, nsamps = 1, t_dist=False, y = None, nu=9):
     """
-    Forecast function for the k-step path
-    k: steps ahead to forecast
-    X: array with k rows for the future regression components
-    phi_mu: length k list of mean vectors of the latent factors
-    phi_sigma: length k list of variance matrices of the latent factors
-    phi_psi: length k list of covariance matrices of phi_t+k and phi_t+j. Each element is another list, of length k.
-    nsamps: Number of samples to draw from forecast distribution
+
+    :param mod: Model of class DGLM
+    :param k: steps ahead to forecast
+    :param X: array with k rows for the future regression components
+    :param phi_mu: length k list of mean vectors of the latent factors
+    :param phi_sigma: length k list of variance matrices of the latent factors
+    :param phi_psi: length k list of covariance matrices of phi_t+k and phi_t+j. Each element is another list, of length k.
+    :param nsamps: Number of samples to draw from forecast distribution
+    :param t_dist: Use t-copula? If false, Gaussian is assumed.
+    :param y: Future path of observations y. If provided, output will be the forecast density of y.
+    :param nu: Degrees of freedom for t-copula.
+    :return:
     """
     
     lambda_mu = np.zeros([k])
@@ -310,11 +387,14 @@ def multiscale_forecast_path_approx(mod, k, X = None, phi_mu = None, phi_sigma =
 
         # Plug in the correct F values
         if mod.nregn > 0:
-            F[mod.iregn] = X[i,:].reshape(mod.nregn,1)
+            F = update_F(mod, X[i,:], F=F)
+        # if mod.nregn > 0:
+        #     F[mod.iregn] = X[i,:].reshape(mod.nregn,1)
             
-        # Put the mean of the latent factor phi_mu into the F vector    
-        if mod.nmultiscale > 0:
-            F[mod.imultiscale] = phi_mu[i].reshape(mod.nmultiscale,1)
+        # Put the mean of the latent factor phi_mu into the F vector
+        F = update_F_multiscale(mod, phi_mu[i], F=F)
+        # if mod.nmultiscale > 0:
+        #     F[mod.imultiscale] = phi_mu[i].reshape(mod.nmultiscale,1)
             
         Flist[i] = np.copy(F)
             
@@ -367,13 +447,15 @@ def multiscale_forecast_marginal_joint_approx(mod_list, k, X_list=None, phi_mu =
         alist[i] = a[mod.imultiscale]
 
         # Plug in the correct F values
-        F = np.copy(mod.F)
-        if mod.nregn > 0:
-            F[mod.iregn] = X[i, :].reshape(mod.nregn, 1)
+        F = update_F(mod, X[i, :], F=mod.F.copy())
+        # F = np.copy(mod.F)
+        # if mod.nregn > 0:
+        #     F[mod.iregn] = X[i, :].reshape(mod.nregn, 1)
 
         # Put the mean of the latent factor phi_mu into the F vector
-        if mod.nmultiscale > 0:
-            F[mod.imultiscale] = phi_mu.reshape(mod.nmultiscale,1)
+        F = update_F_multiscale(mod, phi_mu, F=F)
+        # if mod.nmultiscale > 0:
+        #     F[mod.imultiscale] = phi_mu.reshape(mod.nmultiscale,1)
 
         Flist[i] = F
 

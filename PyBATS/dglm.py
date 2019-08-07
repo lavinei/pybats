@@ -1,7 +1,7 @@
 # These are for the general DGLM
 import numpy as np
 import scipy as sc
-from collections import Iterable
+from collections.abc import Iterable
 from .seasonal import seascomp, createFourierToSeasonalL
 from .update import update, update_normaldlm, update_bindglm
 from .forecast import forecast_marginal, forecast_path, forecast_path_approx,\
@@ -345,7 +345,7 @@ class bern_dglm(dglm):
         return stats.bernoulli.logpmf(y, alpha / (alpha + beta))
 
     def get_mean(self, alpha, beta):
-        return alpha / (alpha + beta)
+        return np.ravel(alpha / (alpha + beta))[0]
 
     def get_prior_var(self, alpha, beta):
         return (alpha * beta) / ((alpha + beta) ** 2 * (alpha + beta + 1))
@@ -415,7 +415,7 @@ class pois_dglm(dglm):
         return stats.nbinom.logpmf(y, alpha, beta / (1 + beta))
 
     def get_mean(self, alpha, beta):
-        return alpha / beta
+        return np.ravel(alpha/beta)[0]
 
     def get_prior_var(self, alpha, beta):
         return alpha / beta ** 2
@@ -438,7 +438,7 @@ class normal_dlm(dglm):
         return ft, qt
 
     def get_mean(self, ft, qt):
-        return ft
+        return np.ravel(ft)[0]
 
     def get_conjugate_params(self, ft, qt, mean, var):
         return ft, qt
@@ -501,7 +501,7 @@ class bin_dglm(dglm):
         return stats.binom.logpmf(y, n, alpha / (alpha + beta))
 
     def get_mean(self, n, alpha, beta):
-        return n * (alpha / (alpha + beta))
+        return np.ravel(n * (alpha / (alpha + beta)))[0]
 
     def get_prior_var(self, alpha, beta):
         return (alpha * beta) / ((alpha + beta) ** 2 * (alpha + beta + 1))

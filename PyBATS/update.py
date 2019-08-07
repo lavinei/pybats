@@ -1,14 +1,16 @@
 import numpy as np
 
 
-def update_F(mod, X, return_F=False):
-    if mod.nregn > 0:
-        if return_F:
-            F = mod.F.copy()
+def update_F(mod, X, F=None):
+    if F is None:
+        if mod.nregn > 0:
+            mod.F[mod.iregn] = X.reshape(mod.nregn, 1)
+    else:
+        if mod.nregn > 0:
+            # F = mod.F.copy()
             F[mod.iregn] = X.reshape(mod.nregn, 1)
-            return F
-        else:
-            mod.F[mod.iregn] = X.reshape(mod.nregn,1)
+        return F
+
 
 
 def update(mod, y = None, X = None):

@@ -3,6 +3,9 @@ import numpy as np
 from scipy import stats
 from scipy.special import gamma
 
+from PyBATS.update import update_F
+
+
 def forecast_aR(mod, k):
     Gk = np.linalg.matrix_power(mod.G, k - 1)
     a = Gk @ mod.a
@@ -16,10 +19,8 @@ def forecast_marginal(mod, k, X = None, nsamps = 1, mean_only = False, state_mea
     Forecast function k steps ahead (marginal)
     """
     # Plug in the correct F values
-    F = np.copy(mod.F)
-    if mod.nregn > 0:
-        F[mod.iregn] = X.reshape(mod.nregn,1)
-        
+    F = update_F(mod, X, F=mod.F.copy())
+
     # Evolve to the prior for time t + k
     a, R = forecast_aR(mod, k)
 
@@ -62,7 +63,9 @@ def forecast_path(mod, k, X = None, nsamps = 1):
 
             # Plug in the correct F values
             if mod.nregn > 0:
-                F[mod.iregn] = X[i,:].reshape(mod.nregn,1)
+                F = update_F(mod, X[i,:], F=F)
+            # if mod.nregn > 0:
+            #     F[mod.iregn] = X[i,:].reshape(mod.nregn,1)
 
             # Get mean and variance
             ft, qt = mod.get_mean_and_var(F, a, R)
@@ -117,7 +120,9 @@ def forecast_path_approx(mod, k, X = None, nsamps = 1, t_dist=False, y=None, nu=
 
         # Plug in the correct F values
         if mod.nregn > 0:
-            F[mod.iregn] = X[i,:].reshape(mod.nregn,1)
+            F = update_F(mod, X[i, :], F=F)
+        # if mod.nregn > 0:
+        #     F[mod.iregn] = X[i,:].reshape(mod.nregn,1)
             
         Flist[i] = np.copy(F)
             
@@ -144,9 +149,10 @@ def forecast_marginal_bindglm(mod, n, k, X=None, nsamps=1, mean_only=False):
     Forecast function k steps ahead (marginal)
     """
     # Plug in the correct F values
-    F = np.copy(mod.F)
-    if mod.nregn > 0:
-        F[mod.iregn] = X.reshape(mod.nregn,1)
+    F = update_F(mod, X, F=mod.F.copy())
+    # F = np.copy(mod.F)
+    # if mod.nregn > 0:
+    #     F[mod.iregn] = X.reshape(mod.nregn,1)
 
     # Evolve to the prior for time t + k
     a, R = forecast_aR(mod, k)
@@ -176,7 +182,9 @@ def forecast_path_normaldlm(mod, k, X = None, nsamps = 1, multiscale=False, AR=F
     for i in range(k):
         # Plug in the correct F values
         if mod.nregn > 0:
-            F[mod.iregn] = X[i, :].reshape(mod.nregn,1)
+            F = update_F(mod, X[i, :], F=F)
+        # if mod.nregn > 0:
+        #     F[mod.iregn] = X[i, :].reshape(mod.nregn,1)
 
         # mean
         ft = np.array(list(map(lambda theta: F.T @ theta,
@@ -389,9 +397,10 @@ def forecast_state_mean_and_var(mod, k = 1, X = None):
        Forecast function that returns the mean and variance of lambda = state vector * predictors
        """
     # Plug in the correct F values
-    F = np.copy(mod.F)
-    if mod.nregn > 0:
-        F[mod.iregn] = X.reshape(mod.nregn, 1)
+    F = update_F(mod, X, F=mod.F.copy())
+    # F = np.copy(mod.F)
+    # if mod.nregn > 0:
+    #     F[mod.iregn] = X.reshape(mod.nregn, 1)
 
     # Evolve to the prior for time t + k
     a, R = forecast_aR(mod, k)
@@ -406,9 +415,10 @@ def forecast_marginal_dens_MC(mod, k, X = None, nsamps = 1, y = None):
     Function to get marginal forecast density (marginal)
     """
     # Plug in the correct F values
-    F = np.copy(mod.F)
-    if mod.nregn > 0:
-        F[mod.iregn] = X.reshape(mod.nregn, 1)
+    F = update_F(mod, X, F=mod.F.copy())
+    # F = np.copy(mod.F)
+    # if mod.nregn > 0:
+    #     F[mod.iregn] = X.reshape(mod.nregn, 1)
 
     # Evolve to the prior for time t + k
     a, R = forecast_aR(mod, k)

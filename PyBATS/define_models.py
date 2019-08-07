@@ -3,7 +3,6 @@ import pandas as pd
 from .dglm import normal_dlm
 from .dcmm import dcmm
 from .dbcm import dbcm
-from old_code.amhm import amhm
 from .shared import define_holiday_regressors
 import statsmodels.api as sm
 from pandas.tseries.holiday import AbstractHolidayCalendar
@@ -55,6 +54,7 @@ def define_normal_dlm(Y, X, prior_length, ntrend=2, nmultiscale=0, nhol=0, seasP
 def define_dcmm(Y, X, prior_length = 30, seasPeriods = [7], seasHarmComponents = [[1,2,3]], nmultiscale=0, rho=1, nhol = 0,
                 deltrend_bern=.995, delregn_bern=.995, delseas_bern=.995, delmultiscale_bern=.999, delhol_bern=1,
                 deltrend_pois=.998, delregn_pois=.995, delseas_pois=.995, delmultiscale_pois=.999, delhol_pois=1,
+                a0_bern = None, R0_bern = None, a0_pois = None, R0_pois = None,
                 interpolate=True, adapt_discount=False,
                 **kwargs):
     """
@@ -86,12 +86,12 @@ def define_dcmm(Y, X, prior_length = 30, seasPeriods = [7], seasHarmComponents =
     #print(pois_params, bern_params)
 
     prior = [[*bern_params], [0] * nseas, [1] * nmultiscale]
-    a0_bern = np.array([m for ms in prior for m in ms]).reshape(-1, 1)
-    R0_bern = np.identity(a0_bern.shape[0])
+    if a0_bern is None: a0_bern = np.array([m for ms in prior for m in ms]).reshape(-1, 1)
+    if R0_bern is None: R0_bern = np.identity(a0_bern.shape[0])
 
     prior =[ [*pois_params], [0] * nseas, [1] * nmultiscale]
-    a0_pois = np.array([m for ms in prior for m in ms]).reshape(-1, 1)
-    R0_pois = np.identity(a0_pois.shape[0])
+    if a0_pois is None: a0_pois = np.array([m for ms in prior for m in ms]).reshape(-1, 1)
+    if R0_pois is None: R0_pois = np.identity(a0_pois.shape[0])
 
     # Double the variance on holiday indicators
     ihol = range(ntrend + nregn, ntrend + nregn + nhol)
@@ -135,6 +135,7 @@ def define_dbcm(Y_transaction, X_transaction = None, Y_cascade = None, X_cascade
                 deltrend_bern = .995, delregn_bern =.995, delseas_bern = .995, delmultiscale_bern = .999, delhol_bern = 1,
                 deltrend_pois = .998, delregn_pois =.995, delseas_pois = .995, delmultiscale_pois = .999, delhol_pois = 1,
                 deltrend_cascade = .999, delregn_cascade =1., delseas_cascade = .999, delmultiscale_cascade = .999, delhol_cascade = 1.,
+                a0_bern = None, R0_bern = None, a0_pois = None, R0_pois=None,
                 interpolate=True, adapt_discount=False,
                 **kwargs):
     """
@@ -169,11 +170,11 @@ def define_dbcm(Y_transaction, X_transaction = None, Y_cascade = None, X_cascade
     pois_params, bern_params = define_dcmm_params(Y_transaction, X_transaction, prior_length)
 
     prior = [[*bern_params], [0] * nseas, [1] * nmultiscale]
-    a0_bern = np.array([m for ms in prior for m in ms]).reshape(-1, 1)
-    R0_bern = np.identity(a0_bern.shape[0])/2
+    if a0_bern is None: a0_bern = np.array([m for ms in prior for m in ms]).reshape(-1, 1)
+    if R0_bern is None: R0_bern = np.identity(a0_bern.shape[0])/2
     prior = [[*pois_params], [0] * nseas, [1] * nmultiscale]
-    a0_pois = np.array([m for ms in prior for m in ms]).reshape(-1, 1)
-    R0_pois = np.identity(a0_pois.shape[0])
+    if a0_pois is None: a0_pois = np.array([m for ms in prior for m in ms]).reshape(-1, 1)
+    if R0_pois is None: R0_pois = np.identity(a0_pois.shape[0])
 
     # Double the variance on holiday indicators
     ihol = range(ntrend + nregn, ntrend + nregn + nhol)
@@ -293,65 +294,6 @@ def define_dcmm_params(Y, X, prior_length):
             bern_params = np.zeros(pois_params.shape)
 
     return pois_params, bern_params
-
-def define_amhm(mod, dates, holidays = [], prior_length = 21, interpolate=True, adapt_discount=True):
-    nhol = len(holidays)
-
-    # Define X matrix based on the holiday regressors
-    dates = pd.to_datetime(dates[prior_length:], format='%y/%m/%d')
-    cal = AbstractHolidayCalendar()
-    cal.rules = holidays
-    X = define_holiday_regressors(X=None,
-                                  dates=dates,
-                                  holidays=holidays)
-
-    if isinstance(mod, dbcm):
-        rho = mod.dcmm.pois_mod.rho
-
-        # Initialize a multiscale DBCM as our holiday model
-        a0_bern = np.ones(nhol)
-        R0_bern = np.identity(nhol) / 2
-        a0_pois = np.ones(nhol)
-        R0_pois = np.identity(nhol) / 2
-        a0_cascade = [np.zeros(1)] * mod.ncascade
-        R0_cascade = [np.identity(1)] * mod.ncascade
-        holmod = dbcm(a0_bern=a0_bern, R0_bern=R0_bern,
-                      nmultiscale_bern=nhol,
-                      delmultiscale_bern=1,
-                      a0_pois=a0_pois, R0_pois=R0_pois,
-                      nmultiscale_pois=nhol,
-                      delmultiscale_pois=1,
-                      rho=rho,
-                      ncascade=mod.ncascade,
-                      a0_cascade=a0_cascade,  # List of length ncascade
-                      R0_cascade=R0_cascade,  # List of length ncascade
-                      ntrend_cascade=1,
-                      deltrend_cascade=1,
-                      excess=mod.excess,
-                      interpolate=True,
-                      adapt_discount=True)
-
-    elif isinstance(mod, dcmm):
-        rho = mod.pois_mod.rho
-
-        # Initialize a multiscale DCMM as our holiday model
-        a0_bern = np.ones(nhol)
-        R0_bern = np.identity(nhol) / 2
-        a0_pois = np.ones(nhol)
-        R0_pois = np.identity(nhol) / 2
-        holmod = dcmm(a0_bern=a0_bern, R0_bern=R0_bern,
-                      nmultiscale_bern=nhol,
-                      delmultiscale_bern=1,
-                      a0_pois=a0_pois, R0_pois=R0_pois,
-                      nmultiscale_pois=nhol,
-                      delmultiscale_pois=1,
-                      rho=rho,
-                      interpolate=interpolate,
-                      adapt_discount=adapt_discount)
-
-    amhm_mod = amhm(mod, nhol, holmod, holidays, X, cal, dates)
-
-    return amhm_mod
 
 def ncol(x):
     if x is None:

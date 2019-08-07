@@ -1,5 +1,6 @@
 import numpy as np
 import scipy as sc
+import pickle
 from scipy.special import digamma
 from pandas.tseries.holiday import AbstractHolidayCalendar
 
@@ -16,6 +17,10 @@ def gamma_transformer(ft, qt, fn):
 
 def trigamma(x):
     return sc.special.polygamma(x=x, n=1)
+
+def save(obj, filename):
+    file = open(filename, "wb")
+    pickle.dump(obj, file=file)
 
 def define_holiday_regressors(X, dates, holidays=None):
     if X is None:
