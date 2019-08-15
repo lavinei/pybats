@@ -3,9 +3,9 @@ sys.path.insert(0,'../')
 
 import numpy as np
 import pandas as pd
-from PyBATS.define_models import define_normal_dlm
-from PyBATS.analysis import analysis_dlm, analysis_dbcm
-from PyBATS.latent_factor import seas_weekly_lf
+from pybats.define_models import define_normal_dlm
+from pybats.analysis import analysis_dlm, analysis_dbcm
+from pybats.latent_factor import seas_weekly_lf
 import matplotlib.pyplot as plt
 
 ## Load in data:
@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 ### transaction - total number of transactions
 ### cascade - counts of basket size per transaction
 ### excess - baskets with more items than the number of cascades (4)
-data = np.load("../PyBATS/data/dbcm_multiscale_data.npz")
+data = np.load("../pybats/data/dbcm_multiscale_data.npz")
 Y_transaction = data['Y_transaction']
 X_transaction = data['X_transaction']
 Y_cascade = data['Y_cascade']

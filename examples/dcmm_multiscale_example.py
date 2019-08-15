@@ -3,13 +3,13 @@ sys.path.insert(0,'../')
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from PyBATS.analysis import analysis_dlm, analysis_dcmm
-from PyBATS.latent_factor import seas_weekly_lf
+from pybats.analysis import analysis_dlm, analysis_dcmm
+from pybats.latent_factor import seas_weekly_lf
 
 ## Load in data:
 ### Y_totalsales = total sales of a type of item (proxy for overall store traffic)
 ### Y = sales of a single item
-data = np.load("../PyBATS/data/dcmm_multiscale_data.npz")
+data = np.load("../pybats/data/dcmm_multiscale_data.npz")
 Y = data['Y'].T
 X = data['X'].reshape(-1,1)
 Y_total = np.log(data['Y_totalsales']).reshape(-1,1)
