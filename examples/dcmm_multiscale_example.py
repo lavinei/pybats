@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from PyBATS.analysis import analysis_dlm, analysis_dcmm
-from PyBATS.signal import seas_weekly_signal
+from PyBATS.latent_factor import seas_weekly_lf
 
 ## Load in data:
 ### Y_totalsales = total sales of a type of item (proxy for overall store traffic)
@@ -30,15 +30,14 @@ forecast_start = prior_length + 150
 forecast_start_date = start_date + pd.DateOffset(days=forecast_start)
 forecast_end_date = dates[-1] - pd.DateOffset(days=k)
 
-# Get multiscale signal from higher level log-normal model
-[multiscale_signal] = analysis_dlm(Y_total, X_total, prior_length, k, forecast_start_date, forecast_end_date, dates=dates,
-                                   ret=['new_signals'], new_signals = [seas_weekly_signal])
+# Get multiscale signal (a latent factor) from higher level log-normal model
+latent_factor = analysis_dlm(Y_total, X_total, prior_length, k, forecast_start_date, forecast_end_date, dates=dates,
+                             ret=['new_latent_factors'], new_latent_factors= [seas_weekly_lf])
 
 
 # Update and forecast the model
-forecast_samples = analysis_dcmm(Y, X, prior_length,
-                               k, forecast_start_date, forecast_end_date, nsamps, rho,
-                               multiscale_signal, dates=dates)
+forecast_samples = analysis_dcmm(Y, X, prior_length, k, forecast_start_date, forecast_end_date, nsamps, rho,
+                                 latent_factor, dates=dates)
 
 
 ## Plot forecasts against true sales, along with 95% credible intervals
