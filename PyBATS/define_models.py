@@ -7,8 +7,8 @@ from .shared import define_holiday_regressors
 import statsmodels.api as sm
 from pandas.tseries.holiday import AbstractHolidayCalendar
 
-def define_normal_dlm(Y, X, prior_length, ntrend=2, nmultiscale=0, nhol=0, seasPeriods=[7], seasHarmComponents = [[1, 2, 3]],
-                      deltrend = .995, delregn =.995, delseas = .999, delmultiscale=.999, delVar = 0.999, delhol=1,
+def define_normal_dlm(Y, X, prior_length, ntrend=2, nlf=0, nhol=0, seasPeriods=[7], seasHarmComponents = [[1, 2, 3]],
+                      deltrend = .995, delregn =.995, delseas = .999, dellf=.999, delVar = 0.999, delhol=1,
                       n0 = 1, s0 = 1, a0=None, R0=None,
                       adapt_discount=False, **kwargs):
     """
@@ -29,31 +29,31 @@ def define_normal_dlm(Y, X, prior_length, ntrend=2, nmultiscale=0, nhol=0, seasP
         dlm_params_mean = prior_OLS.params
         dlm_params_cov = prior_OLS.cov_params().diagonal()
 
-        prior = [[dlm_params_mean[0]], [0]*(ntrend-1), [*dlm_params_mean[1:]], [0] * nseas, [1] * nmultiscale]
+        prior = [[dlm_params_mean[0]], [0] * (ntrend-1), [*dlm_params_mean[1:]], [0] * nseas, [1] * nlf]
     if a0 is None:
         a0 = np.array([m for ms in prior for m in ms]).reshape(-1, 1)
-    # prior_cov = [[dlm_params_cov[0]], [1]*(ntrend-1), [*dlm_params_cov[1:]], [1] * nseas, [1]*nmultiscale]
+    # prior_cov = [[dlm_params_cov[0]], [1]*(ntrend-1), [*dlm_params_cov[1:]], [1] * nseas, [1]*nlf]
     # R0 = np.diag([np.max(1, v) for vs in prior_cov for v in vs])
     if R0 is None:
         R0 = np.identity(a0.shape[0])*2
     nmod = normal_dlm(a0 = a0, R0 = R0,
                       nregn = nregn,
                       ntrend = ntrend,
-                      nmultiscale=nmultiscale,
+                      nlf=nlf,
                       nhol=nhol,
                       seasPeriods = seasPeriods,
                       seasHarmComponents = seasHarmComponents,
                       deltrend = deltrend, delregn = delregn,
                       delseas = delseas, delhol=delhol,
-                      delmultiscale=delmultiscale,
+                      dellf=dellf,
                       n0 = n0, s0 = s0, delVar = delVar,
                       adapt_discount=adapt_discount)
     
     return nmod
 
-def define_dcmm(Y, X, prior_length = 30, seasPeriods = [7], seasHarmComponents = [[1,2,3]], nmultiscale=0, rho=1, nhol = 0,
-                deltrend_bern=.995, delregn_bern=.995, delseas_bern=.995, delmultiscale_bern=.999, delhol_bern=1,
-                deltrend_pois=.998, delregn_pois=.995, delseas_pois=.995, delmultiscale_pois=.999, delhol_pois=1,
+def define_dcmm(Y, X, prior_length = 30, seasPeriods = [7], seasHarmComponents = [[1,2,3]], nlf=0, rho=1, nhol = 0,
+                deltrend_bern=.995, delregn_bern=.995, delseas_bern=.995, dellf_bern=.999, delhol_bern=1,
+                deltrend_pois=.998, delregn_pois=.995, delseas_pois=.995, dellf_pois=.999, delhol_pois=1,
                 a0_bern = None, R0_bern = None, a0_pois = None, R0_pois = None,
                 interpolate=True, adapt_discount=False,
                 **kwargs):
@@ -63,13 +63,13 @@ def define_dcmm(Y, X, prior_length = 30, seasPeriods = [7], seasHarmComponents =
     :param prior_length: Number of observations to be used in setting the prior
     :param seasPeriods: List of periods for seasonal components
     :param seasHarmComponents: List of harmonic components included in each seasonal component
-    :param nmultiscale: Number of multiscale components
+    :param nlf: Number of latent factor components
     :param rho: Discount factor for random effects extension in poisson DGLM (smaller rho increases variance)
     :param nhol: Number of holidays to include in the model
     :param deltrend: Discount factor on trend components in DCMM and cascade
     :param delregn: Discount factor on regression components in DCMM and cascade
     :param delseas: Discount factor on seasonal components in DCMM and cascade
-    :param delmultiscale: Discount factor on multiscale components in DCMM and cascade
+    :param dellf: Discount factor on latent factor components in DCMM and cascade
     :param delbern: Discount factor for all components of bernoulli DGLM
     :param delpois: Discount factor for all components of poisson DGLM
     :param adapt_discount: Can be 'info' or 'positive_regn' as 2 ways to adapt discount factors and prevent variance blowing up
@@ -85,11 +85,11 @@ def define_dcmm(Y, X, prior_length = 30, seasPeriods = [7], seasHarmComponents =
 
     #print(pois_params, bern_params)
 
-    prior = [[*bern_params], [0] * nseas, [1] * nmultiscale]
+    prior = [[*bern_params], [0] * nseas, [1] * nlf]
     if a0_bern is None: a0_bern = np.array([m for ms in prior for m in ms]).reshape(-1, 1)
     if R0_bern is None: R0_bern = np.identity(a0_bern.shape[0])
 
-    prior =[ [*pois_params], [0] * nseas, [1] * nmultiscale]
+    prior =[[*pois_params], [0] * nseas, [1] * nlf]
     if a0_pois is None: a0_pois = np.array([m for ms in prior for m in ms]).reshape(-1, 1)
     if R0_pois is None: R0_pois = np.identity(a0_pois.shape[0])
 
@@ -100,27 +100,27 @@ def define_dcmm(Y, X, prior_length = 30, seasPeriods = [7], seasHarmComponents =
         R0_pois[idx, idx] = R0_pois[idx, idx] * 4
 
     mod = dcmm(a0_bern = a0_bern, R0_bern = R0_bern,
-                nregn_bern = nregn,
-                ntrend_bern = ntrend,
-                nmultiscale_bern = nmultiscale,
-                nhol_bern=nhol,
-                seasPeriods_bern = seasPeriods,
-                seasHarmComponents_bern = seasHarmComponents,
-                deltrend_bern = deltrend_bern, delregn_bern = delregn_bern,
-                delseas_bern = delseas_bern,
-                delmultiscale_bern=delmultiscale_bern,
-                delhol_bern = delhol_bern,
-          a0_pois = a0_pois, R0_pois = R0_pois,
-                nregn_pois = nregn,
-                ntrend_pois = ntrend,
-                nmultiscale_pois=nmultiscale,
-                nhol_pois=nhol,
-                seasPeriods_pois = seasPeriods,
-                seasHarmComponents_pois = seasHarmComponents,
-                deltrend_pois = deltrend_pois, delregn_pois = delregn_pois,
-                delseas_pois = delseas_pois,
-                delmultiscale_pois=delmultiscale_pois,
-                delhol_pois = delhol_pois,
+               nregn_bern = nregn,
+               ntrend_bern = ntrend,
+               nlf_bern= nlf,
+               nhol_bern=nhol,
+               seasPeriods_bern = seasPeriods,
+               seasHarmComponents_bern = seasHarmComponents,
+               deltrend_bern = deltrend_bern, delregn_bern = delregn_bern,
+               delseas_bern = delseas_bern,
+               dellf_bern=dellf_bern,
+               delhol_bern = delhol_bern,
+               a0_pois = a0_pois, R0_pois = R0_pois,
+               nregn_pois = nregn,
+               ntrend_pois = ntrend,
+               nlf_pois=nlf,
+               nhol_pois=nhol,
+               seasPeriods_pois = seasPeriods,
+               seasHarmComponents_pois = seasHarmComponents,
+               deltrend_pois = deltrend_pois, delregn_pois = delregn_pois,
+               delseas_pois = delseas_pois,
+               dellf_pois=dellf_pois,
+               delhol_pois = delhol_pois,
                rho = rho,
                interpolate=interpolate,
                adapt_discount=adapt_discount
@@ -130,11 +130,11 @@ def define_dcmm(Y, X, prior_length = 30, seasPeriods = [7], seasHarmComponents =
 
 
 def define_dbcm(Y_transaction, X_transaction = None, Y_cascade = None, X_cascade = None, excess_baskets = [], excess_values=[],
-                prior_length = 30, seasPeriods = [7], seasHarmComponents = [[1,2,3]], nmultiscale=0,
+                prior_length = 30, seasPeriods = [7], seasHarmComponents = [[1,2,3]], nlf=0,
                 rho = 1, nhol = 0,
-                deltrend_bern = .995, delregn_bern =.995, delseas_bern = .995, delmultiscale_bern = .999, delhol_bern = 1,
-                deltrend_pois = .998, delregn_pois =.995, delseas_pois = .995, delmultiscale_pois = .999, delhol_pois = 1,
-                deltrend_cascade = .999, delregn_cascade =1., delseas_cascade = .999, delmultiscale_cascade = .999, delhol_cascade = 1.,
+                deltrend_bern = .995, delregn_bern =.995, delseas_bern = .995, dellf_bern = .999, delhol_bern = 1,
+                deltrend_pois = .998, delregn_pois =.995, delseas_pois = .995, dellf_pois = .999, delhol_pois = 1,
+                deltrend_cascade = .999, delregn_cascade =1., delseas_cascade = .999, dellf_cascade = .999, delhol_cascade = 1.,
                 a0_bern = None, R0_bern = None, a0_pois = None, R0_pois=None,
                 interpolate=True, adapt_discount=False,
                 **kwargs):
@@ -150,12 +150,12 @@ def define_dbcm(Y_transaction, X_transaction = None, Y_cascade = None, X_cascade
     :param prior_length: Number of observations to be used in setting the prior
     :param seasPeriods: List of periods for seasonal components
     :param seasHarmComponents: List of harmonic components included in each seasonal component
-    :param nmultiscale: Number of multiscale components
+    :param nlf: Number of latent factor components
     :param rho: Discount factor for random effects extension in poisson DGLM (smaller rho increases variance)
     :param deltrend: Discount factor on trend components in DCMM and cascade
     :param delregn: Discount factor on regression components in DCMM and cascade
     :param delseas: Discount factor on seasonal components in DCMM and cascade
-    :param delmultiscale: Discount factor on multiscale components in DCMM and cascade
+    :param dellf: Discount factor on latent factor components in DCMM and cascade
     :param delbern: Discount factor for all components of bernoulli DGLM
     :param delpois: Discount factor for all components of poisson DGLM
     :param adapt_discount: Can be 'info' or 'positive_regn' as 2 ways to adapt discount factors and prevent variance blowing up
@@ -169,10 +169,10 @@ def define_dbcm(Y_transaction, X_transaction = None, Y_cascade = None, X_cascade
     # Fit a GLM for the poisson and bernoulli components of the DCMM on transactions
     pois_params, bern_params = define_dcmm_params(Y_transaction, X_transaction, prior_length)
 
-    prior = [[*bern_params], [0] * nseas, [1] * nmultiscale]
+    prior = [[*bern_params], [0] * nseas, [1] * nlf]
     if a0_bern is None: a0_bern = np.array([m for ms in prior for m in ms]).reshape(-1, 1)
     if R0_bern is None: R0_bern = np.identity(a0_bern.shape[0])/2
-    prior = [[*pois_params], [0] * nseas, [1] * nmultiscale]
+    prior = [[*pois_params], [0] * nseas, [1] * nlf]
     if a0_pois is None: a0_pois = np.array([m for ms in prior for m in ms]).reshape(-1, 1)
     if R0_pois is None: R0_pois = np.identity(a0_pois.shape[0])
 
@@ -217,37 +217,37 @@ def define_dbcm(Y_transaction, X_transaction = None, Y_cascade = None, X_cascade
 
     # Define the model
     mod = dbcm(a0_bern = a0_bern, R0_bern = R0_bern,
-                nregn_bern = nregn,
-                ntrend_bern = ntrend,
-                nmultiscale_bern=nmultiscale,
-                nhol_bern = nhol,
-                seasPeriods_bern = seasPeriods,
-                seasHarmComponents_bern = seasHarmComponents,
-                deltrend_bern = deltrend_bern, delregn_bern = delregn_bern, delseas_bern = delseas_bern,
-                delmultiscale_bern = delmultiscale_bern, delhol_bern = delhol_bern,
+               nregn_bern = nregn,
+               ntrend_bern = ntrend,
+               nlf_bern=nlf,
+               nhol_bern = nhol,
+               seasPeriods_bern = seasPeriods,
+               seasHarmComponents_bern = seasHarmComponents,
+               deltrend_bern = deltrend_bern, delregn_bern = delregn_bern, delseas_bern = delseas_bern,
+               dellf_bern= dellf_bern, delhol_bern = delhol_bern,
 
-          a0_pois = a0_pois, R0_pois = R0_pois,
-                nregn_pois = nregn,
-                ntrend_pois = ntrend,
-                nmultiscale_pois=nmultiscale,
-                nhol_pois=nhol,
-                seasPeriods_pois = seasPeriods,
-                seasHarmComponents_pois = seasHarmComponents,
-                deltrend_pois = deltrend_pois, delregn_pois = delregn_pois, delseas_pois = delseas_pois,
-                delmultiscale_pois = delmultiscale_pois, delhol_pois = delhol_pois, rho = rho,
+               a0_pois = a0_pois, R0_pois = R0_pois,
+               nregn_pois = nregn,
+               ntrend_pois = ntrend,
+               nlf_pois=nlf,
+               nhol_pois=nhol,
+               seasPeriods_pois = seasPeriods,
+               seasHarmComponents_pois = seasHarmComponents,
+               deltrend_pois = deltrend_pois, delregn_pois = delregn_pois, delseas_pois = delseas_pois,
+               dellf_pois= dellf_pois, delhol_pois = delhol_pois, rho = rho,
                interpolate=interpolate,
                adapt_discount=adapt_discount,
 
-          ncascade = ncascade,
-             a0_cascade = a0_cascade, # List of length ncascade
-             R0_cascade = R0_cascade, # List of length ncascade
-             nregn_cascade = nregn_cascade,
-             ntrend_cascade = 1,
-             nmultiscale_cascade = 0,
-             seasPeriods_cascade = [],
-             seasHarmComponents_cascade = [],
-             deltrend_cascade = deltrend_cascade, delregn_cascade = delregn_cascade,
-            excess = excess)
+               ncascade = ncascade,
+               a0_cascade = a0_cascade,  # List of length ncascade
+               R0_cascade = R0_cascade,  # List of length ncascade
+               nregn_cascade = nregn_cascade,
+               ntrend_cascade = 1,
+               nlf_cascade= 0,
+               seasPeriods_cascade = [],
+               seasHarmComponents_cascade = [],
+               deltrend_cascade = deltrend_cascade, delregn_cascade = delregn_cascade,
+               excess = excess)
         
     return mod
 

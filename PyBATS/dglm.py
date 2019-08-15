@@ -4,11 +4,11 @@ import scipy as sc
 from collections.abc import Iterable
 from .seasonal import seascomp, createFourierToSeasonalL
 from .update import update, update_normaldlm, update_bindglm
-from .forecast import forecast_marginal, forecast_path, forecast_path_approx,\
+from .forecast import forecast_marginal, forecast_path, forecast_path_copula,\
     forecast_marginal_bindglm, forecast_path_normaldlm, forecast_state_mean_and_var
-from .multiscale import multiscale_forecast_marginal, multiscale_forecast_marginal_approx, \
-    multiscale_forecast_path_approx
-from .multiscale import multiscale_update, multiscale_update_approx, multiscale_get_mean_and_var, multiscale_update_normaldlm_approx
+from .latent_factor_fxns import forecast_marginal_lf_sample, forecast_marginal_lf_analytic, \
+    forecast_path_lf_copula, forecast_path_lf_sample
+from .latent_factor_fxns import update_lf_sample, update_lf_analytic, get_mean_and_var_lf, update_lf_analytic_dlm
 from .conjugates import trigamma, bern_conjugate_params, bin_conjugate_params, pois_conjugate_params
 
 # These are for the bernoulli and Poisson DGLMs
@@ -24,12 +24,12 @@ class dglm:
                  R0=None,
                  nregn=0,
                  ntrend=0,
-                 nmultiscale=0,
+                 nlf=0,
                  nhol=0,
                  seasPeriods=[],
                  seasHarmComponents=[],
                  deltrend=1, delregn=1,
-                 delmultiscale=1,
+                 dellf=1,
                  delhol=1, delseas=1,
                  interpolate=True,
                  adapt_discount=False,
@@ -40,12 +40,12 @@ class dglm:
         :param R0: Prior covariance matrix
         :param nregn: Number of regression components
         :param ntrend: Number of trend components
-        :param nmultiscale: Number of multiscale components
+        :param nlf: Number of latent factor components
         :param seasPeriods: List of periods of seasonal components
         :param seasHarmComponents: List of harmonic components included for each period
         :param deltrend: Discount factor on trend components
         :param delregn: Discount factor on regression components
-        :param delmultiscale: Discount factor on multiscale components
+        :param dellf: Discount factor on latent factor components
         :param delhol: Discount factor on holiday components (currently deprecated)
         :param delseas: Discount factor on seasonal components
         :param interpolate: Whether to use interpolation for conjugate parameters
@@ -92,15 +92,15 @@ class dglm:
             self.iregn.extend(self.ihol)  # Adding on to the self.iregn
             i += nhol
 
-        # Setting up multiscale F, G matrices and replacing necessary functions
-        if nmultiscale == 0:
-            Fmultiscale = np.empty([0]).reshape(-1, 1)
-            Gmultiscale = np.empty([0, 0])
+        # Setting up latent factor F, G matrices and replacing necessary functions
+        if nlf == 0:
+            Flf = np.empty([0]).reshape(-1, 1)
+            Glf = np.empty([0, 0])
         else:
-            Gmultiscale = np.identity(nmultiscale)
-            Fmultiscale = np.ones([nmultiscale]).reshape(-1, 1)
-            self.imultiscale = list(range(i, i + nmultiscale))
-            i += nmultiscale
+            Glf = np.identity(nlf)
+            Flf = np.ones([nlf]).reshape(-1, 1)
+            self.ilf = list(range(i, i + nlf))
+            i += nlf
 
         # Setting up seasonal F, G matrices
         if len(seasPeriods) == 0:
@@ -134,21 +134,21 @@ class dglm:
                 idx = idx2
 
         # Combine the F and G components together
-        F = np.vstack([Ftrend, Fregn, Fhol, Fmultiscale, Fseas])
-        G = sc.linalg.block_diag(Gtrend, Gregn, Ghol, Gmultiscale, Gseas)
+        F = np.vstack([Ftrend, Fregn, Fhol, Flf, Fseas])
+        G = sc.linalg.block_diag(Gtrend, Gregn, Ghol, Glf, Gseas)
 
         # store the discount info
         self.deltrend = deltrend
         self.delregn = delregn
         self.delhol = delhol
-        self.delmultiscale = delmultiscale
+        self.dellf = dellf
         self.delseas = delseas
 
         self.ntrend = ntrend
         self.nregn = nregn + nhol  # Adding on nhol
         self.nregn_exhol = nregn
         self.nhol = nhol
-        self.nmultiscale = nmultiscale
+        self.nlf = nlf
         self.nseas = nseas
 
         # Set up discount matrix
@@ -175,13 +175,13 @@ class dglm:
         # type factors are zero
 
         # do this all with matrix slicing which is much faster than the block diag
-        p = np.sum([self.ntrend, self.nregn_exhol, self.nhol, self.nmultiscale, self.nseas])
+        p = np.sum([self.ntrend, self.nregn_exhol, self.nhol, self.nlf, self.nseas])
         # start with no discounting
         component_discounts = np.ones([p, p])
         i = 0 # this will be the offset of the current block
         for discount_pair, n in zip([('std', self.deltrend), ('regn', self.delregn), ('regn', self.delhol),
-                                     ('std', self.delmultiscale), ('std', self.delseas)],
-                                    [self.ntrend, self.nregn_exhol, self.nhol, self.nmultiscale, self.nseas]):
+                                     ('std', self.dellf), ('std', self.delseas)],
+                                    [self.ntrend, self.nregn_exhol, self.nhol, self.nlf, self.nseas]):
             discount_type, discount = discount_pair
             if n > 0:
                 if isinstance(discount, Iterable):
@@ -221,33 +221,38 @@ class dglm:
     def forecast_path(self, k, X=None, nsamps=1):
         return forecast_path(self, k, X, nsamps)
 
-    def forecast_path_approx(self, k, X=None, nsamps=1, **kwargs):
-        return forecast_path_approx(self, k, X, nsamps, **kwargs)
+    def forecast_path_copula(self, k, X=None, nsamps=1, **kwargs):
+        return forecast_path_copula(self, k, X, nsamps, **kwargs)
 
     def forecast_state_mean_and_var(self, k, X = None):
         return forecast_state_mean_and_var(self, k, X)
 
-    def multiscale_update(self, y=None, X=None, phi_samps=None, parallel=False):
-        multiscale_update(self, y, X, phi_samps, parallel)
+    def update_lf_sample(self, y=None, X=None, phi_samps=None, parallel=False):
+        update_lf_sample(self, y, X, phi_samps, parallel)
 
-    def multiscale_update_approx(self, y=None, X=None, phi_mu=None, phi_sigma=None):
-        multiscale_update_approx(self, y, X, phi_mu, phi_sigma)
+    def update_lf_analytic(self, y=None, X=None, phi_mu=None, phi_sigma=None):
+        update_lf_analytic(self, y, X, phi_mu, phi_sigma)
 
-    def multiscale_forecast_marginal(self, k, X=None, phi_samps=None, mean_only=False):
-        return multiscale_forecast_marginal(self, k, X, phi_samps, mean_only)
+    def forecast_marginal_lf_sample(self, k, X=None, phi_samps=None, mean_only=False):
+        return forecast_marginal_lf_sample(self, k, X, phi_samps, mean_only)
 
-    def multiscale_forecast_marginal_approx(self, k, X=None, phi_mu=None, phi_sigma=None, nsamps=1, mean_only=False, state_mean_var=False):
-        return multiscale_forecast_marginal_approx(self, k, X, phi_mu, phi_sigma, nsamps, mean_only, state_mean_var)
+    def forecast_path_lf_sample(self, k, X=None, phi_samps=None, nsamps=1, **kwargs):
+        return forecast_path_lf_sample(self, k, X, phi_samps)
 
-    def multiscale_forecast_path_approx(self, k, X=None, phi_mu=None, phi_sigma=None, phi_psi=None, nsamps=1, **kwargs):
-        return multiscale_forecast_path_approx(self, k, X, phi_mu, phi_sigma, phi_psi, nsamps, **kwargs)
+    def forecast_marginal_lf_analytic(self, k, X=None, phi_mu=None, phi_sigma=None, nsamps=1, mean_only=False, state_mean_var=False):
+        return forecast_marginal_lf_analytic(self, k, X, phi_mu, phi_sigma, nsamps, mean_only, state_mean_var)
+
+    def forecast_path_lf_copula(self, k, X=None, phi_mu=None, phi_sigma=None, phi_psi=None, nsamps=1, **kwargs):
+        return forecast_path_lf_copula(self, k, X, phi_mu, phi_sigma, phi_psi, nsamps, **kwargs)
+
+
 
     def get_mean_and_var(self, F, a, R):
         mean, var = F.T @ a, F.T @ R @ F
         return np.ravel(mean)[0], np.ravel(var)[0]
 
-    def multiscale_get_mean_and_var(self, F, a, R, phi_mu, phi_sigma, imultiscale):
-        return multiscale_get_mean_and_var(F, a, R, phi_mu, phi_sigma, imultiscale)
+    def get_mean_and_var_lf(self, F, a, R, phi_mu, phi_sigma, ilf):
+        return get_mean_and_var_lf(F, a, R, phi_mu, phi_sigma, ilf)
 
     def get_W(self, X=None):
         if self.adapt_discount == 'info':
@@ -360,14 +365,14 @@ class pois_dglm(dglm):
     def get_mean_and_var(self, F, a, R):
         return F.T @ a, F.T @ R @ F / self.rho
 
-    def multiscale_get_mean_and_var(self, F, a, R, phi_mu, phi_sigma, imultiscale):
-        p = len(imultiscale)
+    def get_mean_and_var_lf(self, F, a, R, phi_mu, phi_sigma, ilf):
+        p = len(ilf)
         if p == 1:
-            extra_var = a[imultiscale] ** 2 * phi_sigma + a[imultiscale] * R[
-                np.ix_(imultiscale, imultiscale)] * phi_sigma
+            extra_var = a[ilf] ** 2 * phi_sigma + a[ilf] * R[
+                np.ix_(ilf, ilf)] * phi_sigma
         else:
-            extra_var = a[imultiscale].T @ phi_sigma @ a[imultiscale] + np.trace(
-                R[np.ix_(imultiscale, imultiscale)] @ phi_sigma)
+            extra_var = a[ilf].T @ phi_sigma @ a[ilf] + np.trace(
+                R[np.ix_(ilf, ilf)] @ phi_sigma)
 
         return F.T @ a, (F.T @ R @ F + extra_var) / self.rho
 
@@ -432,8 +437,8 @@ class normal_dlm(dglm):
     def get_mean_and_var(self, F, a, R):
         return F.T @ a, F.T @ R @ F + self.s
 
-    def multiscale_get_mean_and_var(self, F, a, R, phi_mu, phi_sigma, imultiscale):
-        ft, qt = multiscale_get_mean_and_var(F, a, R, phi_mu, phi_sigma, imultiscale)
+    def get_mean_and_var_lf(self, F, a, R, phi_mu, phi_sigma, ilf):
+        ft, qt = get_mean_and_var_lf(F, a, R, phi_mu, phi_sigma, ilf)
         qt = qt + self.s
         return ft, qt
 
@@ -455,8 +460,8 @@ class normal_dlm(dglm):
     def forecast_path(self, k, X=None, nsamps=1):
         return forecast_path_normaldlm(self, k, X, nsamps)
 
-    def multiscale_update_approx(self, y=None, X=None, phi_mu=None, phi_sigma=None):
-        multiscale_update_normaldlm_approx(self, y, X, phi_mu, phi_sigma)
+    def update_lf_analytic(self, y=None, X=None, phi_mu=None, phi_sigma=None):
+        update_lf_analytic_dlm(self, y, X, phi_mu, phi_sigma)
 
 
 class bin_dglm(dglm):

@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 
-from .multiscale import forecast_holiday_effect
+from PyBATS.latent_factor import forecast_holiday_effect
 from .define_models import define_dcmm, define_normal_dlm, define_dbcm
 from .seasonal import get_seasonal_effect_fxnl, forecast_weekly_seasonal_factor
 from .shared import define_holiday_regressors
@@ -10,12 +10,11 @@ from pandas.tseries.holiday import AbstractHolidayCalendar, Holiday
 from collections.abc import Iterable
 
 
-def analysis_dcmm(Y, X, prior_length, k, forecast_start, forecast_end, nsamps = 500, rho = .6,
-                  multiscale_signal = None, mean_only=False, dates=None,
-                  holidays = [], seasPeriods = [], seasHarmComponents = [], ret=['forecast'],
-                  new_signals = None, **kwargs):
+def analysis_dcmm(Y, X, prior_length, k, forecast_start, forecast_end, nsamps=500, rho=.6, latent_factor=None,
+                  mean_only=False, dates=None, holidays=[], seasPeriods=[], seasHarmComponents=[], ret=['forecast'],
+                  new_latent_factors=None, **kwargs):
     """
-    Run updating + forecasting using a dcmm. Multiscale option available
+    Run updating + forecasting using a dcmm. Latent Factor option available
 
     :param Y: Array of daily sales (n * 1)
     :param X: Covariate array (n * p)
@@ -25,26 +24,26 @@ def analysis_dcmm(Y, X, prior_length, k, forecast_start, forecast_end, nsamps = 
     :param forecast_end:  day to end forecasting
     :param nsamps: Number of forecast samples to draw
     :param rho: Random effect extension to the Poisson DGLM, handles overdispersion
-    :param phi_mu_prior: Mean of latent factors over k-step horizon (if using a multiscale DCMM)
-    :param phi_sigma_prior: Variance of latent factors over k-step horizon (if using a multiscale DCMM)
-    :param phi_psi_prior: Covariance of latent factors over k-step horizon (if using a multiscale DCMM)
-    :param phi_mu_post: Daily mean of latent factors for updating (if using a multiscale DCMM)
-    :param phi_sigma_post: Daily variance of latent factors for updating (if using a multiscale DCMM)
+    :param phi_mu_prior: Mean of latent factors over k-step horizon (if using a Latent Factor DCMM)
+    :param phi_sigma_prior: Variance of latent factors over k-step horizon (if using a Latent Factor DCMM)
+    :param phi_psi_prior: Covariance of latent factors over k-step horizon (if using a Latent Factor DCMM)
+    :param phi_mu_post: Daily mean of latent factors for updating (if using a Latent Factor DCMM)
+    :param phi_sigma_post: Daily variance of latent factors for updating (if using a Latent Factor DCMM)
     :param holidays: List of holiday dates
     :param kwargs: Other keyword arguments for initializing the model. e.g. delregn = [.99, .98] discount factors.
     :return: Array of forecasting samples, dimension (nsamps * (forecast_end - forecast_start) * k)
     """
 
-    if multiscale_signal is not None:
-        multiscale = True
-        # Note: This assumes that the bernoulli & poisson components have the same number of multiscale components
-        if isinstance(multiscale_signal, (list, tuple)):
-            nmultiscale = multiscale_signal[0].p
+    if latent_factor is not None:
+        is_lf = True
+        # Note: This assumes that the bernoulli & poisson components have the same number of latent factor components
+        if isinstance(latent_factor, (list, tuple)):
+            nlf = latent_factor[0].p
         else:
-            nmultiscale = multiscale_signal.p
+            nlf = latent_factor.p
     else:
-        multiscale = False
-        nmultiscale = 0
+        is_lf = False
+        nlf = 0
 
     # Convert dates into row numbers
     if dates is not None:
@@ -62,16 +61,16 @@ def analysis_dcmm(Y, X, prior_length, k, forecast_start, forecast_end, nsamps = 
 
     # Initialize the DCMM
     mod = define_dcmm(Y, X, prior_length = prior_length, seasPeriods = seasPeriods, seasHarmComponents = seasHarmComponents,
-                      nmultiscale = nmultiscale, rho = rho, nhol = nhol, **kwargs)
+                      nlf = nlf, rho = rho, nhol = nhol, **kwargs)
 
-    if ret.__contains__('new_signals'):
-        if not isinstance(new_signals, Iterable):
-            new_signals = [new_signals]
+    if ret.__contains__('new_latent_factors'):
+        if not isinstance(new_latent_factors, Iterable):
+            new_latent_factors = [new_latent_factors]
 
         tmp = []
-        for sig in new_signals:
+        for sig in new_latent_factors:
             tmp.append(sig.copy())
-        new_signals = tmp
+        new_latent_factors = tmp
 
     # Initialize updating + forecasting
     horizons = np.arange(1,k+1)
@@ -94,24 +93,24 @@ def analysis_dcmm(Y, X, prior_length, k, forecast_start, forecast_end, nsamps = 
                     print('beginning forecasting')
 
                 # Get the forecast samples for all the items over the 1:k step ahead path
-                if multiscale:
-                    if isinstance(multiscale_signal, (list, tuple)):
-                        pm_bern, ps_bern = multiscale_signal[0].get_forecast_signal(dates.iloc[t])
-                        pm_pois, ps_pois = multiscale_signal[1].get_forecast_signal(dates.iloc[t])
+                if is_lf:
+                    if isinstance(latent_factor, (list, tuple)):
+                        pm_bern, ps_bern = latent_factor[0].get_lf_forecast(dates.iloc[t])
+                        pm_pois, ps_pois = latent_factor[1].get_lf_forecast(dates.iloc[t])
                         pm = (pm_bern, pm_pois)
                         ps = (ps_bern, ps_pois)
                     else:
-                        pm, ps = multiscale_signal.get_forecast_signal(dates.iloc[t])
+                        pm, ps = latent_factor.get_lf_forecast(dates.iloc[t])
 
-                    pp = None  # Not including the path dependency of the multiscale signal
+                    pp = None  # Not including the path dependency of the latent factor
 
                     if mean_only:
                         forecast[:, t - forecast_start, :] = np.array(list(map(
-                            lambda k, x, pm, ps: mod.multiscale_forecast_marginal_approx(
+                            lambda k, x, pm, ps: mod.forecast_marginal_lf_analytic(
                                 k=k, X=(x, x), phi_mu=(pm, pm), phi_sigma=(ps, ps), nsamps=nsamps, mean_only=mean_only),
                             horizons, X[t + horizons - 1, :], pm, ps))).reshape(1, -1)
                     else:
-                        forecast[:, t - forecast_start, :] = mod.multiscale_forecast_path_approx(
+                        forecast[:, t - forecast_start, :] = mod.forecast_path_lf_copula(
                         k=k, X=(X[t + horizons - 1, :], X[t + horizons - 1, :]),
                         phi_mu=(pm, pm), phi_sigma=(ps, ps), phi_psi=(pp, pp), nsamps=nsamps, t_dist=True, nu=nu)
                 else:
@@ -121,47 +120,47 @@ def analysis_dcmm(Y, X, prior_length, k, forecast_start, forecast_end, nsamps = 
                                 k=k, X=(x, x), nsamps=nsamps, mean_only=mean_only),
                             horizons, X[t + horizons - 1, :]))).reshape(1,-1)
                     else:
-                        forecast[:, t - forecast_start, :] = mod.forecast_path_approx(
+                        forecast[:, t - forecast_start, :] = mod.forecast_path_copula(
                         k=k, X=(X[t + horizons - 1, :], X[t + horizons - 1, :]), nsamps=nsamps, t_dist=True, nu=nu)
 
-        if ret.__contains__('new_signals'):
+        if ret.__contains__('new_latent_factors'):
             if t >= forecast_start and t <= forecast_end:
-                for signal in new_signals:
-                    signal.generate_forecast_signal(date=dates.iloc[t], mod=mod, X=X[t + horizons - 1, :],
-                                                    k=k, nsamps=nsamps, horizons=horizons)
+                for lf in new_latent_factors:
+                    lf.generate_lf_forecast(date=dates.iloc[t], mod=mod, X=X[t + horizons - 1, :],
+                                                k=k, nsamps=nsamps, horizons=horizons)
 
         # Update the DCMM
-        if multiscale:
-            if isinstance(multiscale_signal, (list, tuple)):
-                pm_bern, ps_bern = multiscale_signal[0].get_signal(dates.iloc[t])
-                pm_pois, ps_pois = multiscale_signal[1].get_signal(dates.iloc[t])
+        if is_lf:
+            if isinstance(latent_factor, (list, tuple)):
+                pm_bern, ps_bern = latent_factor[0].get_lf(dates.iloc[t])
+                pm_pois, ps_pois = latent_factor[1].get_lf(dates.iloc[t])
                 pm = (pm_bern, pm_pois)
                 ps = (ps_bern, ps_pois)
             else:
-                pm, ps = multiscale_signal.get_signal(dates.iloc[t])
+                pm, ps = latent_factor.get_lf(dates.iloc[t])
 
-            mod.multiscale_update_approx(y=Y[t], X=(X[t], X[t]),
-                                         phi_mu=(pm, pm), phi_sigma=(ps, ps))
+            mod.update_lf_analytic(y=Y[t], X=(X[t], X[t]),
+                                   phi_mu=(pm, pm), phi_sigma=(ps, ps))
         else:
             mod.update(y = Y[t], X=(X[t], X[t]))
 
-        if ret.__contains__('new_signals'):
-            for signal in new_signals:
-                signal.generate_signal(date=dates.iloc[t], mod=mod, X=X[t + horizons - 1, :],
-                                       k=k, nsamps=nsamps, horizons=horizons)
+        if ret.__contains__('new_latent_factors'):
+            for lf in new_latent_factors:
+                lf.generate_lf(date=dates.iloc[t], mod=mod, X=X[t + horizons - 1, :],
+                                   k=k, nsamps=nsamps, horizons=horizons)
 
     out = []
     for obj in ret:
         if obj == 'forecast': out.append(forecast)
         if obj == 'model': out.append(mod)
-        if obj == 'new_signals':
-            for signal in new_signals:
-                signal.append_signal()
-                signal.append_forecast_signal()
-            if len(new_signals) == 1:
-                out.append(new_signals[0])
+        if obj == 'new_latent_factors':
+            for lf in new_latent_factors:
+                lf.append_lf()
+                lf.append_lf_forecast()
+            if len(new_latent_factors) == 1:
+                out.append(new_latent_factors[0])
             else:
-                out.append(new_signals)
+                out.append(new_latent_factors)
 
     if len(out) == 1:
         return out[0]
@@ -169,13 +168,13 @@ def analysis_dcmm(Y, X, prior_length, k, forecast_start, forecast_end, nsamps = 
         return out
 
 def analysis_dbcm(Y_transaction, X_transaction, Y_cascade, X_cascade, excess,
-                      prior_length, k, forecast_start, forecast_end, nsamps = 500, rho = .6,
-                      multiscale_signal = None,
-                      mean_only=False, dates=None,
-                      holidays = [], seasPeriods = [], seasHarmComponents = [],
-                      ret=['forecast'], new_signals = None, **kwargs):
+                  prior_length, k, forecast_start, forecast_end, nsamps = 500, rho = .6,
+                  latent_factor = None,
+                  mean_only=False, dates=None,
+                  holidays = [], seasPeriods = [], seasHarmComponents = [],
+                  ret=['forecast'], new_latent_factors = None, **kwargs):
     """
-    # Run updating + forecasting using a dcmm. Multiscale option available
+    # Run updating + forecasting using a dcmm. Latent Factor option available
     :param Y_transaction: Array of daily transactions (n * 1)
     :param X_transaction: Covariate array (n * p)
     :param Y_cascade: Array of daily baskets of size r or greater, for 1 <= r <= ncascade
@@ -186,25 +185,25 @@ def analysis_dbcm(Y_transaction, X_transaction, Y_cascade, X_cascade, excess,
     :param forecast_end:  day to end forecasting
     :param nsamps: Number of forecast samples to draw
     :param rho: Random effect extension to the Poisson DGLM, handles overdispersion
-    :param phi_mu_prior: Mean of latent factors over k-step horizon (if using a multiscale DCMM)
-    :param phi_sigma_prior: Variance of latent factors over k-step horizon (if using a multiscale DCMM)
-    :param phi_psi_prior: Covariance of latent factors over k-step horizon (if using a multiscale DCMM)
-    :param phi_mu_post: Daily mean of latent factors for updating (if using a multiscale DCMM)
-    :param phi_sigma_post: Daily variance of latent factors for updating (if using a multiscale DCMM)
+    :param phi_mu_prior: Mean of latent factors over k-step horizon (if using a Latent Factor DCMM)
+    :param phi_sigma_prior: Variance of latent factors over k-step horizon (if using a Latent Factor DCMM)
+    :param phi_psi_prior: Covariance of latent factors over k-step horizon (if using a Latent Factor DCMM)
+    :param phi_mu_post: Daily mean of latent factors for updating (if using a Latent Factor DCMM)
+    :param phi_sigma_post: Daily variance of latent factors for updating (if using a Latent Factor DCMM)
     :param kwargs: Other keyword arguments for initializing the model
     :return: Array of forecasting samples, dimension (nsamps * (forecast_end - forecast_start) * k)
     """
 
-    if multiscale_signal is not None:
-        multiscale = True
-        # Note: This assumes that the bernoulli & poisson components have the same number of multiscale components
-        if isinstance(multiscale_signal, (list, tuple)):
-            nmultiscale = multiscale_signal[0].p
+    if latent_factor is not None:
+        is_lf = True
+        # Note: This assumes that the bernoulli & poisson components have the same number of latent factor components
+        if isinstance(latent_factor, (list, tuple)):
+            nlf = latent_factor[0].p
         else:
-            nmultiscale = multiscale_signal.p
+            nlf = latent_factor.p
     else:
-        multiscale = False
-        nmultiscale = 0
+        is_lf = False
+        nlf = 0
 
     # Convert dates into row numbers
     if dates is not None:
@@ -224,16 +223,16 @@ def analysis_dbcm(Y_transaction, X_transaction, Y_cascade, X_cascade, excess,
     mod = define_dbcm(Y_transaction, X_transaction, Y_cascade, X_cascade,
                       excess_values = excess, prior_length = prior_length,
                       seasPeriods = seasPeriods, seasHarmComponents=seasHarmComponents,
-                      nmultiscale = nmultiscale, rho = rho, nhol=nhol, **kwargs)
+                      nlf = nlf, rho = rho, nhol=nhol, **kwargs)
 
-    if ret.__contains__('new_signals'):
-        if not isinstance(new_signals, Iterable):
-            new_signals = [new_signals]
+    if ret.__contains__('new_latent_factors'):
+        if not isinstance(new_latent_factors, Iterable):
+            new_latent_factors = [new_latent_factors]
 
         tmp = []
-        for sig in new_signals:
+        for sig in new_latent_factors:
             tmp.append(sig.copy())
-        new_signals = tmp
+        new_latent_factors = tmp
 
     # Initialize updating + forecasting
     horizons = np.arange(1,k+1)
@@ -258,25 +257,25 @@ def analysis_dbcm(Y_transaction, X_transaction, Y_cascade, X_cascade, excess,
                     print('beginning forecasting')
 
                 # Get the forecast samples for all the items over the 1:k step ahead path
-                if multiscale:
-                    if isinstance(multiscale_signal, (list, tuple)):
-                        pm_bern, ps_bern = multiscale_signal[0].get_forecast_signal(dates.iloc[t])
-                        pm_pois, ps_pois = multiscale_signal[1].get_forecast_signal(dates.iloc[t])
+                if is_lf:
+                    if isinstance(latent_factor, (list, tuple)):
+                        pm_bern, ps_bern = latent_factor[0].get_lf_forecast(dates.iloc[t])
+                        pm_pois, ps_pois = latent_factor[1].get_lf_forecast(dates.iloc[t])
                         pm = (pm_bern, pm_pois)
                         ps = (ps_bern, ps_pois)
                     else:
-                        pm, ps = multiscale_signal.get_forecast_signal(dates.iloc[t])
+                        pm, ps = latent_factor.get_lf_forecast(dates.iloc[t])
 
-                    pp = None # Not including path dependency in multiscale signal
+                    pp = None # Not including path dependency in latent factor
 
                     if mean_only:
                         forecast[:, t - forecast_start, :] = np.array(list(map(
-                            lambda k, x_trans, x_cascade, pm, ps: mod.multiscale_forecast_marginal_approx(
+                            lambda k, x_trans, x_cascade, pm, ps: mod.forecast_marginal_lf_analytic(
                                 k=k, X_transaction=x_trans, X_cascade=x_cascade,
                                 phi_mu=pm, phi_sigma=ps, nsamps=nsamps, mean_only=mean_only),
                             horizons, X_transaction[t + horizons - 1, :], X_cascade[t + horizons - 1, :], pm, ps))).reshape(1, -1)
                     else:
-                        forecast[:, t - forecast_start, :] = mod.multiscale_forecast_path_approx(
+                        forecast[:, t - forecast_start, :] = mod.forecast_path_lf_copula(
                             k=k, X_transaction=X_transaction[t + horizons - 1, :], X_cascade=X_cascade[t + horizons - 1, :],
                             phi_mu=pm, phi_sigma=ps, phi_psi=pp, nsamps=nsamps, t_dist=True, nu=nu)
                 else:
@@ -286,51 +285,51 @@ def analysis_dbcm(Y_transaction, X_transaction, Y_cascade, X_cascade, excess,
                                 k=k, X_transaction=x_trans, X_cascade=x_cascade, nsamps=nsamps, mean_only=mean_only),
                             horizons, X_transaction[t + horizons - 1, :], X_cascade[t + horizons - 1, :]))).reshape(1,-1)
                     else:
-                        forecast[:, t - forecast_start, :] = mod.forecast_path_approx(
+                        forecast[:, t - forecast_start, :] = mod.forecast_path_copula(
                             k=k, X_transaction=X_transaction[t + horizons - 1, :], X_cascade=X_cascade[t + horizons - 1, :],
                             nsamps=nsamps, t_dist=True, nu=nu)
 
-        if ret.__contains__('new_signals'):
+        if ret.__contains__('new_latent_factors'):
             if t >= forecast_start and t <= forecast_end:
-                for signal in new_signals:
-                    signal.generate_forecast_signal(date=dates.iloc[t], mod=mod, X_transaction=X_transaction[t + horizons - 1, :],
-                                                    X_cascade = X_cascade[t + horizons - 1, :],
-                                                    k=k, nsamps=nsamps, horizons=horizons)
+                for lf in new_latent_factors:
+                    lf.generate_lf_forecast(date=dates.iloc[t], mod=mod, X_transaction=X_transaction[t + horizons - 1, :],
+                                                X_cascade = X_cascade[t + horizons - 1, :],
+                                                k=k, nsamps=nsamps, horizons=horizons)
         # Update the DBCM
-        if multiscale:
-            if isinstance(multiscale_signal, (list, tuple)):
-                pm_bern, ps_bern = multiscale_signal[0].get_signal(dates.iloc[t])
-                pm_pois, ps_pois = multiscale_signal[1].get_signal(dates.iloc[t])
+        if is_lf:
+            if isinstance(latent_factor, (list, tuple)):
+                pm_bern, ps_bern = latent_factor[0].get_lf(dates.iloc[t])
+                pm_pois, ps_pois = latent_factor[1].get_lf(dates.iloc[t])
                 pm = (pm_bern, pm_pois)
                 ps = (ps_bern, ps_pois)
             else:
-                pm, ps = multiscale_signal.get_signal(dates.iloc[t])
+                pm, ps = latent_factor.get_lf(dates.iloc[t])
 
-            mod.multiscale_update_approx(y_transaction=Y_transaction[t], X_transaction= X_transaction[t, :],
-                                         y_cascade=Y_cascade[t,:], X_cascade=X_cascade[t, :],
-                                         phi_mu=pm, phi_sigma=ps, excess=excess[t])
+            mod.update_lf_analytic(y_transaction=Y_transaction[t], X_transaction=X_transaction[t, :],
+                                   y_cascade=Y_cascade[t,:], X_cascade=X_cascade[t, :],
+                                   phi_mu=pm, phi_sigma=ps, excess=excess[t])
         else:
             mod.update(y_transaction=Y_transaction[t], X_transaction=X_transaction[t, :],
                        y_cascade=Y_cascade[t,:], X_cascade=X_cascade[t, :], excess=excess[t])
 
-        if ret.__contains__('new_signals'):
-            for signal in new_signals:
-                signal.generate_signal(date=dates.iloc[t], mod=mod, X_transaction=X_transaction[t + horizons - 1, :],
-                                       X_cascade = X_cascade[t + horizons - 1, :],
-                                       k=k, nsamps=nsamps, horizons=horizons)
+        if ret.__contains__('new_latent_factors'):
+            for lf in new_latent_factors:
+                lf.generate_lf(date=dates.iloc[t], mod=mod, X_transaction=X_transaction[t + horizons - 1, :],
+                                   X_cascade = X_cascade[t + horizons - 1, :],
+                                   k=k, nsamps=nsamps, horizons=horizons)
 
     out = []
     for obj in ret:
         if obj == 'forecast': out.append(forecast)
         if obj == 'model': out.append(mod)
-        if obj == 'new_signals':
-            for signal in new_signals:
-                signal.append_signal()
-                signal.append_forecast_signal()
-            if len(new_signals) == 1:
-                out.append(new_signals[0])
+        if obj == 'new_latent_factors':
+            for lf in new_latent_factors:
+                lf.append_lf()
+                lf.append_lf_forecast()
+            if len(new_latent_factors) == 1:
+                out.append(new_latent_factors[0])
             else:
-                out.append(new_signals)
+                out.append(new_latent_factors)
 
     if len(out) == 1:
         return out[0]
@@ -340,8 +339,8 @@ def analysis_dbcm(Y_transaction, X_transaction, Y_cascade, X_cascade, excess,
 
 def analysis_dlm(Y, X, prior_length, k, forecast_start, forecast_end, nsamps=500, holidays = [],
                  seasPeriods = [7], seasHarmComponents = [[1,2,3]],
-                 multiscale_signal = None,
-                 mean_only = False, dates=None, ret=['seasonal_weekly'], new_signals = None,
+                 latent_factor = None,
+                 mean_only = False, dates=None, ret=['seasonal_weekly'], new_latent_factors = None,
                  ntrend=2, **kwargs):
     """
     :param Y: Array of daily sales (typically on the log scale) (n * 1)
@@ -358,23 +357,23 @@ def analysis_dlm(Y, X, prior_length, k, forecast_start, forecast_end, nsamps=500
     :return:
     """
 
-    if multiscale_signal is not None:
-        multiscale = True
-        # Note: This assumes that the bernoulli & poisson components have the same number of multiscale components
-        if isinstance(multiscale_signal, (list, tuple)):
-            nmultiscale = multiscale_signal[0].p
+    if latent_factor is not None:
+        is_lf = True
+        # Note: This assumes that the bernoulli & poisson components have the same number of latent factor components
+        if isinstance(latent_factor, (list, tuple)):
+            nlf = latent_factor[0].p
         else:
-            nmultiscale = multiscale_signal.p
+            nlf = latent_factor.p
     else:
-        multiscale = False
-        nmultiscale = 0
+        is_lf = False
+        nlf = 0
 
     # Add the holiday indicator variables to the regression matrix
     nhol = len(holidays)
     if nhol > 0:
         X = define_holiday_regressors(X, dates, holidays)
 
-    nmod = define_normal_dlm(Y, X, prior_length, ntrend=ntrend, nhol=nhol, nmultiscale=nmultiscale,
+    nmod = define_normal_dlm(Y, X, prior_length, ntrend=ntrend, nhol=nhol, nlf=nlf,
                              seasPeriods=seasPeriods, seasHarmComponents=seasHarmComponents,
                              **kwargs)
 
@@ -393,14 +392,14 @@ def analysis_dlm(Y, X, prior_length, k, forecast_start, forecast_end, nsamps=500
     if ret.__contains__('dof'):
         dof = []
 
-    if ret.__contains__('new_signals'):
-        if not isinstance(new_signals, Iterable):
-            new_signals = [new_signals]
+    if ret.__contains__('new_latent_factors'):
+        if not isinstance(new_latent_factors, Iterable):
+            new_latent_factors = [new_latent_factors]
 
         tmp = []
-        for sig in new_signals:
+        for sig in new_latent_factors:
             tmp.append(sig.copy())
-        new_signals = tmp
+        new_latent_factors = tmp
 
     # Convert dates into row numbers
     if dates is not None:
@@ -445,19 +444,19 @@ def analysis_dlm(Y, X, prior_length, k, forecast_start, forecast_end, nsamps=500
                 mav_mean_prior.append(prior_mean)
                 mav_var_prior.append(prior_var)
 
-            if ret.__contains__('new_signals'):
-                for signal in new_signals:
-                    signal.generate_forecast_signal(date=dates[t], mod=nmod, X=X[t + horizons - 1],
-                                                    k=k, nsamps=nsamps, horizons=horizons)
+            if ret.__contains__('new_latent_factors'):
+                for lf in new_latent_factors:
+                    lf.generate_lf_forecast(date=dates[t], mod=nmod, X=X[t + horizons - 1],
+                                                k=k, nsamps=nsamps, horizons=horizons)
 
             if ret.__contains__('forecast'):
                 # Get the forecast samples for all the items over the 1:k step ahead path
-                if multiscale:
-                    pm, ps = multiscale_signal.get_forecast_signal(dates.iloc[t])
-                    pp = None  # Not including path dependency in multiscale signal
+                if is_lf:
+                    pm, ps = latent_factor.get_lf_forecast(dates.iloc[t])
+                    pp = None  # Not including path dependency in latent factor
 
                     forecast[:, t - forecast_start, :] = np.array(list(map(
-                        lambda k, x, pm, ps: nmod.multiscale_forecast_marginal_approx(
+                        lambda k, x, pm, ps: nmod.forecast_marginal_lf_analytic(
                             k=k, X=x, phi_mu=pm, phi_sigma=ps, nsamps=nsamps, mean_only=mean_only),
                         horizons, X[t + horizons - 1, :], pm, ps))).reshape(-1,1)
                 else:
@@ -479,17 +478,17 @@ def analysis_dlm(Y, X, prior_length, k, forecast_start, forecast_end, nsamps=500
             dof.append(nmod.n * nmod.delVar)
 
         # Update the normal DLM
-        if multiscale:
-            pm, ps = multiscale_signal.get_signal(dates.iloc[t])
-            nmod.multiscale_update_approx(y=Y[t], X=X[t],
-                                          phi_mu=pm, phi_sigma=ps)
+        if is_lf:
+            pm, ps = latent_factor.get_lf(dates.iloc[t])
+            nmod.update_lf_analytic(y=Y[t], X=X[t],
+                                    phi_mu=pm, phi_sigma=ps)
         else:
             nmod.update(y=Y[t], X=X[t])
 
 
-        if ret.__contains__('new_signals'):
-            for signal in new_signals:
-                signal.generate_signal(date=dates[t], mod=nmod, Y=Y[t], X=X[t], k=k, nsamps=nsamps)
+        if ret.__contains__('new_latent_factors'):
+            for lf in new_latent_factors:
+                lf.generate_lf(date=dates[t], mod=nmod, Y=Y[t], X=X[t], k=k, nsamps=nsamps)
 
     out = []
     for obj in ret:
@@ -503,14 +502,14 @@ def analysis_dlm(Y, X, prior_length, k, forecast_start, forecast_end, nsamps=500
         if obj == 'dof':
             out.append(dof)
 
-        if obj == 'new_signals':
-            for signal in new_signals:
-                signal.append_signal()
-                signal.append_forecast_signal()
-            if len(new_signals) == 1:
-                out.append(new_signals[0])
+        if obj == 'new_latent_factors':
+            for lf in new_latent_factors:
+                lf.append_lf()
+                lf.append_lf_forecast()
+            if len(new_latent_factors) == 1:
+                out.append(new_latent_factors[0])
             else:
-                out.append(new_signals)
+                out.append(new_latent_factors)
 
         if obj == 'forecast': out.append(forecast)
         if obj == 'model': out.append(nmod)

@@ -38,3 +38,7 @@ def define_holiday_regressors(X, dates, holidays=None):
             X = np.c_[X, x]
 
     return X
+
+def corr(cov):
+    D = np.sqrt(cov.diagonal()).reshape(-1, 1)
+    return cov / D / D.T

@@ -95,7 +95,7 @@ def forecast_path(mod, k, X = None, nsamps = 1):
     return samps
 
 
-def forecast_path_approx(mod, k, X = None, nsamps = 1, t_dist=False, y=None, nu=9):
+def forecast_path_copula(mod, k, X = None, nsamps = 1, t_dist=False, y=None, nu=9):
     """
     Forecast function for the k-step path
     k: steps ahead to forecast
@@ -139,9 +139,9 @@ def forecast_path_approx(mod, k, X = None, nsamps = 1, t_dist=False, y=None, nu=
             lambda_cov[j,i] = lambda_cov[i,j] = Flist[j].T @ cov_ij @ Flist[i]
 
     if y is not None:
-        return forecast_path_approx_dens_MC(mod, y, lambda_mu, lambda_cov, t_dist, nu, nsamps)
+        return forecast_path_copula_density_MC(mod, y, lambda_mu, lambda_cov, t_dist, nu, nsamps)
     else:
-        return forecast_path_approx_sim(mod, k, lambda_mu, lambda_cov, nsamps, t_dist, nu)
+        return forecast_path_copula_sim(mod, k, lambda_mu, lambda_cov, nsamps, t_dist, nu)
 
 
 def forecast_marginal_bindglm(mod, n, k, X=None, nsamps=1, mean_only=False):
@@ -202,7 +202,7 @@ def forecast_path_normaldlm(mod, k, X = None, nsamps = 1, multiscale=False, AR=F
     return samps
 
 
-def forecast_path_approx_sim(mod, k, lambda_mu, lambda_cov, nsamps, t_dist = False, nu = 9):
+def forecast_path_copula_sim(mod, k, lambda_mu, lambda_cov, nsamps, t_dist = False, nu = 9):
     """
     lambda_mu: kx1 Mean vector for forecast mean over t+1:t+k
     lambda_cov: kxk Covariance matrix for the forecast over t+1:t+k
@@ -236,7 +236,7 @@ def forecast_path_approx_sim(mod, k, lambda_mu, lambda_cov, nsamps, t_dist = Fal
     return np.array(list(map(lambda prior: mod.simulate_from_sampling_model(prior, nsamps),
             priorlist))).T
 
-def forecast_path_approx_dens_MC(mod, y, lambda_mu, lambda_cov, t_dist=False, nu = 9, nsamps = 500):
+def forecast_path_copula_density_MC(mod, y, lambda_mu, lambda_cov, t_dist=False, nu = 9, nsamps = 500):
     """
     lambda_mu: kx1 Mean vector for forecast mean over t+1:t+k
     lambda_cov: kxk Covariance matrix for the forecast over t+1:t+k
@@ -280,8 +280,7 @@ def forecast_path_approx_dens_MC(mod, y, lambda_mu, lambda_cov, t_dist=False, nu
     # Return their average, on the log scale
     return np.log(np.mean(path_density_list))
 
-
-def forecast_joint_approx_sim(mod_list, lambda_mu, lambda_cov, nsamps, t_dist=False, nu=9):
+def forecast_joint_copula_sim(mod_list, lambda_mu, lambda_cov, nsamps, t_dist=False, nu=9):
     """
     lambda_mu: kx1 Mean vector for forecast mean over t+1:t+k
     lambda_cov: kxk Covariance matrix for the forecast over t+1:t+k
@@ -308,6 +307,13 @@ def forecast_joint_approx_sim(mod_list, lambda_mu, lambda_cov, nsamps, t_dist=Fa
     unif_rvs = list(map(lambda gen, samps: gen.cdf(samps),
                         genlist, joint_samps))
 
+    # If any are numerically 1 or 0, fix them:
+    def numeric_fix(u):
+        u[u == 1] = 1 - 1E-5
+        u[u == 0] = 1E-5
+        return u
+    unif_rvs = [numeric_fix(u) for u in unif_rvs]
+
     # Use inverse-CDF along each margin to get implied PRIOR value (e.g. a gamma dist RV for a poisson sampling model)
     priorlist = list(map(lambda params, unif_rv: mod.prior_inverse_cdf(unif_rv, params[0], params[1]),
                          conj_params, unif_rvs))
@@ -316,7 +322,7 @@ def forecast_joint_approx_sim(mod_list, lambda_mu, lambda_cov, nsamps, t_dist=Fa
     return np.array(list(map(lambda prior: mod.simulate_from_sampling_model(prior, nsamps),
                              priorlist))).T
 
-def forecast_joint_approx_dens_MC(mod_list, y, lambda_mu, lambda_cov, t_dist=False, nu = 9, nsamps = 500):
+def forecast_joint_copula_density_MC(mod_list, y, lambda_mu, lambda_cov, t_dist=False, nu = 9, nsamps = 500):
     """
     lambda_mu: kx1 Mean vector for forecast mean over t+1:t+k
     lambda_cov: kxk Covariance matrix for the forecast over t+1:t+k
@@ -410,7 +416,7 @@ def forecast_state_mean_and_var(mod, k = 1, X = None):
 
     return ft, qt
 
-def forecast_marginal_dens_MC(mod, k, X = None, nsamps = 1, y = None):
+def forecast_marginal_density_MC(mod, k, X = None, nsamps = 1, y = None):
     """
     Function to get marginal forecast density (marginal)
     """

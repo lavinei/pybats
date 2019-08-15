@@ -35,7 +35,7 @@ def fourierToSeasonalFxnl(L, m, C, iseas):
     var = L @ C[np.ix_(iseas, iseas)] @ L.T
     return phi, var
 
-################# FUNCTIONS FOR EXTRACTING SEASONAL COMPONENTS (FOR MULTISCALE INFERENCE) ##############
+################# FUNCTIONS FOR EXTRACTING SEASONAL COMPONENTS (FOR LATENT FACTOR INFERENCE) ##############
 
 def get_seasonal_effect_fxnl(L, m, C, iseas):
     phi, var = fourierToSeasonalFxnl(L, m, C, iseas)
