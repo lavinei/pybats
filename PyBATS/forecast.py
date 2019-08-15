@@ -3,7 +3,7 @@ import numpy as np
 from scipy import stats
 from scipy.special import gamma
 
-from PyBATS.update import update_F
+from pybats.update import update_F
 
 
 def forecast_aR(mod, k):

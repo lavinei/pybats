@@ -3,8 +3,8 @@ import pandas as pd
 import sys
 
 sys.path.insert(0,'../')
-from PyBATS.dglm import normal_dlm, pois_dglm, bern_dglm, bin_dglm
-from PyBATS.dcmm import dcmm
+from pybats.dglm import normal_dlm, pois_dglm, bern_dglm, bin_dglm
+from pybats.dcmm import dcmm
 
 
 def test_update():

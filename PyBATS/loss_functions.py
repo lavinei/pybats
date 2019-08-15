@@ -12,15 +12,18 @@ def MAD(y, f):
     f = np.ravel(f)
     return np.mean(np.abs(y-f))
 
+
 def MAPE(y, f):
     y = np.ravel(y)
     f = np.ravel(f)
     return 100*np.mean(np.abs((y - f)) / y)
 
+
 def WAPE(y, f):
     y = np.ravel(y)
     f = np.ravel(f)
     return 100*np.sum(np.abs(y-f)) / np.sum(y)
+
 
 def WAFE(y, f):
     y = np.ravel(y)

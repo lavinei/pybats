@@ -12,7 +12,6 @@ def update_F(mod, X, F=None):
         return F
 
 
-
 def update(mod, y = None, X = None):
 
     # If data is missing then skip discounting and updating, posterior = prior

@@ -7,8 +7,6 @@ from collections.abc import Iterable
 import copy
 import pickle
 
-from PyBATS.forecast import forecast_aR
-from .dglm import normal_dlm
 from .seasonal import get_seasonal_effect_fxnl, forecast_weekly_seasonal_factor
 from .dbcm import dbcm
 from .dcmm import dcmm

@@ -146,7 +146,6 @@ class dbcm:
             for i in range(1, self.ncascade):
                 self.cascade[i].update(y_cascade[i - 1], y_cascade[i], X_cascade)
 
-
     def forecast_cascade(self, k, transaction_samps, X_cascade = None, nsamps = 1, mean_only=False):
         # forecast the sales from a cascade
         if mean_only:
@@ -191,7 +190,7 @@ class dbcm:
         # else:
         #     self.dcmm.update(y_transaction, (X_transaction, X_transaction))
 
-        self.dcmm.update(y_transaction, X_t)
+        self.dcmm.update(y_transaction, X_transaction)
 
         self.update_cascade(y_transaction, y_cascade, X_cascade)
         # If there were any excess transactions, add that to the excess list
@@ -207,11 +206,11 @@ class dbcm:
         # else:
         #     self.dcmm.update_lf_sample(y_transaction, (X_transaction, X_transaction), (phi_samps, phi_samps))
 
-        self.dcmm.update_lf_sample(y_transaction, X_t, (phi_samps, phi_samps))
+        self.dcmm.update_lf_sample(y_transaction, X_transaction, (phi_samps, phi_samps))
         self.update_cascade(y_transaction, y_cascade, X_cascade)
         self.excess.extend(excess)
         self.t += 1
-        
+
     def update_lf_analytic(self, y_transaction = None, X_transaction = None, y_cascade = None, X_cascade = None, phi_mu = None, phi_sigma = None, excess = []):
         # X_t = self.make_pair(X_transaction)
         # pm = self.make_pair(phi_mu)
@@ -229,15 +228,15 @@ class dbcm:
         #                                        (phi_sigma, phi_sigma))
 
         self.dcmm.update_lf_analytic(y_transaction,
-                                     X_t,
-                                     pm,
-                                     ps)
+                                     X_transaction,
+                                     phi_mu,
+                                     phi_sigma)
         self.update_cascade(y_transaction, y_cascade, X_cascade)
 
         self.excess.extend(excess)
                 
         self.t += 1
-            
+
     def forecast_marginal(self, k, X_transaction = None, X_cascade = None, nsamps = 1, mean_only = False, return_separate = False, **kwargs):
         # if isinstance(X_transaction, (list, tuple)):
         #     transaction_samps = self.dcmm.forecast_marginal(k, (X_transaction[0], X_transaction[1]), nsamps, mean_only)
@@ -246,7 +245,7 @@ class dbcm:
 
         # X_t = self.make_pair(X_transaction)
 
-        transaction_samps = self.dcmm.forecast_marginal(k, X_t, nsamps, mean_only)
+        transaction_samps = self.dcmm.forecast_marginal(k, X_transaction, nsamps, mean_only)
         cascade_samps = self.forecast_cascade(k, transaction_samps, X_cascade, nsamps, mean_only)
         excess_samps = self.forecast_excess(cascade_samps[self.ncascade-1,:], nsamps, mean_only)
 
@@ -256,7 +255,7 @@ class dbcm:
 
         samps = np.r_[transaction_samps.reshape(1, -1), cascade_samps, excess_samps.reshape(1, -1)]
         return np.sum(samps, axis = 0)
-        
+
     def forecast_marginal_lf_sample(self, k, X_transaction = None, X_cascade = None, phi_samps = None, nsamps = 1, mean_only = False, return_separate = False, **kwargs):
         # if isinstance(X_transaction, (list, tuple)):
         #     transaction_samps = self.dcmm.forecast_marginal_lf_sample(k, (X_transaction[0], X_transaction[1]),
@@ -265,7 +264,7 @@ class dbcm:
         #     transaction_samps = self.dcmm.forecast_marginal_lf_sample(k, (X_transaction, X_transaction), (phi_samps, phi_samps), nsamps, mean_only)
 
         # X_t = self.make_pair(X_transaction)
-        transaction_samps = self.dcmm.forecast_marginal_lf_sample(k, X_t,
+        transaction_samps = self.dcmm.forecast_marginal_lf_sample(k, X_transaction,
                                                                   (phi_samps, phi_samps), nsamps, mean_only)
         cascade_samps = self.forecast_cascade(k, transaction_samps, X_cascade, nsamps, mean_only)
         excess_samps = self.forecast_excess(cascade_samps[self.ncascade-1, :], nsamps, mean_only)
@@ -288,7 +287,7 @@ class dbcm:
         # pm = self.make_pair(phi_mu)
         # ps = self.make_pair(phi_sigma)
 
-        transaction_samps = self.dcmm.forecast_marginal_lf_analytic(k, X_t, pm, ps, nsamps, mean_only)
+        transaction_samps = self.dcmm.forecast_marginal_lf_analytic(k, X_transaction, phi_mu, phi_sigma, nsamps, mean_only)
         cascade_samps = self.forecast_cascade(k, transaction_samps, X_cascade, nsamps, mean_only)
         excess_samps = self.forecast_excess(cascade_samps[self.ncascade-1, :], nsamps, mean_only)
 
@@ -298,7 +297,7 @@ class dbcm:
 
         samps = np.r_[transaction_samps.reshape(1,-1), cascade_samps, excess_samps.reshape(1,-1)]
         return np.sum(samps, axis=0)
-    
+
     def forecast_path(self, k, X_transaction = None, X_cascade = None, nsamps = 1, return_separate = False):
         # if isinstance(X_transaction, (list, tuple)):
         #     transaction_samps = self.dcmm.forecast_path(k, (X_transaction[0], X_transaction[1]), nsamps)
@@ -307,7 +306,7 @@ class dbcm:
 
         # X_t = self.make_pair(X_transaction)
 
-        transaction_samps = self.dcmm.forecast_path(k, X_t, nsamps)
+        transaction_samps = self.dcmm.forecast_path(k, X_transaction, nsamps)
         cascade_samps = np.array(
             list(map(lambda h: self.forecast_cascade(h, transaction_samps[:, h], X_cascade[h], nsamps),
                      range(k)))).T
@@ -321,7 +320,7 @@ class dbcm:
 
         samps = np.concatenate((transaction_samps[:, None, :], cascade_samps, excess_samps), axis=1)
         return np.sum(samps, axis=1)
-    
+
     def forecast_path_copula(self, k, X_transaction = None, X_cascade = None, nsamps = 1, return_separate = False, **kwargs):
         # if isinstance(X_transaction, (list, tuple)):
         #     transaction_samps = self.dcmm.forecast_path_copula(k, (X_transaction[0], X_transaction[1]), nsamps, **kwargs)
@@ -330,7 +329,7 @@ class dbcm:
 
         # X_t = self.make_pair(X_transaction)
 
-        transaction_samps = self.dcmm.forecast_path_copula(k, X_t, nsamps, **kwargs)
+        transaction_samps = self.dcmm.forecast_path_copula(k, X_transaction, nsamps, **kwargs)
         cascade_samps = np.array(
             list(map(lambda h: self.forecast_cascade(h, transaction_samps[:, h], X_cascade[h], nsamps),
                      range(k)))).T
@@ -357,7 +356,7 @@ class dbcm:
         # ps = self.make_pair(phi_sigma)
         # pp = self.make_pair(phi_psi)
 
-        transaction_samps = self.dcmm.forecast_path_lf_copula(k, X_t, pm, ps, pp, nsamps, **kwargs)
+        transaction_samps = self.dcmm.forecast_path_lf_copula(k, X_transaction, phi_mu, phi_sigma, phi_psi, nsamps, **kwargs)
         cascade_samps = np.array(
             list(map(lambda h: self.forecast_cascade(h, transaction_samps[:, h], X_cascade[h], nsamps),
                      range(k)))).T
@@ -370,14 +369,3 @@ class dbcm:
 
         samps = np.concatenate((transaction_samps[:, None, :], cascade_samps, excess_samps), axis=1)
         return np.sum(samps, axis=1)
-
-    # def make_pair(self, x):
-    #     if isinstance(x, (list, tuple)):
-    #         if len(x) == 2:
-    #             return x
-    #         else:
-    #             return (x, x)
-    #     else:
-    #         return (x, x)
-    #
-        
