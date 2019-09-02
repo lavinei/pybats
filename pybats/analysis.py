@@ -369,7 +369,7 @@ def analysis_dlm(Y, X, prior_length, k, forecast_start, forecast_end, nsamps=500
     if nhol > 0:
         X = define_holiday_regressors(X, dates, holidays)
 
-    nmod = define_normal_dlm(Y, X, prior_length, ntrend=ntrend, nhol=nhol, nlf=nlf,
+    nmod = define_normal_dlm(Y, X, prior_length=prior_length, ntrend=ntrend, nhol=nhol, nlf=nlf,
                              seasPeriods=seasPeriods, seasHarmComponents=seasHarmComponents,
                              **kwargs)
 
@@ -393,8 +393,8 @@ def analysis_dlm(Y, X, prior_length, k, forecast_start, forecast_end, nsamps=500
             new_latent_factors = [new_latent_factors]
 
         tmp = []
-        for sig in new_latent_factors:
-            tmp.append(sig.copy())
+        for lf in new_latent_factors:
+            tmp.append(lf.copy())
         new_latent_factors = tmp
 
     # Convert dates into row numbers

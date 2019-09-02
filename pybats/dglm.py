@@ -159,6 +159,7 @@ class dglm:
         self.param2 = 2  # Random initial guess
 
         self.seasPeriods = seasPeriods
+        self.seasHarmComponents = seasHarmComponents
         self.F = F
         self.G = G
         self.Discount = Discount

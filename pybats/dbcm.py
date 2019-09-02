@@ -32,6 +32,8 @@ class dbcm:
                  interpolate=True,
                  adapt_discount=False,
 
+                 mod_dcmm = None,
+
                  ncascade = 4,
                  a0_cascade = None,  # List of length ncascade
                  R0_cascade = None,  # List of length ncascade
@@ -88,34 +90,37 @@ class dbcm:
         :param dellf_cascade: Discount factor on latent factor components in each binomial DGLM in cascade
         :param excess: List of prior observed excess basket sizes >ncascade.
         """
-        
-        self.dcmm = dcmm(a0_bern = a0_bern,
-                         R0_bern = R0_bern,
-                         nregn_bern=nregn_bern,
-                         ntrend_bern=ntrend_bern,
-                         nlf_bern=nlf_bern,
-                         nhol_bern=nhol_bern,
-                         seasPeriods_bern=seasPeriods_bern,
-                         seasHarmComponents_bern=seasHarmComponents_bern,
-                         deltrend_bern=deltrend_bern, delregn_bern=delregn_bern,
-                         delhol_bern=delhol_bern, delseas_bern=delseas_bern,
-                         dellf_bern=dellf_bern,
 
-                         a0_pois=a0_pois,
-                         R0_pois=R0_pois,
-                         nregn_pois=nregn_pois,
-                         ntrend_pois=ntrend_pois,
-                         nlf_pois=nlf_pois,
-                         nhol_pois=nhol_pois,
-                         seasPeriods_pois=seasPeriods_pois,
-                         seasHarmComponents_pois=seasHarmComponents_pois,
-                         deltrend_pois=deltrend_pois, delregn_pois=delregn_pois,
-                         delhol_pois=delhol_pois, delseas_pois=delseas_pois,
-                         dellf_pois=dellf_pois,
-                         rho = rho,
-                         interpolate=interpolate,
-                         adapt_discount=adapt_discount
-                         )
+        if mod_dcmm is None:
+            self.dcmm = dcmm(a0_bern = a0_bern,
+                             R0_bern = R0_bern,
+                             nregn_bern=nregn_bern,
+                             ntrend_bern=ntrend_bern,
+                             nlf_bern=nlf_bern,
+                             nhol_bern=nhol_bern,
+                             seasPeriods_bern=seasPeriods_bern,
+                             seasHarmComponents_bern=seasHarmComponents_bern,
+                             deltrend_bern=deltrend_bern, delregn_bern=delregn_bern,
+                             delhol_bern=delhol_bern, delseas_bern=delseas_bern,
+                             dellf_bern=dellf_bern,
+
+                             a0_pois=a0_pois,
+                             R0_pois=R0_pois,
+                             nregn_pois=nregn_pois,
+                             ntrend_pois=ntrend_pois,
+                             nlf_pois=nlf_pois,
+                             nhol_pois=nhol_pois,
+                             seasPeriods_pois=seasPeriods_pois,
+                             seasHarmComponents_pois=seasHarmComponents_pois,
+                             deltrend_pois=deltrend_pois, delregn_pois=delregn_pois,
+                             delhol_pois=delhol_pois, delseas_pois=delseas_pois,
+                             dellf_pois=dellf_pois,
+                             rho = rho,
+                             interpolate=interpolate,
+                             adapt_discount=adapt_discount
+                             )
+        else:
+            self.dcmm = mod_dcmm
         
         self.ncascade = ncascade
         self.cascade = list(map(lambda a0, R0: bin_dglm(a0, R0,
@@ -129,7 +134,9 @@ class dbcm:
                                                         delregn = delregn_cascade,
                                                         dellf = dellf_cascade,
                                                         delhol = delhol_cascade,
-                                                        delseas = delseas_cascade),
+                                                        delseas = delseas_cascade,
+                                                        interpolate=interpolate,
+                                                        adapt_discount=adapt_discount),
                                 a0_cascade, R0_cascade))
         
         self.t = 0

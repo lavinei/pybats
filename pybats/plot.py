@@ -19,21 +19,29 @@ def plot_data_forecast(fig, ax, y, f, samples, dates, linewidth=1, linecolor='b'
 
     return ax
 
-def plot_coef(fig, ax, coef, dates, linewidth=1, linecolor='b', legend_inside_plot=True, **kwargs):
+def plot_coef(fig, ax, coef, dates, linewidth=1, linecolor=None, legend_inside_plot=True, coef_samples=None, **kwargs):
 
-        ax.plot(dates, coef, linewidth=linewidth, linecolor=linecolor)
+
+        if linecolor is not None:
+            ax.plot(dates, coef, linewidth=linewidth, color=linecolor)
+        else:
+            ax.plot(dates, coef, linewidth=linewidth)
 
         # If dates are actually dates, then format the dates on the x-axis
         if isinstance(dates[0], datetime):
             fig.autofmt_xdate()
 
-        ax = ax_style(ax, legend_inside_plot, **kwargs)
+        ax = ax_style(ax, legend_inside_plot=legend_inside_plot, **kwargs)
+
+        # Add credible intervals if samples are provided
+        if coef_samples is not None:
+            upper = np.percentile(coef_samples, [97.5], axis=0).reshape(-1)
+            lower = np.percentile(coef_samples, [2.5], axis=0).reshape(-1)
+            ax.fill_between(dates, upper, lower, alpha=.3, color=linecolor)
+
 
         # Include the y-axis labels on all subplots, which is not the matplotlib default
         ax.tick_params(labelleft=True)
-
-        if isinstance(dates[0], datetime):
-            fig.autofmt_xdate()
 
         return ax
 
@@ -44,7 +52,7 @@ def ax_style(ax, ylim=None, xlim=None, xlabel=None, ylabel=None, title=None,
         if legend_inside_plot:
             ax.legend(legend)
         else:
-            ax.legend(legend, bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.5)
+            ax.legend(legend, bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.5, frameon=False)
             # Make room for the legend
             plt.subplots_adjust(right=.85)
 
