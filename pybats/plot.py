@@ -1,6 +1,8 @@
 import matplotlib.pyplot as plt
 import numpy as np
 from datetime import datetime
+from pandas.plotting import register_matplotlib_converters
+register_matplotlib_converters()
 
 # Plot Data vs Forecast (with credible intervals)
 def plot_data_forecast(fig, ax, y, f, samples, dates, linewidth=1, linecolor='b', **kwargs):

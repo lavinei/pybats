@@ -190,6 +190,7 @@ def update_lf_analytic_dlm(mod, y=None, X=None, phi_mu = None, phi_sigma = None)
         mod.s = mod.s * rt
         mod.m = mod.a + At * et
         mod.C = rt * (mod.R - qt * At @ At.T)
+        # mod.C = (mod.R - qt * At @ At.T)
 
         # Get priors a, R for time t + 1 from the posteriors m, C
         mod.a = mod.G @ mod.m
@@ -209,6 +210,16 @@ def get_mean_and_var_lf(F, a, R, phi_mu, phi_sigma, ilf):
     else:
         extra_var = a[ilf].T @ phi_sigma @ a[ilf] + np.trace(R[np.ix_(ilf, ilf)] @ phi_sigma)
         
+    return F.T @ a, F.T @ R @ F + extra_var
+
+
+def get_mean_and_var_lf_dlm(F, a, R, phi_mu, phi_sigma, ilf, ct):
+    p = len(ilf)
+    if p == 1:
+        extra_var = a[ilf] ** 2 * phi_sigma + a[ilf]/ct * R[np.ix_(ilf, ilf)] * phi_sigma
+    else:
+        extra_var = a[ilf].T @ phi_sigma @ a[ilf]/ct + np.trace(R[np.ix_(ilf, ilf)] @ phi_sigma)
+
     return F.T @ a, F.T @ R @ F + extra_var
         
     

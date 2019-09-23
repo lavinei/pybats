@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-from .dglm import normal_dlm, dglm
+from .dglm import dlm, dglm
 from .dcmm import dcmm
 from .dbcm import dbcm
 from .shared import define_holiday_regressors
@@ -39,8 +39,9 @@ def define_normal_dlm(Y, X,
     """
 
     if prior_length is not None:
-        Y = Y[:prior_length]
-        X = X[:prior_length]
+        if prior_length > 0:
+            Y = Y[:prior_length]
+            X = X[:prior_length]
 
     # Define normal DLM for total sales
     nregn = ncol(X) - nhol
@@ -58,18 +59,18 @@ def define_normal_dlm(Y, X,
         R0[np.ix_(idx, idx)] = params_cov
 
 
-    mod = normal_dlm(a0 = a0, R0 = R0,
-                      nregn = nregn,
-                      ntrend = ntrend,
-                      nlf=nlf,
-                      nhol=nhol,
-                      seasPeriods = seasPeriods,
-                      seasHarmComponents = seasHarmComponents,
-                      deltrend = deltrend, delregn = delregn,
-                      delseas = delseas, delhol=delhol,
-                      dellf=dellf,
-                      n0 = n0, s0 = s0, delVar = delVar,
-                      adapt_discount=adapt_discount)
+    mod = dlm(a0 = a0, R0 = R0,
+              nregn = nregn,
+              ntrend = ntrend,
+              nlf=nlf,
+              nhol=nhol,
+              seasPeriods = seasPeriods,
+              seasHarmComponents = seasHarmComponents,
+              deltrend = deltrend, delregn = delregn,
+              delseas = delseas, delhol=delhol,
+              dellf=dellf,
+              n0 = n0, s0 = s0, delVar = delVar,
+              adapt_discount=adapt_discount)
     
     return mod
 
@@ -112,8 +113,9 @@ def define_dcmm(Y, X,
     """
 
     if prior_length is not None:
-        Y = Y[:prior_length]
-        X = X[:prior_length]
+        if prior_length > 0:
+            Y = Y[:prior_length]
+            X = X[:prior_length]
 
     nregn = ncol(X) - nhol
     nseas = 2*sum(map(len, seasHarmComponents))
@@ -179,7 +181,7 @@ def define_dbcm(Y_transaction, X_transaction=None, Y_cascade=None, X_cascade=Non
                 deltrend_bern=.995, delregn_bern=.995, delseas_bern=.995, dellf_bern=.999, delhol_bern=1,
                 deltrend_pois=.998, delregn_pois=.995, delseas_pois=.995, dellf_pois=.999, delhol_pois=1,
                 deltrend_cascade=.999, delregn_cascade=1., delseas_cascade=.999, dellf_cascade=.999, delhol_cascade=1.,
-                a0_bern=None, R0_bern=None, a0_pois=None, R0_pois=None,
+                a0_bern=None, R0_bern=None, a0_pois=None, R0_pois=None, a0_cascade=None, R0_cascade=None,
                 interpolate=True, adapt_discount=False, prior_length=None,
                 **kwargs):
     """
@@ -243,29 +245,66 @@ def define_dbcm(Y_transaction, X_transaction=None, Y_cascade=None, X_cascade=Non
         return logit_mean
 
     # Calculate the prior means for the cascades
-    ncascade = Y_cascade.shape[1]
-    nregn_cascade = ncol(X_cascade)
-    ntrend_cascade = 1
-    pcascade = nregn_cascade + ntrend_cascade
+    if prior_length is not None:
+        if prior_length > 0:
 
-    Yc = np.c_[Y_transaction, Y_cascade]
-    Yc = np.sum(Yc[:prior_length], axis=0)
-    means = [cascade_prior_mean(Yc[i + 1], Yc[i] - Yc[i + 1]) for i in range(ncascade)]
-    a0_cascade = [np.zeros(pcascade).reshape(-1, 1) for i in range(ncascade)]
-    for i, m in enumerate(means):
-        a0_cascade[i][0] = m
-    R0_cascade = [0.1 * np.identity(pcascade) for i in range(ncascade)]
+            ncascade = Y_cascade.shape[1]
+            nregn_cascade = ncol(X_cascade)
+            ntrend_cascade = 1
+            pcascade = nregn_cascade + ntrend_cascade
 
-    # Initialize empirically observed excess baskets
-    excess = []
-    if len(excess_values) == 0 and len(excess_baskets) > 0:
-        counts = np.sum(excess_baskets[:prior_length, :], axis=0)
-        counts[:len(counts) - 1] = counts[:len(counts) - 1] - counts[1:]
-        for val, count in enumerate(counts):
-            excess.extend([val + ncascade + 1 for c in range(count)])
+            Yc = np.c_[Y_transaction, Y_cascade]
+            Yc = np.sum(Yc[:prior_length], axis=0)
+            means = [cascade_prior_mean(Yc[i + 1], Yc[i] - Yc[i + 1]) for i in range(ncascade)]
+            a0_cascade = [np.zeros(pcascade).reshape(-1, 1) for i in range(ncascade)]
+            for i, m in enumerate(means):
+                a0_cascade[i][0] = m
+            R0_cascade = [0.1 * np.identity(pcascade) for i in range(ncascade)]
+
+            # Initialize empirically observed excess baskets
+            excess = []
+            if len(excess_values) == 0 and len(excess_baskets) > 0:
+                counts = np.sum(excess_baskets[:prior_length, :], axis=0)
+                counts[:len(counts) - 1] = counts[:len(counts) - 1] - counts[1:]
+                for val, count in enumerate(counts):
+                    excess.extend([val + ncascade + 1 for c in range(count)])
+            else:
+                for e in excess_values[:prior_length]:
+                    excess.extend(e)
     else:
-        for e in excess_values[:prior_length]:
-            excess.extend(e)
+        if a0_cascade is None:
+            if kwargs.get('pcascade') is None:
+                nregn_cascade = ncol(X_cascade)
+                ntrend_cascade = 1
+                pcascade = nregn_cascade + ntrend_cascade
+            else:
+                pcascade = kwargs.get('pcascade')
+            if kwargs.get('ncascade') is None:
+                ncascade = Y_cascade.shape[1]
+            else:
+                ncascade = kwargs.get('ncascade')
+
+            a0_cascade = [np.zeros(pcascade).reshape(-1, 1) for i in range(ncascade)]
+        else:
+            nregn_cascade = len(a0_cascade) - 1
+            ntrend_cascade = 1
+
+        if R0_cascade is None:
+            if kwargs.get('pcascade') is None:
+                nregn_cascade = ncol(X_cascade)
+                ntrend_cascade = 1
+                pcascade = nregn_cascade + ntrend_cascade
+            else:
+                pcascade = kwargs.get('pcascade')
+            if kwargs.get('ncascade') is None:
+                ncascade = Y_cascade.shape[1]
+            else:
+                ncascade = kwargs.get('ncascade')
+
+            R0_cascade = [0.1 * np.identity(pcascade) for i in range(ncascade)]
+
+        excess = []
+
 
     # Define the model
     mod = dbcm(mod_dcmm=mod_dcmm,
@@ -400,10 +439,11 @@ def define_model_from_list(mod_list):
     mod = None
 
     # Assume that all models in the list have the same number of trend, regn, lf, holiday, seasonal components
-    if isinstance(mod_list[0], normal_dlm):
+    if isinstance(mod_list[0], dlm):
         # Discount factors averaged across models
         components = ['ntrend','nregn', 'nlf', 'nhol', 'seasPeriods','seasHarmComponents']
         kwargs = {name:mod_list[0].__dict__.get(name) for name in components}
+        kwargs.update({'nregn':kwargs.get('nregn') - kwargs.get('nhol')})
 
         discount_factors = ['deltrend', 'delregn', 'delseas', 'dellf', 'delVar', 'delhol']
         kwargs.update({name:get_mean(mod_list, name) for name in discount_factors})
@@ -418,9 +458,9 @@ def define_model_from_list(mod_list):
         kwargs.update({'s0':get_mean(mod_list, 's'),
                        'n0':get_mean(mod_list, 's')/2,
                        'adapt_discount':mod_list[0].adapt_discount})
-        mod = normal_dlm(**kwargs)
+        mod = dlm(**kwargs)
 
-    if isinstance(mod_list[0], dglm) and not isinstance(mod_list[0], normal_dlm):
+    if isinstance(mod_list[0], dglm) and not isinstance(mod_list[0], dlm):
         # Discount factors averaged across models
         components = ['ntrend', 'nregn', 'nlf', 'nhol', 'seasPeriods', 'seasHarmComponents']
         kwargs = {name: mod_list[0].__dict__.get(name) for name in components}
@@ -436,7 +476,7 @@ def define_model_from_list(mod_list):
 
         # Define model
         kwargs.update({'adapt_discount': mod_list[0].adapt_discount})
-        mod = normal_dlm(**kwargs)
+        mod = dlm(**kwargs)
 
 
     if isinstance(mod_list[0], dcmm):
@@ -447,6 +487,8 @@ def define_model_from_list(mod_list):
         kwargs = {name+'_bern': bern_list[0].__dict__.get(name) for name in components}
         kwargs.update({name+'_pois': pois_list[0].__dict__.get(name) for name in components})
         kwargs.update({'rho':pois_list[0].rho})
+        kwargs.update({'nregn_bern': kwargs.get('nregn_bern') - kwargs.get('nhol_bern')})
+        kwargs.update({'nregn_pois': kwargs.get('nregn_pois') - kwargs.get('nhol_pois')})
 
         # Discount factors averaged across models
         discount_factors = ['deltrend', 'delregn', 'delseas', 'dellf', 'delhol']
@@ -472,7 +514,11 @@ def define_model_from_list(mod_list):
         components = ['ntrend', 'nregn', 'nlf', 'nhol', 'seasPeriods', 'seasHarmComponents']
         kwargs = {name+'_bern': bern_list[0].__dict__.get(name) for name in components}
         kwargs.update({name+'_pois': pois_list[0].__dict__.get(name) for name in components})
+        kwargs.update({name + '_cascade': mod_list[0].cascade[0].__dict__.get(name) for name in components})
         kwargs.update({'rho': pois_list[0].rho})
+        kwargs.update({'nregn_bern': kwargs.get('nregn_bern') - kwargs.get('nhol_bern')})
+        kwargs.update({'nregn_pois': kwargs.get('nregn_pois') - kwargs.get('nhol_pois')})
+        kwargs.update({'nregn_cascade': kwargs.get('nregn_cascade') - kwargs.get('nhol_cascade')})
 
         # Discount factors averaged across models
         discount_factors = ['deltrend', 'delregn', 'delseas', 'dellf', 'delhol']
@@ -484,7 +530,7 @@ def define_model_from_list(mod_list):
                        'a0_pois' : get_mean_pw(pois_list, 'a', 'R')})
         a0_cascade = []
         for i in range(mod_list[0].ncascade):
-            a0_cascade.append([get_mean_pw([mod.cascade[i] for mod in mod_list], 'a', 'R')])
+            a0_cascade.append(get_mean_pw([mod.cascade[i] for mod in mod_list], 'a', 'R'))
         kwargs.update({'a0_cascade':a0_cascade})
 
         # Define covariance matrix as the average across model list, inflated
@@ -492,7 +538,7 @@ def define_model_from_list(mod_list):
                        'R0_pois' : get_mean(pois_list, 'R') * 5})
         R0_cascade = []
         for i in range(mod_list[0].ncascade):
-            R0_cascade.append([get_mean([mod.cascade[i] for mod in mod_list], 'R')])
+            R0_cascade.append(get_mean([mod.cascade[i] for mod in mod_list], 'R'))
         kwargs.update({'R0_cascade': R0_cascade})
 
         mod = dbcm(**kwargs)
@@ -500,7 +546,11 @@ def define_model_from_list(mod_list):
     return mod
 
 def get_mean(mod_list, name):
-    return np.mean([mod.__dict__.get(name) for mod in mod_list])
+    if isinstance(mod_list[0].__dict__.get(name), np.ndarray):
+        m = np.array([mod.__dict__.get(name) for mod in mod_list])
+        return np.mean(m, axis=0)
+    else:
+        return np.mean([mod.__dict__.get(name) for mod in mod_list])
 
 def get_mean_pw(mod_list, mean_name, var_name):
     if len(mod_list[0].__dict__.get(mean_name)) == 1:

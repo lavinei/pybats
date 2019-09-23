@@ -14,6 +14,7 @@ def forecast_aR(mod, k):
         R += (k - 1) * mod.W
     return a, R
 
+
 def forecast_marginal(mod, k, X = None, nsamps = 1, mean_only = False, state_mean_var = False):
     """
     Forecast function k steps ahead (marginal)
@@ -169,6 +170,7 @@ def forecast_marginal_bindglm(mod, n, k, X=None, nsamps=1, mean_only=False):
     # Simulate from the forecast distribution
     return mod.simulate(n, param1, param2, nsamps)
 
+
 def forecast_path_normaldlm(mod, k, X = None, nsamps = 1, multiscale=False, AR=False):
 
     samps = np.zeros([nsamps, k])
@@ -236,6 +238,7 @@ def forecast_path_copula_sim(mod, k, lambda_mu, lambda_cov, nsamps, t_dist = Fal
     return np.array(list(map(lambda prior: mod.simulate_from_sampling_model(prior, nsamps),
             priorlist))).T
 
+
 def forecast_path_copula_density_MC(mod, y, lambda_mu, lambda_cov, t_dist=False, nu = 9, nsamps = 500):
     """
     lambda_mu: kx1 Mean vector for forecast mean over t+1:t+k
@@ -280,6 +283,7 @@ def forecast_path_copula_density_MC(mod, y, lambda_mu, lambda_cov, t_dist=False,
     # Return their average, on the log scale
     return np.log(np.mean(path_density_list))
 
+
 def forecast_joint_copula_sim(mod_list, lambda_mu, lambda_cov, nsamps, t_dist=False, nu=9):
     """
     lambda_mu: kx1 Mean vector for forecast mean over t+1:t+k
@@ -321,6 +325,7 @@ def forecast_joint_copula_sim(mod_list, lambda_mu, lambda_cov, nsamps, t_dist=Fa
     # Simulate from the sampling model (e.g. poisson)
     return np.array(list(map(lambda prior: mod.simulate_from_sampling_model(prior, nsamps),
                              priorlist))).T
+
 
 def forecast_joint_copula_density_MC(mod_list, y, lambda_mu, lambda_cov, t_dist=False, nu = 9, nsamps = 500):
     """
@@ -367,6 +372,7 @@ def forecast_joint_copula_density_MC(mod_list, y, lambda_mu, lambda_cov, t_dist=
     # Return their average, on the log scale
     return np.log(np.mean(joint_density_list))
 
+
 def multivariate_t(mean, scale, nu, nsamps):
     '''
     mean = mean
@@ -378,6 +384,7 @@ def multivariate_t(mean, scale, nu, nsamps):
     g = np.tile(np.random.gamma(nu/2.,2./nu, nsamps), (p, 1)).T
     Z = np.random.multivariate_normal(np.zeros(p), scale, nsamps)
     return mean + Z/np.sqrt(g)
+
 
 def multivariate_t_density(y, mean, scale, nu):
     '''
@@ -398,6 +405,7 @@ def multivariate_t_density(y, mean, scale, nu):
 
     return 1. * constant * dens
 
+
 def forecast_state_mean_and_var(mod, k = 1, X = None):
     """
        Forecast function that returns the mean and variance of lambda = state vector * predictors
@@ -416,9 +424,10 @@ def forecast_state_mean_and_var(mod, k = 1, X = None):
 
     return ft, qt
 
+
 def forecast_marginal_density_MC(mod, k, X = None, nsamps = 1, y = None):
     """
-    Function to get marginal forecast density (marginal)
+    Returns the log forecast density of an observation y
     """
     # Plug in the correct F values
     F = update_F(mod, X, F=mod.F.copy())

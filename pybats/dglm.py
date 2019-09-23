@@ -3,11 +3,11 @@ import numpy as np
 import scipy as sc
 from collections.abc import Iterable
 from .seasonal import seascomp, createFourierToSeasonalL
-from .update import update, update_normaldlm, update_bindglm
+from .update import update, update_dlm, update_bindglm
 from .forecast import forecast_marginal, forecast_path, forecast_path_copula,\
     forecast_marginal_bindglm, forecast_path_normaldlm, forecast_state_mean_and_var
 from .latent_factor_fxns import forecast_marginal_lf_sample, forecast_marginal_lf_analytic, \
-    forecast_path_lf_copula, forecast_path_lf_sample
+    forecast_path_lf_copula, forecast_path_lf_sample, get_mean_and_var_lf_dlm
 from .latent_factor_fxns import update_lf_sample, update_lf_analytic, get_mean_and_var_lf, update_lf_analytic_dlm
 from .conjugates import trigamma, bern_conjugate_params, bin_conjugate_params, pois_conjugate_params
 
@@ -427,7 +427,7 @@ class pois_dglm(dglm):
         return alpha / beta ** 2
 
 
-class normal_dlm(dglm):
+class dlm(dglm):
 
     def __init__(self, *args, n0=1, s0=1, delVar=1, **kwargs):
         self.delVar = delVar  # Discount factor for the variance - using a beta-gamma random walk
@@ -439,7 +439,8 @@ class normal_dlm(dglm):
         return F.T @ a, F.T @ R @ F + self.s
 
     def get_mean_and_var_lf(self, F, a, R, phi_mu, phi_sigma, ilf):
-        ft, qt = get_mean_and_var_lf(F, a, R, phi_mu, phi_sigma, ilf)
+        ct = self.n / (self.n - 2)
+        ft, qt = get_mean_and_var_lf_dlm(F, a, R, phi_mu, phi_sigma, ilf, ct)
         qt = qt + self.s
         return ft, qt
 
@@ -456,7 +457,7 @@ class normal_dlm(dglm):
         return np.random.normal(mean, var, nsamps)
 
     def update(self, y=None, X=None):
-        update_normaldlm(self, y, X)
+        update_dlm(self, y, X)
 
     def forecast_path(self, k, X=None, nsamps=1):
         return forecast_path_normaldlm(self, k, X, nsamps)

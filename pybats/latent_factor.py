@@ -186,6 +186,35 @@ class multi_latent_factor(latent_factor):
         forecast_end_date = np.min([lf.forecast_end_date for lf in self.latent_factors])
         self.forecast_dates = pd.date_range(forecast_start_date, forecast_end_date)
 
+    def drop_latent_factor(self, idx):
+        """
+        :param idx: Index of the latent factor to drop
+        :return:
+        """
+        # Append the new latent_factor on
+        self.latent_factors.pop(idx)
+
+        self.n_lf = len(self.latent_factors)
+        self.p = np.sum([lf.p for lf in self.latent_factors])
+        self.k = np.min([lf.k for lf in self.latent_factors])
+
+        # initialize matrices that filled in when 'get_lf' and 'get_lf_forecast' are called
+        self.mean = np.zeros(self.p)
+        self.var = np.zeros([self.p, self.p])
+        self.forecast_mean = [np.zeros(self.p) for k in range(self.k)]
+        self.forecast_var = [np.zeros([self.p, self.p]) for k in range(self.k)]
+        self.forecast_covar = [np.zeros([self.p, self.p]) for k in range(self.k)]
+
+        # Set the start and end dates
+        start_date = np.max([lf.start_date for lf in self.latent_factors])
+        end_date = np.min([lf.end_date for lf in self.latent_factors])
+        self.dates = pd.date_range(start_date, end_date)
+
+        # Set the start and end forecast dates
+        forecast_start_date = np.max([lf.forecast_start_date for lf in self.latent_factors])
+        forecast_end_date = np.min([lf.forecast_end_date for lf in self.latent_factors])
+        self.forecast_dates = pd.date_range(forecast_start_date, forecast_end_date)
+
     def save(self, filename):
         file = open(filename, "wb")
         pickle.dump(self, file=file)

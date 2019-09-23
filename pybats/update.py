@@ -102,7 +102,7 @@ def update_bindglm(mod, n=None, y=None, X=None):
         mod.R = mod.R + mod.W
 
 
-def update_normaldlm(mod, y = None, X = None):
+def update_dlm(mod, y = None, X = None):
 
     # If data is missing then skip discounting and updating, posterior = prior
     if y is None or np.isnan(y):
