@@ -5,12 +5,13 @@ from pandas.plotting import register_matplotlib_converters
 register_matplotlib_converters()
 
 # Plot Data vs Forecast (with credible intervals)
-def plot_data_forecast(fig, ax, y, f, samples, dates, linewidth=1, linecolor='b', **kwargs):
+def plot_data_forecast(fig, ax, y, f, samples, dates, linewidth=1, linecolor='b', credible_interval=95, **kwargs):
 
     ax.scatter(dates, y, color='k')
     ax.plot(dates, f, color=linecolor, linewidth=linewidth)
-    upper = np.percentile(samples, [97.5], axis=0).reshape(-1)
-    lower = np.percentile(samples, [2.5], axis=0).reshape(-1)
+    alpha = (100 - credible_interval) / 2
+    upper = np.percentile(samples, [100-alpha], axis=0).reshape(-1)
+    lower = np.percentile(samples, [alpha], axis=0).reshape(-1)
     ax.fill_between(dates, upper, lower, alpha=.3, color=linecolor)
 
     ax = ax_style(ax, **kwargs)
@@ -48,7 +49,7 @@ def plot_coef(fig, ax, coef, dates, linewidth=1, linecolor=None, legend_inside_p
         return ax
 
 def ax_style(ax, ylim=None, xlim=None, xlabel=None, ylabel=None, title=None,
-             legend=None, legend_inside_plot=True, topborder=False, rightborder=False):
+             legend=None, legend_inside_plot=True, topborder=False, rightborder=False, **kwargs):
 
     if legend is not None:
         if legend_inside_plot:
@@ -67,5 +68,7 @@ def ax_style(ax, ylim=None, xlim=None, xlabel=None, ylabel=None, title=None,
     # remove the top and right borders
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
+
+    plt.tight_layout()
 
     return ax

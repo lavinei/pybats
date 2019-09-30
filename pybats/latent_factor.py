@@ -7,16 +7,18 @@ from collections.abc import Iterable
 import copy
 import pickle
 
-from .seasonal import get_seasonal_effect_fxnl, forecast_weekly_seasonal_factor
-from .dbcm import dbcm
-from .dcmm import dcmm
-from .forecast import forecast_aR
+from pybats.seasonal import get_seasonal_effect_fxnl, forecast_weekly_seasonal_factor, forecast_path_weekly_seasonal_factor
+from pybats_research.dbcm import dbcm
+from pybats_research.dcmm import dcmm
+from pybats.forecast import forecast_aR, forecast_R_cov
+from pybats.dglm import dlm
 
 class latent_factor:
-    def __init__(self, mean=None, var=None, forecast_mean=None, forecast_var=None, dates=None, forecast_dates=None,
-                 gen_fxn = None, gen_forecast_fxn = None):
+    def __init__(self, mean=None, var=None, forecast_mean=None, forecast_var=None, forecast_cov=None, dates=None, forecast_dates=None,
+                 gen_fxn = None, gen_forecast_fxn = None, forecast_path=False):
         self.forecast_mean = pd.Series(forecast_mean, index=forecast_dates)
         self.forecast_var = pd.Series(forecast_var, index=forecast_dates)
+        self.forecast_cov = pd.Series(forecast_cov, index=forecast_dates)
         self.mean = pd.Series(mean, index=dates)
         self.var = pd.Series(var, index=dates)
         self.dates = dates
@@ -29,6 +31,7 @@ class latent_factor:
         self.var_gen = {}
         self.forecast_mean_gen = {}
         self.forecast_var_gen = {}
+        self.forecast_cov_gen = {}
         if mean is not None:
             if len(dates) != len(mean):
                 print('Error: Dates should have the same length as the latent factor')
@@ -40,11 +43,16 @@ class latent_factor:
         self.gen_fxn = gen_fxn
         self.gen_forecast_fxn = gen_forecast_fxn
 
+        self.forecast_path = forecast_path
+
     def get_lf(self, date):
         return self.mean.loc[date], self.var.loc[date]
 
     def get_lf_forecast(self, date):
-        return self.forecast_mean.loc[date], self.forecast_var.loc[date]
+        if self.forecast_path:
+            return self.forecast_mean.loc[date], self.forecast_var.loc[date], self.forecast_cov.loc[date]
+        else:
+            return self.forecast_mean.loc[date], self.forecast_var.loc[date]
 
     def generate_lf(self, date, **kwargs):
         m, v = self.gen_fxn(date, **kwargs)
@@ -56,7 +64,12 @@ class latent_factor:
         # self.var = self.var.append(v)
 
     def generate_lf_forecast(self, date, **kwargs):
-        m, v = self.gen_forecast_fxn(date, **kwargs)
+        if self.forecast_path:
+            m, v, cov = self.gen_forecast_fxn(date, forecast_path = self.forecast_path, **kwargs)
+            self.forecast_cov_gen.update({date:cov})
+        else:
+            m, v = self.gen_forecast_fxn(date, forecast_path = self.forecast_path, **kwargs)
+
         self.forecast_mean_gen.update({date:m})
         self.forecast_var_gen.update({date:v})
         # m = pd.Series({date:m})
@@ -80,8 +93,10 @@ class latent_factor:
     def append_lf_forecast(self):
         self.forecast_mean = self.forecast_mean.append(pd.Series(self.forecast_mean_gen))
         self.forecast_var = self.forecast_var.append(pd.Series(self.forecast_var_gen))
+        self.forecast_cov = self.forecast_cov.append(pd.Series(self.forecast_cov_gen))
         self.forecast_mean_gen = {}
         self.forecast_var_gen = {}
+        self.forecast_cov_gen = {}
         if isinstance(self.forecast_mean.head().values[0], Iterable):
             self.k = len(self.forecast_mean.head().values[0])
         else:
@@ -115,7 +130,7 @@ class multi_latent_factor(latent_factor):
         self.var = np.zeros([self.p, self.p])
         self.forecast_mean = [np.zeros(self.p) for k in range(self.k)]
         self.forecast_var = [np.zeros([self.p, self.p]) for k in range(self.k)]
-        self.forecast_covar = [np.zeros([self.p, self.p]) for k in range(self.k)]
+        self.forecast_cov = [np.zeros([self.p, self.p]) for k in range(self.k)]
 
         # Set the start and end dates
         start_date = np.max([lf.start_date for lf in latent_factors])
@@ -126,6 +141,11 @@ class multi_latent_factor(latent_factor):
         forecast_start_date = np.max([lf.forecast_start_date for lf in latent_factors])
         forecast_end_date = np.min([lf.forecast_end_date for lf in latent_factors])
         self.forecast_dates = pd.date_range(forecast_start_date, forecast_end_date)
+
+        if np.all([lf.forecast_path for lf in self.latent_factors]):
+            self.forecast_path = True
+        else:
+            self.forecast_path = False
 
     def get_lf(self, date):
         idx = 0
@@ -139,14 +159,26 @@ class multi_latent_factor(latent_factor):
 
     def get_lf_forecast(self, date):
         idx = 0
-        for lf in self.latent_factors:
-            f_m, f_v = lf.get_lf_forecast(date)
-            for k, [m, v] in enumerate(zip(f_m, f_v)):
-                self.forecast_mean[k][idx:idx + lf.p] = m
-                self.forecast_var[k][idx:idx + lf.p, idx:idx + lf.p] = v
-            idx += lf.p
+        if self.forecast_path:
+            for lf in self.latent_factors:
 
-        return self.forecast_mean, self.forecast_var
+                f_m, f_v, f_c = lf.get_lf_forecast(date)
+                for k, [m, v, c] in enumerate(zip(f_m, f_v, f_c)):
+                    self.forecast_mean[k][idx:idx + lf.p] = m
+                    self.forecast_var[k][idx:idx + lf.p, idx:idx + lf.p] = v
+                    self.forecast_cov[k][idx:idx + lf.p, idx:idx + lf.p] = c
+                idx += lf.p
+            return self.forecast_mean, self.forecast_var, self.forecast_cov
+
+        else:
+            for lf in self.latent_factors:
+                f_m, f_v = lf.get_lf_forecast(date)
+                for k, [m, v] in enumerate(zip(f_m, f_v)):
+                    self.forecast_mean[k][idx:idx + lf.p] = m
+                    self.forecast_var[k][idx:idx + lf.p, idx:idx + lf.p] = v
+                idx += lf.p
+            return self.forecast_mean, self.forecast_var
+
 
     def copy(self):
 
@@ -174,7 +206,7 @@ class multi_latent_factor(latent_factor):
         self.var = np.zeros([self.p, self.p])
         self.forecast_mean = [np.zeros(self.p) for k in range(self.k)]
         self.forecast_var = [np.zeros([self.p, self.p]) for k in range(self.k)]
-        self.forecast_covar = [np.zeros([self.p, self.p]) for k in range(self.k)]
+        self.forecast_cov = [np.zeros([self.p, self.p]) for k in range(self.k)]
 
         # Set the start and end dates
         start_date = np.max([lf.start_date for lf in self.latent_factors])
@@ -203,7 +235,7 @@ class multi_latent_factor(latent_factor):
         self.var = np.zeros([self.p, self.p])
         self.forecast_mean = [np.zeros(self.p) for k in range(self.k)]
         self.forecast_var = [np.zeros([self.p, self.p]) for k in range(self.k)]
-        self.forecast_covar = [np.zeros([self.p, self.p]) for k in range(self.k)]
+        self.forecast_cov = [np.zeros([self.p, self.p]) for k in range(self.k)]
 
         # Set the start and end dates
         start_date = np.max([lf.start_date for lf in self.latent_factors])
@@ -233,18 +265,39 @@ def hol_fxn(date, mod, X, **kwargs):
     return mean, var
 
 
-def hol_forecast_fxn(date, mod, X, k, horizons, **kwargs):
-    future_holiday_eff = list(map(lambda X, k: forecast_holiday_effect(mod, X, k),
+def hol_forecast_fxn(date, mod, X, k, horizons, forecast_path=False, **kwargs):
+
+    future_holiday_eff = list(map(lambda X, k: forecast_holiday_effect_dlm(mod, X, k),
                                   X[:, -mod.nhol:], horizons))
     hol_mean = [np.zeros(mod.nhol) for h in range(k)]
     hol_var = [np.zeros([mod.nhol, mod.nhol]) for h in range(k)]
-    for h in range(k):
-        if future_holiday_eff[h][0] != 0:
-            idx = np.where(X[h, -mod.nhol:] != 0)[0][0]
-            hol_mean[h][idx] = future_holiday_eff[h][0]
-            hol_var[h][idx, idx] = future_holiday_eff[h][1]
 
-    return hol_mean, hol_var
+    if forecast_path:
+        hol_cov = [np.zeros([mod.nhol, mod.nhol, h]) for h in range(1, k)]
+        nonzero_holidays = {}
+
+        for h in range(k):
+            if future_holiday_eff[h][0] != 0:
+                idx = np.where(X[h, -mod.nhol:] != 0)[0][0]
+                hol_mean[h][idx] = future_holiday_eff[h][0]
+                hol_var[h][idx, idx] = future_holiday_eff[h][1]
+
+                for j, idx_j in nonzero_holidays.items():
+                    hol_cov[h-1][idx, idx_j, j] = hol_cov[h-1][idx_j, idx, j] = X[j, -mod.nhol:] @ forecast_R_cov(mod, j, h)[np.ix_(mod.ihol, mod.ihol)] @ X[h, -mod.nhol:].T
+
+                nonzero_holidays.update({h:idx})
+
+        return hol_mean, hol_var, hol_cov
+
+    else:
+        for h in range(k):
+            if future_holiday_eff[h][0] != 0:
+                idx = np.where(X[h, -mod.nhol:] != 0)[0][0]
+                hol_mean[h][idx] = future_holiday_eff[h][0]
+                hol_var[h][idx, idx] = future_holiday_eff[h][1]
+
+
+        return hol_mean, hol_var
 
 
 hol_lf = latent_factor(gen_fxn = hol_fxn, gen_forecast_fxn=hol_forecast_fxn)
@@ -254,18 +307,31 @@ def Y_fxn(date, mod, Y, **kwargs):
     return Y, 0
 
 
-def Y_forecast_fxn(date, mod, X, k, nsamps, horizons, **kwargs):
-    forecast = list(map(lambda X, k: mod.forecast_marginal(k=k, X=X, nsamps=nsamps),
-                        X,
-                        horizons))
+def Y_forecast_fxn(date, mod, X, k, nsamps, horizons, forecast_path = False, **kwargs):
     #
     # Y_mean = [f.mean() for f in forecast]
 
-    Y_mean = list(map(lambda X, k: mod.forecast_marginal(k=k, X=X, mean_only=True),
-                     X,
-                     horizons))
-    Y_var = [f.var() for f in forecast]
-    return Y_mean, Y_var
+    if forecast_path:
+        if isinstance(mod, dlm):
+            forecast = mod.forecast_path(k=k, X=X, nsamps=nsamps)
+        else:
+            forecast = mod.forecast_path_copula(k=k, X=X, nsamps=nsamps)
+        Y_mean = [m for m in forecast.mean(axis=0)]
+        cov = np.cov(forecast, rowvar=False)
+        Y_var = [v for v in forecast.var(axis=0)]
+        Y_cov = [cov[h,:h].reshape(1, 1, h) for h in range(1, k)]
+
+        return Y_mean, Y_var, Y_cov
+
+    else:
+        forecast = list(map(lambda X, k: mod.forecast_marginal(k=k, X=X, nsamps=nsamps),
+                            X,
+                            horizons))
+        Y_mean = list(map(lambda X, k: mod.forecast_marginal(k=k, X=X, mean_only=True),
+                          X,
+                          horizons))
+        Y_var = [f.var() for f in forecast]
+        return Y_mean, Y_var
 
 
 Y_lf = latent_factor(gen_fxn = Y_fxn, gen_forecast_fxn = Y_forecast_fxn)
@@ -294,21 +360,27 @@ def seas_weekly_fxn(date, mod, **kwargs):
     return weekly_seas_mean, weekly_seas_var
 
 
-def seas_weekly_forecast_fxn(date, mod, k, horizons, **kwargs):
+def seas_weekly_forecast_fxn(date, mod, k, horizons, forecast_path=False, **kwargs):
     period = 7
-    future_weekly_seas = list(map(lambda k: forecast_weekly_seasonal_factor(mod, k=k),
-                                  horizons))
-
-    # Place the weekly seasonal factor into the correct spot in a length 7 vector
     today = date.dayofweek
-    weekly_seas_mean = [np.zeros(period) for i in range(k)]
-    weekly_seas_var = [np.zeros([period, period]) for i in range(k)]
-    for i in range(k):
-        day = (today + i) % period
-        weekly_seas_mean[i][day] = future_weekly_seas[i][0]
-        weekly_seas_var[i][day, day] = future_weekly_seas[i][1]
 
-    return weekly_seas_mean, weekly_seas_var
+
+    if forecast_path:
+        weekly_seas_mean, weekly_seas_var, weekly_seas_cov = forecast_path_weekly_seasonal_factor(mod, k, today, period)
+        return weekly_seas_mean, weekly_seas_var, weekly_seas_cov
+    else:
+
+        # Place the weekly seasonal factor into the correct spot in a length 7 vector
+        future_weekly_seas = list(map(lambda k: forecast_weekly_seasonal_factor(mod, k=k),
+                                      horizons))
+        weekly_seas_mean = [np.zeros(period) for i in range(k)]
+        weekly_seas_var = [np.zeros([period, period]) for i in range(k)]
+        for i in range(k):
+            day = (today + i) % period
+            weekly_seas_mean[i][day] = future_weekly_seas[i][0]
+            weekly_seas_var[i][day, day] = future_weekly_seas[i][1]
+
+        return weekly_seas_mean, weekly_seas_var
 
 
 seas_weekly_lf = latent_factor(gen_fxn = seas_weekly_fxn, gen_forecast_fxn=seas_weekly_forecast_fxn)
@@ -609,9 +681,9 @@ def load_latent_factor(filename):
     return pickle.load(file)
 
 
-def forecast_holiday_effect(mod, X, k):
+def forecast_holiday_effect_dlm(mod, X, k):
     a, R = forecast_aR(mod, k)
 
     mean = X.T @ a[mod.ihol]
-    var = X.T @ R[np.ix_(mod.ihol, mod.ihol)] @ X
+    var = (mod.n / (mod.n - 2)) * (X.T @ R[np.ix_(mod.ihol, mod.ihol)] @ X + mod.s)
     return mean, var

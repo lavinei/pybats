@@ -15,6 +15,22 @@ def forecast_aR(mod, k):
     return a, R
 
 
+def forecast_R_cov(mod, k1, k2):
+    """
+    :param mod: model
+    :param k1: 1st Forecast Horizon (smaller)
+    :param k2: 2nd Forecast Horizon (larger)
+    :return: State vector covariance across k1, k2. West & Harrison the covariance is defined as Ct(k,j), pg. 106
+    """
+    if k2 < k1:
+        tmp = k1
+        k1 = k2
+        k2 = tmp
+    Gk = np.linalg.matrix_power(mod.G, k2 - k1)
+    a, Rk1 = forecast_aR(mod, k1)
+    return Gk @ Rk1
+
+
 def forecast_marginal(mod, k, X = None, nsamps = 1, mean_only = False, state_mean_var = False):
     """
     Forecast function k steps ahead (marginal)
@@ -96,7 +112,7 @@ def forecast_path(mod, k, X = None, nsamps = 1):
     return samps
 
 
-def forecast_path_copula(mod, k, X = None, nsamps = 1, t_dist=False, y=None, nu=9):
+def forecast_path_copula(mod, k, X = None, nsamps = 1, t_dist=False, y=None, nu=9, return_cov=False):
     """
     Forecast function for the k-step path
     k: steps ahead to forecast
@@ -139,6 +155,9 @@ def forecast_path_copula(mod, k, X = None, nsamps = 1, t_dist=False, y=None, nu=
             # Covariance between lambda at times j, i
             lambda_cov[j,i] = lambda_cov[i,j] = Flist[j].T @ cov_ij @ Flist[i]
 
+    if return_cov:
+        return lambda_cov
+
     if y is not None:
         return forecast_path_copula_density_MC(mod, y, lambda_mu, lambda_cov, t_dist, nu, nsamps)
     else:
@@ -171,7 +190,7 @@ def forecast_marginal_bindglm(mod, n, k, X=None, nsamps=1, mean_only=False):
     return mod.simulate(n, param1, param2, nsamps)
 
 
-def forecast_path_normaldlm(mod, k, X = None, nsamps = 1, multiscale=False, AR=False):
+def forecast_path_dlm(mod, k, X = None, nsamps = 1, multiscale=False, AR=False):
 
     samps = np.zeros([nsamps, k])
     F = np.copy(mod.F)
@@ -319,12 +338,12 @@ def forecast_joint_copula_sim(mod_list, lambda_mu, lambda_cov, nsamps, t_dist=Fa
     unif_rvs = [numeric_fix(u) for u in unif_rvs]
 
     # Use inverse-CDF along each margin to get implied PRIOR value (e.g. a gamma dist RV for a poisson sampling model)
-    priorlist = list(map(lambda params, unif_rv: mod.prior_inverse_cdf(unif_rv, params[0], params[1]),
-                         conj_params, unif_rvs))
+    priorlist = list(map(lambda mod, params, unif_rv: mod.prior_inverse_cdf(unif_rv, params[0], params[1]),
+                         mod_list, conj_params, unif_rvs))
 
     # Simulate from the sampling model (e.g. poisson)
-    return np.array(list(map(lambda prior: mod.simulate_from_sampling_model(prior, nsamps),
-                             priorlist))).T
+    return np.array(list(map(lambda mod, prior: mod.simulate_from_sampling_model(prior, nsamps),
+                             mod_list, priorlist))).T
 
 
 def forecast_joint_copula_density_MC(mod_list, y, lambda_mu, lambda_cov, t_dist=False, nu = 9, nsamps = 500):
@@ -358,12 +377,12 @@ def forecast_joint_copula_density_MC(mod_list, y, lambda_mu, lambda_cov, t_dist=
                        genlist, joint_samps))
 
     # Use inverse-CDF along each margin to get implied PRIOR value (e.g. a gamma dist RV for a poisson sampling model)
-    priorlist = list(map(lambda params, cdf: mod.prior_inverse_cdf(cdf, params[0], params[1]),
-                         conj_params, unif_rvs))
+    priorlist = list(map(lambda mod, params, cdf: mod.prior_inverse_cdf(cdf, params[0], params[1]),
+                         mod_list, conj_params, unif_rvs))
 
     # Get the density of the y values, using Monte Carlo integration (i.e. an average over the samples)
-    density_list = list(map(lambda y, prior: mod.sampling_density(y, prior),
-                            y, priorlist))
+    density_list = list(map(lambda mod, y, prior: mod.sampling_density(y, prior),
+                            mod_list, y, priorlist))
 
     # Get the product of the densities to get the joint density (they are independent, conditional upon the prior value at each time t+k)
     joint_density_list = list(map(lambda dens: np.exp(np.sum(np.log(dens))),

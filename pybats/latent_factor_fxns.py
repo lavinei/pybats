@@ -1,9 +1,9 @@
 # These are for the general DGLM
 import numpy as np
-import scipy as sc
-from .forecast import forecast_path_copula_sim, forecast_path_copula_density_MC, forecast_aR, \
+
+from pybats.forecast import forecast_path_copula_sim, forecast_path_copula_density_MC, forecast_aR, \
     forecast_joint_copula_density_MC, forecast_joint_copula_sim
-from .update import update_F
+from pybats.update import update_F
 import multiprocessing
 from functools import partial
 
@@ -342,7 +342,7 @@ def forecast_marginal_lf_analytic(mod, k, X = None, phi_mu = None, phi_sigma = N
     return mod.simulate(param1, param2, nsamps)
 
 
-def forecast_path_lf_copula(mod, k, X = None, phi_mu = None, phi_sigma = None, phi_psi = None, nsamps = 1, t_dist=False, y = None, nu=9):
+def forecast_path_lf_copula(mod, k, X = None, phi_mu = None, phi_sigma = None, phi_psi = None, nsamps = 1, t_dist=False, y = None, nu=9, return_mu_cov=False):
     """
 
     :param mod: Model of class DGLM
@@ -350,7 +350,7 @@ def forecast_path_lf_copula(mod, k, X = None, phi_mu = None, phi_sigma = None, p
     :param X: array with k rows for the future regression components
     :param phi_mu: length k list of mean vectors of the latent factors
     :param phi_sigma: length k list of variance matrices of the latent factors
-    :param phi_psi: length k list of covariance matrices of phi_t+k and phi_t+j. Each element is another list, of length k.
+    :param phi_psi: length k-1 list of covariance matrices of phi_t+k and phi_t+j. Each element is a numpy array.
     :param nsamps: Number of samples to draw from forecast distribution
     :param t_dist: Use t-copula? If false, Gaussian is assumed.
     :param y: Future path of observations y. If provided, output will be the forecast density of y.
@@ -405,13 +405,16 @@ def forecast_path_lf_copula(mod, k, X = None, phi_mu = None, phi_sigma = None, p
             else:
                 lambda_cov[j,i] = lambda_cov[i,j] = Flist[j].T @ cov_ij @ Flist[i] + alist[i][mod.ilf].T @ phi_psi[i][j] @ alist[j][mod.ilf]
 
+    if return_mu_cov:
+        return lambda_mu, lambda_cov
+
     if y is not None:
         return forecast_path_copula_density_MC(mod, y, lambda_mu, lambda_cov, t_dist, nu, nsamps)
     else:
         return forecast_path_copula_sim(mod, k, lambda_mu, lambda_cov, nsamps, t_dist, nu)
 
 
-def forecast_joint_marginal_lf_copula(mod_list, k, X_list=None, phi_mu = None, phi_sigma = None, phi_psi = None,
+def forecast_joint_marginal_lf_copula(mod_list, k, X_list=None, phi_mu = None, phi_sigma = None,
                                       nsamps=1, y=None, t_dist=False, nu=9, return_cov=False):
     """
     Forecast function for multiple models, marginally k-steps ahead
@@ -439,17 +442,12 @@ def forecast_joint_marginal_lf_copula(mod_list, k, X_list=None, phi_mu = None, p
 
         # Plug in the correct F values
         if mod.nregn > 0:
-            F = update_F(mod, X[i, :], F=mod.F.copy())
+            F = update_F(mod, X, F=mod.F.copy())
         else:
             F = mod.F.copy()
-        # F = np.copy(mod.F)
-        # if mod.nregn > 0:
-        #     F[mod.iregn] = X[i, :].reshape(mod.nregn, 1)
 
         # Put the mean of the latent factor phi_mu into the F vector
         F = update_F_lf(mod, phi_mu, F=F)
-        # if mod.nlf > 0:
-        #     F[mod.ilf] = phi_mu.reshape(mod.nlf,1)
 
         Flist[i] = F
 
@@ -473,4 +471,5 @@ def forecast_joint_marginal_lf_copula(mod_list, k, X_list=None, phi_mu = None, p
         return forecast_joint_copula_density_MC(mod_list, y, lambda_mu, lambda_cov, t_dist, nu, nsamps)
     else:
         return forecast_joint_copula_sim(mod_list, lambda_mu, lambda_cov, nsamps, t_dist, nu)
+
 

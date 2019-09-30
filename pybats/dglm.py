@@ -5,10 +5,10 @@ from collections.abc import Iterable
 from .seasonal import seascomp, createFourierToSeasonalL
 from .update import update, update_dlm, update_bindglm
 from .forecast import forecast_marginal, forecast_path, forecast_path_copula,\
-    forecast_marginal_bindglm, forecast_path_normaldlm, forecast_state_mean_and_var
-from .latent_factor_fxns import forecast_marginal_lf_sample, forecast_marginal_lf_analytic, \
+    forecast_marginal_bindglm, forecast_path_dlm, forecast_state_mean_and_var
+from pybats.latent_factor_fxns import forecast_marginal_lf_sample, forecast_marginal_lf_analytic, \
     forecast_path_lf_copula, forecast_path_lf_sample, get_mean_and_var_lf_dlm
-from .latent_factor_fxns import update_lf_sample, update_lf_analytic, get_mean_and_var_lf, update_lf_analytic_dlm
+from pybats.latent_factor_fxns import update_lf_sample, update_lf_analytic, get_mean_and_var_lf, update_lf_analytic_dlm
 from .conjugates import trigamma, bern_conjugate_params, bin_conjugate_params, pois_conjugate_params
 
 # These are for the bernoulli and Poisson DGLMs
@@ -151,6 +151,11 @@ class dglm:
         self.nlf = nlf
         self.nseas = nseas
 
+        if self.nlf == 0:
+            self.latent_factor = False
+        else:
+            self.latent_factor = True
+
         # Set up discount matrix
         self.discount_forecast = discount_forecast
         Discount = self.build_discount_matrix()
@@ -213,14 +218,43 @@ class dglm:
 
         return component_discounts
 
-    def update(self, y=None, X=None):
-        update(self, y, X)
+    def update(self, y=None, X=None, phi_mu = None, phi_sigma = None, analytic=True, phi_samps=None, **kwargs):
+        if self.latent_factor:
+            if analytic:
+                update_lf_analytic(self, y, X, phi_mu, phi_sigma)
+            else:
+                parallel = kwargs.get('parallel')
+                if parallel is None: parallel = False
+                update_lf_sample(self, y, X, phi_samps, parallel)
+        else:
+            update(self, y, X)
 
-    def forecast_marginal(self, k, X=None, nsamps=1, mean_only=False, state_mean_var=False):
-        return forecast_marginal(self, k, X, nsamps, mean_only, state_mean_var)
+    def forecast_marginal(self, k, X=None, nsamps=1, mean_only=False,
+                          phi_mu = None, phi_sigma=None, analytic=True, phi_samps=None,
+                          state_mean_var=False):
 
-    def forecast_path(self, k, X=None, nsamps=1):
-        return forecast_path(self, k, X, nsamps)
+        if self.latent_factor:
+            if analytic:
+                return forecast_marginal_lf_analytic(self, k, X, phi_mu, phi_sigma, nsamps, mean_only, state_mean_var)
+            else:
+                forecast_marginal_lf_sample(self, k, X, phi_samps, mean_only)
+        else:
+            return forecast_marginal(self, k, X, nsamps, mean_only, state_mean_var)
+
+    def forecast_path(self, k, X=None, nsamps=1, copula=True,
+                      phi_mu=None, phi_sigma=None, phi_psi=None, analytic=True, phi_samps=None,
+                      **kwargs):
+
+        if self.latent_factor:
+            if analytic:
+                return forecast_path_lf_copula(self, k, X, phi_mu, phi_sigma, phi_psi, nsamps, **kwargs)
+            else:
+                return forecast_path_lf_sample(self, k, X, phi_samps)
+        else:
+            if copula:
+                return forecast_path_copula(self, k, X, nsamps, **kwargs)
+            else:
+                return forecast_path(self, k, X, nsamps)
 
     def forecast_path_copula(self, k, X=None, nsamps=1, **kwargs):
         return forecast_path_copula(self, k, X, nsamps, **kwargs)
@@ -247,7 +281,6 @@ class dglm:
         return forecast_path_lf_copula(self, k, X, phi_mu, phi_sigma, phi_psi, nsamps, **kwargs)
 
 
-
     def get_mean_and_var(self, F, a, R):
         mean, var = F.T @ a, F.T @ R @ F
         return np.ravel(mean)[0], np.ravel(var)[0]
@@ -267,11 +300,6 @@ class dglm:
         else:
             Discount = self.Discount
         return self.R / Discount - self.R
-
-    def save_params(self):
-        """
-        This is a stub
-        """
 
     def simulate(self, param1, param2, nsamps):
         """
@@ -460,7 +488,7 @@ class dlm(dglm):
         update_dlm(self, y, X)
 
     def forecast_path(self, k, X=None, nsamps=1):
-        return forecast_path_normaldlm(self, k, X, nsamps)
+        return forecast_path_dlm(self, k, X, nsamps)
 
     def update_lf_analytic(self, y=None, X=None, phi_mu=None, phi_sigma=None):
         update_lf_analytic_dlm(self, y, X, phi_mu, phi_sigma)

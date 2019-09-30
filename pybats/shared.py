@@ -15,12 +15,15 @@ def gamma_transformer(ft, qt, fn):
     beta = np.exp(digamma(alpha) - ft)
     return alpha, beta
 
+
 def trigamma(x):
     return sc.special.polygamma(x=x, n=1)
+
 
 def save(obj, filename):
     file = open(filename, "wb")
     pickle.dump(obj, file=file)
+
 
 def define_holiday_regressors(X, dates, holidays=None):
     if X is None:
@@ -39,6 +42,7 @@ def define_holiday_regressors(X, dates, holidays=None):
 
     return X
 
-def corr(cov):
+
+def cov2corr(cov):
     D = np.sqrt(cov.diagonal()).reshape(-1, 1)
     return cov / D / D.T
