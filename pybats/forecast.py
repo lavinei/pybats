@@ -190,7 +190,7 @@ def forecast_marginal_bindglm(mod, n, k, X=None, nsamps=1, mean_only=False):
     return mod.simulate(n, param1, param2, nsamps)
 
 
-def forecast_path_dlm(mod, k, X = None, nsamps = 1, multiscale=False, AR=False):
+def forecast_path_dlm(mod, k, X = None, nsamps = 1):
 
     samps = np.zeros([nsamps, k])
     F = np.copy(mod.F)
@@ -201,6 +201,7 @@ def forecast_path_dlm(mod, k, X = None, nsamps = 1, multiscale=False, AR=False):
                      v))
 
     for i in range(k):
+
         # Plug in the correct F values
         if mod.nregn > 0:
             F = update_F(mod, X[i, :], F=F)

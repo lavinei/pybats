@@ -55,9 +55,7 @@ def sample_seasonal_effect_fxnl(L, m, C, iseas, delVar, n, nsamps):
 
 
 def forecast_weekly_seasonal_factor(mod, k, sample = False, nsamps = 1):
-    Gk = np.linalg.matrix_power(mod.G, k-1)
-    a = Gk @ mod.a
-    R = Gk @ mod.R @ Gk.T + (k-1)*mod.W
+    a, R = forecast_aR(mod, k)
 
     idx = np.where(np.array(mod.seasPeriods) == 7)[0][0]
 
@@ -68,7 +66,7 @@ def forecast_weekly_seasonal_factor(mod, k, sample = False, nsamps = 1):
 
 
 def forecast_path_weekly_seasonal_factor(mod, k, today, period):
-    phi_mu = [np.zeros([period, 1]) for h in range(k)]
+    phi_mu = [np.zeros([period]) for h in range(k)]
     phi_sigma = [np.zeros([period, period]) for h in range(k)]
     phi_psi = [np.zeros([period, period, h]) for h in range(1, k)]
 
@@ -79,7 +77,7 @@ def forecast_path_weekly_seasonal_factor(mod, k, today, period):
     for h in range(k):
 
         # Get the marginal a, R
-        a, R = forecast_aR(mod, h)
+        a, R = forecast_aR(mod, h + 1)
 
         m, v = get_seasonal_effect_fxnl(L, a, R, iseas)
         day = (today + h) % period

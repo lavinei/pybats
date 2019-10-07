@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 from datetime import datetime
+import seaborn as sns
 from pandas.plotting import register_matplotlib_converters
 register_matplotlib_converters()
 
@@ -47,6 +48,18 @@ def plot_coef(fig, ax, coef, dates, linewidth=1, linecolor=None, legend_inside_p
         ax.tick_params(labelleft=True)
 
         return ax
+
+def plot_corr(fig, ax, corr, labels=None):
+    ax = sns.heatmap(corr, vmin=-1, vmax=1, center=0,
+                       # mask=np.zeros_like(cor, dtype=np.bool),
+                       cmap=sns.diverging_palette(10, 240, as_cmap=True),
+                       cbar=True,
+                       square=True, ax=ax,
+                       xticklabels=labels,
+                       yticklabels=labels)
+    ax.set_xticklabels(labels=labels, rotation=45, size=9)
+    ax.set_yticklabels(labels=labels, rotation=0, size=9)
+    return ax
 
 def ax_style(ax, ylim=None, xlim=None, xlabel=None, ylabel=None, title=None,
              legend=None, legend_inside_plot=True, topborder=False, rightborder=False, **kwargs):
