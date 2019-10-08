@@ -1,0 +1,281 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>pybats.define_models &#8212; pybats 1.0 documentation</title>
+    
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '1.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.0/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head>
+  <body role="document">
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for pybats.define_models</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+
+<span class="kn">from</span> <span class="nn">.dglm</span> <span class="k">import</span> <span class="n">dlm</span><span class="p">,</span> <span class="n">pois_dglm</span><span class="p">,</span> <span class="n">bern_dglm</span>
+<span class="kn">import</span> <span class="nn">statsmodels.api</span> <span class="k">as</span> <span class="nn">sm</span>
+
+
+<div class="viewcode-block" id="define_dglm"><a class="viewcode-back" href="../../pybats.html#pybats.define_models.define_dglm">[docs]</a><span class="k">def</span> <span class="nf">define_dglm</span><span class="p">(</span><span class="n">Y</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="n">family</span><span class="o">=</span><span class="s2">&quot;normal&quot;</span><span class="p">,</span>
+                <span class="n">ntrend</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">nhol</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+                <span class="n">seasPeriods</span><span class="o">=</span><span class="p">[</span><span class="mi">7</span><span class="p">],</span> <span class="n">seasHarmComponents</span> <span class="o">=</span> <span class="p">[[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">]],</span>
+                <span class="n">deltrend</span> <span class="o">=</span> <span class="o">.</span><span class="mi">995</span><span class="p">,</span> <span class="n">delregn</span> <span class="o">=.</span><span class="mi">995</span><span class="p">,</span> <span class="n">delseas</span> <span class="o">=</span> <span class="o">.</span><span class="mi">999</span><span class="p">,</span> <span class="n">delVar</span> <span class="o">=</span> <span class="mf">0.999</span><span class="p">,</span> <span class="n">delhol</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+                <span class="n">n0</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span> <span class="n">s0</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+                <span class="n">a0</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">R0</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                <span class="n">adapt_discount</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">prior_length</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    :param Y: Observation array used to define prior</span>
+<span class="sd">    :param X: Predictor array used to define prior</span>
+<span class="sd">    :param ntrend: Number of trend components. 1 = Intercept only. 2 = Intercept + slope</span>
+<span class="sd">    :param nhol: Number of holiday components</span>
+<span class="sd">    :param seasPeriods: List of periods for seasonal components</span>
+<span class="sd">    :param seasHarmComponents: List of harmonic components included in each seasonal component</span>
+<span class="sd">    :param deltrend: Discount factor on trend components</span>
+<span class="sd">    :param delregn: Discount factor on regression components</span>
+<span class="sd">    :param delseas: Discount factor on seasonal components</span>
+<span class="sd">    :param delVar: Discount factor on stochastic volatility (observation error)</span>
+<span class="sd">    :param delhol: Discount factor on holiday components</span>
+<span class="sd">    :param n0: Prior &#39;sample size&#39; for stochastic volatility</span>
+<span class="sd">    :param s0: Prior standard deviation of stochastic volatility</span>
+<span class="sd">    :param a0: Prior state vector mean</span>
+<span class="sd">    :param R0: Prior state vector covariance</span>
+<span class="sd">    :param adapt_discount: Optional. Can be &#39;info&#39; or &#39;positive_regn&#39;. Ways to adapt discount factors, and prevent exploding variance.</span>
+<span class="sd">    :param prior_length: Optional, number of rows from Y, X to use. Otherwise all are used</span>
+<span class="sd">    :param kwargs:</span>
+<span class="sd">    :return: Returns an initialized DGLM</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">if</span> <span class="n">prior_length</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">prior_length</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">Y</span> <span class="o">=</span> <span class="n">Y</span><span class="p">[:</span><span class="n">prior_length</span><span class="p">]</span>
+            <span class="n">X</span> <span class="o">=</span> <span class="n">X</span><span class="p">[:</span><span class="n">prior_length</span><span class="p">]</span>
+
+    <span class="c1"># Infer the number of regression and holiday components</span>
+    <span class="n">nregn</span> <span class="o">=</span> <span class="n">ncol</span><span class="p">(</span><span class="n">X</span><span class="p">)</span> <span class="o">-</span> <span class="n">nhol</span>
+    <span class="n">nseas</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">*</span> <span class="nb">sum</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="nb">len</span><span class="p">,</span> <span class="n">seasHarmComponents</span><span class="p">))</span>
+
+    <span class="c1"># Learn a prior based on the first &#39;prior_length&#39; observations</span>
+    <span class="k">if</span> <span class="n">family</span> <span class="o">==</span> <span class="s2">&quot;normal&quot;</span><span class="p">:</span>
+        <span class="n">prior_mean</span><span class="p">,</span> <span class="n">prior_cov</span><span class="p">,</span> <span class="n">p</span> <span class="o">=</span> <span class="n">define_dlm_params</span><span class="p">(</span><span class="n">Y</span><span class="p">,</span> <span class="n">X</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">family</span> <span class="o">==</span> <span class="s2">&quot;poisson&quot;</span><span class="p">:</span>
+        <span class="n">prior_mean</span><span class="p">,</span> <span class="n">prior_cov</span><span class="p">,</span> <span class="n">p</span> <span class="o">=</span> <span class="n">define_pois_params</span><span class="p">(</span><span class="n">Y</span><span class="p">,</span> <span class="n">X</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">family</span> <span class="o">==</span> <span class="s2">&quot;bernoulli&quot;</span><span class="p">:</span>
+        <span class="n">prior_mean</span><span class="p">,</span> <span class="n">prior_cov</span><span class="p">,</span> <span class="n">p</span> <span class="o">=</span> <span class="n">define_bern_params</span><span class="p">(</span><span class="n">Y</span><span class="p">,</span> <span class="n">X</span><span class="p">)</span>
+
+    <span class="c1"># Define a standard prior - setting latent factor priors at 1</span>
+    <span class="c1"># Unless prior mean (a0) and prior variance (R0) are supplied as arguments</span>
+    <span class="n">prior</span> <span class="o">=</span> <span class="p">[[</span><span class="n">prior_mean</span><span class="p">[</span><span class="mi">0</span><span class="p">]],</span> <span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="p">(</span><span class="n">ntrend</span> <span class="o">-</span> <span class="mi">1</span><span class="p">),</span> <span class="p">[</span><span class="o">*</span><span class="n">prior_mean</span><span class="p">[</span><span class="mi">1</span><span class="p">:]],</span> <span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">nseas</span><span class="p">]</span>
+    <span class="k">if</span> <span class="n">a0</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">a0</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">m</span> <span class="k">for</span> <span class="n">ms</span> <span class="ow">in</span> <span class="n">prior</span> <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="n">ms</span><span class="p">])</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">R0</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">R0</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">identity</span><span class="p">(</span><span class="n">a0</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="n">idx</span> <span class="o">=</span> <span class="p">[</span><span class="n">i</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">p</span> <span class="o">+</span> <span class="n">ntrend</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)]</span>
+        <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">ntrend</span><span class="p">):</span>
+            <span class="n">idx</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">j</span><span class="p">)</span>
+        <span class="n">R0</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ix_</span><span class="p">(</span><span class="n">idx</span><span class="p">,</span> <span class="n">idx</span><span class="p">)]</span> <span class="o">=</span> <span class="n">prior_cov</span>
+
+    <span class="c1"># Add variance to holiday indicators - few observations, may be significantly different than other days</span>
+    <span class="n">ihol</span> <span class="o">=</span> <span class="nb">range</span><span class="p">(</span><span class="n">ntrend</span> <span class="o">+</span> <span class="n">nregn</span><span class="p">,</span> <span class="n">ntrend</span> <span class="o">+</span> <span class="n">nregn</span> <span class="o">+</span> <span class="n">nhol</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">idx</span> <span class="ow">in</span> <span class="n">ihol</span><span class="p">:</span>
+        <span class="n">R0</span><span class="p">[</span><span class="n">idx</span><span class="p">,</span> <span class="n">idx</span><span class="p">]</span> <span class="o">=</span> <span class="n">R0</span><span class="p">[</span><span class="n">idx</span><span class="p">,</span> <span class="n">idx</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span>
+
+    <span class="k">if</span> <span class="n">family</span> <span class="o">==</span> <span class="s2">&quot;normal&quot;</span><span class="p">:</span>
+        <span class="n">mod</span> <span class="o">=</span> <span class="n">dlm</span><span class="p">(</span><span class="n">a0</span><span class="o">=</span><span class="n">a0</span><span class="p">,</span> <span class="n">R0</span><span class="o">=</span><span class="n">R0</span><span class="p">,</span>
+              <span class="n">nregn</span><span class="o">=</span><span class="n">nregn</span><span class="p">,</span>
+              <span class="n">ntrend</span><span class="o">=</span><span class="n">ntrend</span><span class="p">,</span>
+              <span class="n">nhol</span><span class="o">=</span><span class="n">nhol</span><span class="p">,</span>
+              <span class="n">seasPeriods</span><span class="o">=</span><span class="n">seasPeriods</span><span class="p">,</span>
+              <span class="n">seasHarmComponents</span><span class="o">=</span><span class="n">seasHarmComponents</span><span class="p">,</span>
+              <span class="n">deltrend</span><span class="o">=</span><span class="n">deltrend</span><span class="p">,</span> <span class="n">delregn</span><span class="o">=</span><span class="n">delregn</span><span class="p">,</span>
+              <span class="n">delseas</span><span class="o">=</span><span class="n">delseas</span><span class="p">,</span> <span class="n">delhol</span><span class="o">=</span><span class="n">delhol</span><span class="p">,</span>
+              <span class="n">n0</span><span class="o">=</span><span class="n">n0</span><span class="p">,</span> <span class="n">s0</span><span class="o">=</span><span class="n">s0</span><span class="p">,</span> <span class="n">delVar</span><span class="o">=</span><span class="n">delVar</span><span class="p">,</span>
+              <span class="n">adapt_discount</span><span class="o">=</span><span class="n">adapt_discount</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">family</span> <span class="o">==</span> <span class="s2">&quot;poisson&quot;</span><span class="p">:</span>
+        <span class="n">mod</span> <span class="o">=</span> <span class="n">pois_dglm</span><span class="p">(</span><span class="n">a0</span><span class="o">=</span><span class="n">a0</span><span class="p">,</span> <span class="n">R0</span><span class="o">=</span><span class="n">R0</span><span class="p">,</span>
+                  <span class="n">nregn</span><span class="o">=</span><span class="n">nregn</span><span class="p">,</span>
+                  <span class="n">ntrend</span><span class="o">=</span><span class="n">ntrend</span><span class="p">,</span>
+                  <span class="n">nhol</span><span class="o">=</span><span class="n">nhol</span><span class="p">,</span>
+                  <span class="n">seasPeriods</span><span class="o">=</span><span class="n">seasPeriods</span><span class="p">,</span>
+                  <span class="n">seasHarmComponents</span><span class="o">=</span><span class="n">seasHarmComponents</span><span class="p">,</span>
+                  <span class="n">deltrend</span><span class="o">=</span><span class="n">deltrend</span><span class="p">,</span> <span class="n">delregn</span><span class="o">=</span><span class="n">delregn</span><span class="p">,</span>
+                  <span class="n">delseas</span><span class="o">=</span><span class="n">delseas</span><span class="p">,</span> <span class="n">delhol</span><span class="o">=</span><span class="n">delhol</span><span class="p">,</span>
+                  <span class="n">adapt_discount</span><span class="o">=</span><span class="n">adapt_discount</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">family</span> <span class="o">==</span> <span class="s2">&quot;bernoulli&quot;</span><span class="p">:</span>
+        <span class="n">mod</span> <span class="o">=</span> <span class="n">bern_dglm</span><span class="p">(</span><span class="n">a0</span><span class="o">=</span><span class="n">a0</span><span class="p">,</span> <span class="n">R0</span><span class="o">=</span><span class="n">R0</span><span class="p">,</span>
+                        <span class="n">nregn</span><span class="o">=</span><span class="n">nregn</span><span class="p">,</span>
+                        <span class="n">ntrend</span><span class="o">=</span><span class="n">ntrend</span><span class="p">,</span>
+                        <span class="n">nhol</span><span class="o">=</span><span class="n">nhol</span><span class="p">,</span>
+                        <span class="n">seasPeriods</span><span class="o">=</span><span class="n">seasPeriods</span><span class="p">,</span>
+                        <span class="n">seasHarmComponents</span><span class="o">=</span><span class="n">seasHarmComponents</span><span class="p">,</span>
+                        <span class="n">deltrend</span><span class="o">=</span><span class="n">deltrend</span><span class="p">,</span> <span class="n">delregn</span><span class="o">=</span><span class="n">delregn</span><span class="p">,</span>
+                        <span class="n">delseas</span><span class="o">=</span><span class="n">delseas</span><span class="p">,</span> <span class="n">delhol</span><span class="o">=</span><span class="n">delhol</span><span class="p">,</span>
+                        <span class="n">adapt_discount</span><span class="o">=</span><span class="n">adapt_discount</span><span class="p">)</span>
+
+
+
+    <span class="k">return</span> <span class="n">mod</span></div>
+
+
+<div class="viewcode-block" id="define_dlm_params"><a class="viewcode-back" href="../../pybats.html#pybats.define_models.define_dlm_params">[docs]</a><span class="k">def</span> <span class="nf">define_dlm_params</span><span class="p">(</span><span class="n">Y</span><span class="p">,</span> <span class="n">X</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="n">n</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">Y</span><span class="p">)</span>
+    <span class="n">p</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">+</span> <span class="n">ncol</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+    <span class="n">g</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="n">n</span> <span class="o">/</span> <span class="mi">2</span><span class="p">))</span>
+
+    <span class="k">if</span> <span class="n">X</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">X</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">([</span><span class="n">n</span><span class="p">,</span> <span class="mi">1</span><span class="p">])</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">X</span> <span class="o">=</span> <span class="n">sm</span><span class="o">.</span><span class="n">add_constant</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+
+    <span class="n">linear_mod</span> <span class="o">=</span> <span class="n">sm</span><span class="o">.</span><span class="n">OLS</span><span class="p">(</span><span class="n">Y</span><span class="p">,</span> <span class="n">X</span><span class="p">)</span><span class="o">.</span><span class="n">fit</span><span class="p">()</span>
+
+
+    <span class="n">dlm_mean</span> <span class="o">=</span> <span class="n">linear_mod</span><span class="o">.</span><span class="n">params</span>
+    <span class="n">dlm_cov</span> <span class="o">=</span> <span class="n">fill_diag</span><span class="p">((</span><span class="n">g</span> <span class="o">/</span> <span class="p">(</span><span class="mi">1</span> <span class="o">+</span> <span class="n">g</span><span class="p">))</span> <span class="o">*</span> <span class="n">linear_mod</span><span class="o">.</span><span class="n">cov_params</span><span class="p">())</span>
+
+    <span class="k">return</span> <span class="n">dlm_mean</span><span class="p">,</span> <span class="n">dlm_cov</span><span class="p">,</span> <span class="n">p</span></div>
+
+
+<div class="viewcode-block" id="define_bern_params"><a class="viewcode-back" href="../../pybats.html#pybats.define_models.define_bern_params">[docs]</a><span class="k">def</span> <span class="nf">define_bern_params</span><span class="p">(</span><span class="n">Y</span><span class="p">,</span> <span class="n">X</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="n">n</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">Y</span><span class="p">)</span>
+    <span class="n">p</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">+</span> <span class="n">ncol</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">X</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">X_bern</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">([</span><span class="n">n</span><span class="p">,</span> <span class="mi">1</span><span class="p">])</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">X_bern</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">c_</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">([</span><span class="n">n</span><span class="p">,</span> <span class="mi">1</span><span class="p">]),</span> <span class="n">X</span><span class="p">]</span>
+    <span class="n">nonzeros</span> <span class="o">=</span> <span class="n">Y</span><span class="o">.</span><span class="n">nonzero</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span>
+
+    <span class="n">g</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="n">n</span><span class="o">/</span><span class="mi">2</span><span class="p">))</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">Y_bern</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">c_</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">([</span><span class="n">n</span><span class="p">,</span> <span class="mi">1</span><span class="p">]),</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">([</span><span class="n">n</span><span class="p">,</span> <span class="mi">1</span><span class="p">])]</span>
+        <span class="n">Y_bern</span><span class="p">[</span><span class="n">Y</span><span class="o">.</span><span class="n">nonzero</span><span class="p">()[</span><span class="mi">0</span><span class="p">],</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="n">Y_bern</span><span class="p">[</span><span class="n">Y</span><span class="o">.</span><span class="n">nonzero</span><span class="p">()[</span><span class="mi">0</span><span class="p">],</span> <span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">bern_mod</span> <span class="o">=</span> <span class="n">sm</span><span class="o">.</span><span class="n">GLM</span><span class="p">(</span><span class="n">endog</span><span class="o">=</span><span class="n">Y_bern</span><span class="p">,</span> <span class="n">exog</span><span class="o">=</span><span class="n">X_bern</span><span class="p">,</span> <span class="n">family</span><span class="o">=</span><span class="n">sm</span><span class="o">.</span><span class="n">families</span><span class="o">.</span><span class="n">Binomial</span><span class="p">())</span><span class="o">.</span><span class="n">fit</span><span class="p">()</span>
+        <span class="n">bern_params</span> <span class="o">=</span> <span class="n">bern_mod</span><span class="o">.</span><span class="n">params</span>
+        <span class="n">bern_cov</span> <span class="o">=</span> <span class="n">fill_diag</span><span class="p">((</span><span class="n">g</span><span class="o">/</span><span class="p">(</span><span class="mi">1</span><span class="o">+</span><span class="n">g</span><span class="p">))</span><span class="o">*</span><span class="n">bern_mod</span><span class="o">.</span><span class="n">cov_params</span><span class="p">())</span>
+    <span class="k">except</span><span class="p">:</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">nonzeros</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">bernmean</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">nonzeros</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">n</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+            <span class="n">bernmean</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">bernmean</span> <span class="o">/</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">bernmean</span><span class="p">))</span>
+            <span class="n">bern_params</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">p</span><span class="p">)</span>
+            <span class="n">bern_params</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">bernmean</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">bern_params</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">p</span><span class="p">)</span>
+        <span class="n">bern_cov</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">identity</span><span class="p">(</span><span class="n">p</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">bern_params</span><span class="p">,</span> <span class="n">bern_cov</span><span class="p">,</span> <span class="n">p</span></div>
+
+
+<div class="viewcode-block" id="define_pois_params"><a class="viewcode-back" href="../../pybats.html#pybats.define_models.define_pois_params">[docs]</a><span class="k">def</span> <span class="nf">define_pois_params</span><span class="p">(</span><span class="n">Y</span><span class="p">,</span> <span class="n">X</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="n">n</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">Y</span><span class="p">)</span>
+    <span class="n">p</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">+</span> <span class="n">ncol</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">X</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">X</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">([</span><span class="n">n</span><span class="p">,</span> <span class="mi">1</span><span class="p">])</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">X</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">c_</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">([</span><span class="n">n</span><span class="p">,</span> <span class="mi">1</span><span class="p">]),</span> <span class="n">X</span><span class="p">]</span>
+
+    <span class="n">g</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="n">n</span><span class="o">/</span><span class="mi">2</span><span class="p">))</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">pois_mod</span> <span class="o">=</span> <span class="n">sm</span><span class="o">.</span><span class="n">GLM</span><span class="p">(</span><span class="n">Y</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span>
+                          <span class="n">family</span><span class="o">=</span><span class="n">sm</span><span class="o">.</span><span class="n">families</span><span class="o">.</span><span class="n">Poisson</span><span class="p">())</span><span class="o">.</span><span class="n">fit</span><span class="p">()</span>
+        <span class="n">pois_params</span> <span class="o">=</span> <span class="n">pois_mod</span><span class="o">.</span><span class="n">params</span>
+        <span class="n">pois_cov</span> <span class="o">=</span> <span class="n">fill_diag</span><span class="p">((</span><span class="n">g</span><span class="o">/</span><span class="p">(</span><span class="mi">1</span><span class="o">+</span><span class="n">g</span><span class="p">))</span><span class="o">*</span><span class="n">pois_mod</span><span class="o">.</span><span class="n">cov_params</span><span class="p">())</span>
+    <span class="k">except</span><span class="p">:</span>
+        <span class="n">pois_params</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">p</span><span class="p">)</span>
+        <span class="n">pois_cov</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">identity</span><span class="p">(</span><span class="n">p</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">pois_params</span><span class="p">,</span> <span class="n">pois_cov</span><span class="p">,</span> <span class="n">p</span></div>
+
+
+<div class="viewcode-block" id="ncol"><a class="viewcode-back" href="../../pybats.html#pybats.define_models.ncol">[docs]</a><span class="k">def</span> <span class="nf">ncol</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">x</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="mi">0</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">shape</span><span class="p">(</span><span class="n">x</span><span class="p">))</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="k">return</span> <span class="mi">1</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">shape</span><span class="p">(</span><span class="n">x</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="fill_diag"><a class="viewcode-back" href="../../pybats.html#pybats.define_models.fill_diag">[docs]</a><span class="k">def</span> <span class="nf">fill_diag</span><span class="p">(</span><span class="n">cov</span><span class="p">):</span>
+    <span class="n">diag</span> <span class="o">=</span> <span class="n">cov</span><span class="o">.</span><span class="n">diagonal</span><span class="p">()</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+    <span class="n">diag</span><span class="p">[</span><span class="n">diag</span> <span class="o">==</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="n">np</span><span class="o">.</span><span class="n">fill_diagonal</span><span class="p">(</span><span class="n">cov</span><span class="p">,</span> <span class="n">diag</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">cov</span></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2019, Isaac Lavine.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.5.6</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.10</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

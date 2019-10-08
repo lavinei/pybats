@@ -1,0 +1,519 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>pybats.dglm &#8212; pybats 1.0 documentation</title>
+    
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '1.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.0/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head>
+  <body role="document">
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for pybats.dglm</h1><div class="highlight"><pre>
+<span></span><span class="c1"># These are for the general DGLM</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">scipy</span> <span class="k">as</span> <span class="nn">sc</span>
+<span class="kn">from</span> <span class="nn">collections.abc</span> <span class="k">import</span> <span class="n">Iterable</span>
+<span class="kn">from</span> <span class="nn">.seasonal</span> <span class="k">import</span> <span class="n">seascomp</span><span class="p">,</span> <span class="n">createFourierToSeasonalL</span>
+<span class="kn">from</span> <span class="nn">.update</span> <span class="k">import</span> <span class="n">update</span><span class="p">,</span> <span class="n">update_dlm</span><span class="p">,</span> <span class="n">update_bindglm</span>
+<span class="kn">from</span> <span class="nn">.forecast</span> <span class="k">import</span> <span class="n">forecast_marginal</span><span class="p">,</span> <span class="n">forecast_path</span><span class="p">,</span> <span class="n">forecast_path_copula</span><span class="p">,</span>\
+    <span class="n">forecast_marginal_bindglm</span><span class="p">,</span> <span class="n">forecast_path_dlm</span><span class="p">,</span> <span class="n">forecast_state_mean_and_var</span>
+<span class="kn">from</span> <span class="nn">.conjugates</span> <span class="k">import</span> <span class="n">trigamma</span><span class="p">,</span> <span class="n">bern_conjugate_params</span><span class="p">,</span> <span class="n">bin_conjugate_params</span><span class="p">,</span> <span class="n">pois_conjugate_params</span>
+
+<span class="c1"># These are for the bernoulli and Poisson DGLMs</span>
+<span class="kn">from</span> <span class="nn">scipy.special</span> <span class="k">import</span> <span class="n">digamma</span>
+<span class="kn">from</span> <span class="nn">scipy.special</span> <span class="k">import</span> <span class="n">beta</span> <span class="k">as</span> <span class="n">beta_fxn</span>
+<span class="kn">from</span> <span class="nn">scipy</span> <span class="k">import</span> <span class="n">stats</span>
+
+
+<div class="viewcode-block" id="dglm"><a class="viewcode-back" href="../../pybats.html#pybats.dglm.dglm">[docs]</a><span class="k">class</span> <span class="nc">dglm</span><span class="p">:</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                 <span class="n">a0</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="n">R0</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="n">nregn</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+                 <span class="n">ntrend</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+                 <span class="n">nhol</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+                 <span class="n">seasPeriods</span><span class="o">=</span><span class="p">[],</span>
+                 <span class="n">seasHarmComponents</span><span class="o">=</span><span class="p">[],</span>
+                 <span class="n">deltrend</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">delregn</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+                 <span class="n">delhol</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">delseas</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+                 <span class="n">interpolate</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                 <span class="n">adapt_discount</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                 <span class="n">adapt_factor</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span>
+                 <span class="n">discount_forecast</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param a0: Prior mean vector</span>
+<span class="sd">        :param R0: Prior covariance matrix</span>
+<span class="sd">        :param nregn: Number of regression components</span>
+<span class="sd">        :param ntrend: Number of trend components</span>
+<span class="sd">        :param seasPeriods: List of periods of seasonal components</span>
+<span class="sd">        :param seasHarmComponents: List of harmonic components included for each period</span>
+<span class="sd">        :param deltrend: Discount factor on trend components</span>
+<span class="sd">        :param delregn: Discount factor on regression components</span>
+<span class="sd">        :param delhol: Discount factor on holiday components (currently deprecated)</span>
+<span class="sd">        :param delseas: Discount factor on seasonal components</span>
+<span class="sd">        :param interpolate: Whether to use interpolation for conjugate parameters</span>
+<span class="sd">        :param adapt_discount: What method of discount adaption. False = None, &#39;info&#39; = information based,\</span>
+<span class="sd">         &#39;positive-regn&#39; = only discount if regression information is available</span>
+<span class="sd">        :param discount_forecast: Whether to use discounting into the future</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c1"># Setting up trend F, G matrices</span>
+
+        <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">itrend</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">ntrend</span><span class="p">))</span>
+        <span class="n">i</span> <span class="o">+=</span> <span class="n">ntrend</span>
+        <span class="k">if</span> <span class="n">ntrend</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">Gtrend</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">])</span>
+            <span class="n">Ftrend</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">([</span><span class="n">ntrend</span><span class="p">])</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="c1"># Local level</span>
+        <span class="k">elif</span> <span class="n">ntrend</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">Gtrend</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">identity</span><span class="p">(</span><span class="n">ntrend</span><span class="p">)</span>
+            <span class="n">Ftrend</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">1</span><span class="p">])</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="c1"># Locally linear</span>
+        <span class="k">elif</span> <span class="n">ntrend</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="n">Gtrend</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">]])</span>
+            <span class="n">Ftrend</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">])</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+
+        <span class="c1"># Setting up regression F, G matrices</span>
+        <span class="k">if</span> <span class="n">nregn</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">Fregn</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">([</span><span class="mi">0</span><span class="p">])</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+            <span class="n">Gregn</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">])</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">Gregn</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">identity</span><span class="p">(</span><span class="n">nregn</span><span class="p">)</span>
+            <span class="n">Fregn</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">([</span><span class="n">nregn</span><span class="p">])</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">iregn</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">i</span> <span class="o">+</span> <span class="n">nregn</span><span class="p">))</span>
+            <span class="n">i</span> <span class="o">+=</span> <span class="n">nregn</span>
+
+        <span class="c1"># Setting up holiday F, G matrices (additional regression indicators components)</span>
+        <span class="k">if</span> <span class="n">nhol</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">Fhol</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">([</span><span class="mi">0</span><span class="p">])</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+            <span class="n">Ghol</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">])</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">Ghol</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">identity</span><span class="p">(</span><span class="n">nhol</span><span class="p">)</span>
+            <span class="n">Fhol</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">([</span><span class="n">nhol</span><span class="p">])</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">ihol</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">i</span> <span class="o">+</span> <span class="n">nhol</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">iregn</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ihol</span><span class="p">)</span>  <span class="c1"># Adding on to the self.iregn</span>
+            <span class="n">i</span> <span class="o">+=</span> <span class="n">nhol</span>
+
+        <span class="c1"># Setting up seasonal F, G matrices</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">seasPeriods</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">Fseas</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">([</span><span class="mi">0</span><span class="p">])</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+            <span class="n">Gseas</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">])</span>
+            <span class="n">nseas</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="c1"># elif len(seasPeriods) == 1:</span>
+        <span class="c1">#     Fseas, Gseas = seascomp(seasPeriods[0], seasHarmComponents[0])</span>
+        <span class="c1">#     nseas = Gseas.shape[0]</span>
+        <span class="c1">#     self.L = createFourierToSeasonalL(seasPeriods[0], seasHarmComponents[0], Fseas, Gseas)</span>
+        <span class="c1">#     self.iseas = list(range(i, i + nseas))</span>
+        <span class="c1">#     i += nseas</span>
+        <span class="c1"># elif len(seasPeriods) &gt; 1:</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">output</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="n">seascomp</span><span class="p">,</span> <span class="n">seasPeriods</span><span class="p">,</span> <span class="n">seasHarmComponents</span><span class="p">))</span>
+            <span class="n">Flist</span> <span class="o">=</span> <span class="p">[</span><span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">output</span><span class="p">]</span>
+            <span class="n">Glist</span> <span class="o">=</span> <span class="p">[</span><span class="n">x</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">output</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">L</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="n">createFourierToSeasonalL</span><span class="p">,</span> <span class="n">seasPeriods</span><span class="p">,</span> <span class="n">seasHarmComponents</span><span class="p">,</span> <span class="n">Flist</span><span class="p">,</span> <span class="n">Glist</span><span class="p">))</span>
+            <span class="n">nseas</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">*</span> <span class="nb">sum</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="nb">len</span><span class="p">,</span> <span class="n">seasHarmComponents</span><span class="p">))</span>
+            <span class="n">Fseas</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">([</span><span class="n">nseas</span><span class="p">])</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+            <span class="n">Gseas</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">([</span><span class="n">nseas</span><span class="p">,</span> <span class="n">nseas</span><span class="p">])</span>
+            <span class="n">idx</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">iseas</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">harmComponents</span> <span class="ow">in</span> <span class="n">seasHarmComponents</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">iseas</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">i</span> <span class="o">+</span> <span class="mi">2</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">harmComponents</span><span class="p">))))</span>
+                <span class="n">i</span> <span class="o">+=</span> <span class="mi">2</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">harmComponents</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">Fs</span><span class="p">,</span> <span class="n">Gs</span> <span class="ow">in</span> <span class="n">output</span><span class="p">:</span>
+                <span class="n">idx2</span> <span class="o">=</span> <span class="n">idx</span> <span class="o">+</span> <span class="n">Fs</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                <span class="n">Fseas</span><span class="p">[</span><span class="n">idx</span><span class="p">:</span><span class="n">idx2</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">Fs</span><span class="o">.</span><span class="n">squeeze</span><span class="p">()</span>
+                <span class="n">Gseas</span><span class="p">[</span><span class="n">idx</span><span class="p">:</span><span class="n">idx2</span><span class="p">,</span> <span class="n">idx</span><span class="p">:</span><span class="n">idx2</span><span class="p">]</span> <span class="o">=</span> <span class="n">Gs</span>
+                <span class="n">idx</span> <span class="o">=</span> <span class="n">idx2</span>
+
+        <span class="c1"># Combine the F and G components together</span>
+        <span class="n">F</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">vstack</span><span class="p">([</span><span class="n">Ftrend</span><span class="p">,</span> <span class="n">Fregn</span><span class="p">,</span> <span class="n">Fhol</span><span class="p">,</span> <span class="n">Fseas</span><span class="p">])</span>
+        <span class="n">G</span> <span class="o">=</span> <span class="n">sc</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">block_diag</span><span class="p">(</span><span class="n">Gtrend</span><span class="p">,</span> <span class="n">Gregn</span><span class="p">,</span> <span class="n">Ghol</span><span class="p">,</span> <span class="n">Gseas</span><span class="p">)</span>
+
+        <span class="c1"># store the discount info</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">deltrend</span> <span class="o">=</span> <span class="n">deltrend</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">delregn</span> <span class="o">=</span> <span class="n">delregn</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">delhol</span> <span class="o">=</span> <span class="n">delhol</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">delseas</span> <span class="o">=</span> <span class="n">delseas</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">ntrend</span> <span class="o">=</span> <span class="n">ntrend</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">nregn</span> <span class="o">=</span> <span class="n">nregn</span> <span class="o">+</span> <span class="n">nhol</span>  <span class="c1"># Adding on nhol</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">nregn_exhol</span> <span class="o">=</span> <span class="n">nregn</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">nhol</span> <span class="o">=</span> <span class="n">nhol</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">nseas</span> <span class="o">=</span> <span class="n">nseas</span>
+
+        <span class="c1"># Set up discount matrix</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">discount_forecast</span> <span class="o">=</span> <span class="n">discount_forecast</span>
+        <span class="n">Discount</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">build_discount_matrix</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">param1</span> <span class="o">=</span> <span class="mi">2</span>  <span class="c1"># Random initial guess</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">param2</span> <span class="o">=</span> <span class="mi">2</span>  <span class="c1"># Random initial guess</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">seasPeriods</span> <span class="o">=</span> <span class="n">seasPeriods</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">seasHarmComponents</span> <span class="o">=</span> <span class="n">seasHarmComponents</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">F</span> <span class="o">=</span> <span class="n">F</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">G</span> <span class="o">=</span> <span class="n">G</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">Discount</span> <span class="o">=</span> <span class="n">Discount</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">a</span> <span class="o">=</span> <span class="n">a0</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">R</span> <span class="o">=</span> <span class="n">R0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">t</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">interpolate</span> <span class="o">=</span> <span class="n">interpolate</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">adapt_discount</span> <span class="o">=</span> <span class="n">adapt_discount</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">k</span> <span class="o">=</span> <span class="n">adapt_factor</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">W</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_W</span><span class="p">()</span>
+
+<div class="viewcode-block" id="dglm.build_discount_matrix"><a class="viewcode-back" href="../../pybats.html#pybats.dglm.dglm.build_discount_matrix">[docs]</a>    <span class="k">def</span> <span class="nf">build_discount_matrix</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="c1"># build up discount factors while possibly taking special care to not discount when the &quot;regn&quot;</span>
+        <span class="c1"># type factors are zero</span>
+
+        <span class="c1"># do this all with matrix slicing which is much faster than the block diag</span>
+        <span class="n">p</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">ntrend</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">nregn_exhol</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">nhol</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">nseas</span><span class="p">])</span>
+        <span class="c1"># start with no discounting</span>
+        <span class="n">component_discounts</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">([</span><span class="n">p</span><span class="p">,</span> <span class="n">p</span><span class="p">])</span>
+        <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span> <span class="c1"># this will be the offset of the current block</span>
+        <span class="k">for</span> <span class="n">discount_pair</span><span class="p">,</span> <span class="n">n</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">([(</span><span class="s1">&#39;std&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">deltrend</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;regn&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">delregn</span><span class="p">),</span>
+                                     <span class="p">(</span><span class="s1">&#39;regn&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">delhol</span><span class="p">),(</span><span class="s1">&#39;std&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">delseas</span><span class="p">)],</span>
+                                    <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">ntrend</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">nregn_exhol</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">nhol</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">nseas</span><span class="p">]):</span>
+            <span class="n">discount_type</span><span class="p">,</span> <span class="n">discount</span> <span class="o">=</span> <span class="n">discount_pair</span>
+            <span class="k">if</span> <span class="n">n</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">discount</span><span class="p">,</span> <span class="n">Iterable</span><span class="p">):</span>
+                    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">discount</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">n</span><span class="p">:</span>
+                        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Error: Length of discount factors must be 1 or match component length&#39;</span><span class="p">)</span>
+                    <span class="k">for</span> <span class="n">j</span><span class="p">,</span> <span class="n">disc</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">discount</span><span class="p">[:</span><span class="n">n</span><span class="p">]):</span>
+                        <span class="c1"># fill the diags one at a time</span>
+                        <span class="n">component_discounts</span><span class="p">[</span><span class="n">i</span><span class="o">+</span><span class="n">j</span><span class="p">,</span> <span class="n">i</span><span class="o">+</span><span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="n">disc</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="c1"># fill the block with the constant</span>
+                    <span class="n">component_discounts</span><span class="p">[</span><span class="n">i</span><span class="p">:(</span><span class="n">i</span><span class="o">+</span><span class="n">n</span><span class="p">),</span> <span class="n">i</span><span class="p">:(</span><span class="n">i</span><span class="o">+</span><span class="n">n</span><span class="p">)]</span> <span class="o">=</span> <span class="n">discount</span>
+
+                <span class="c1"># overwrite with ones if doing the positive logic</span>
+                <span class="k">if</span> <span class="n">X</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">adapt_discount</span> <span class="o">==</span> <span class="s1">&#39;positive_regn&#39;</span> <span class="ow">and</span> <span class="n">discount_type</span> <span class="o">==</span> <span class="s1">&#39;regn&#39;</span><span class="p">:</span>
+                    <span class="c1"># offset of the regression params</span>
+                    <span class="n">regn_i</span> <span class="o">=</span> <span class="mi">0</span>
+                    <span class="c1"># look through the regression params and set that slice on the</span>
+                    <span class="c1"># discount to 1 if 0</span>
+                    <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n</span><span class="p">):</span>
+                        <span class="k">if</span> <span class="n">X</span><span class="p">[</span><span class="n">regn_i</span><span class="p">]</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                            <span class="c1"># set all discounts to one (i offsets the block and j offsets the regn param)</span>
+                            <span class="n">component_discounts</span><span class="p">[</span><span class="n">i</span> <span class="o">+</span> <span class="n">j</span><span class="p">,</span> <span class="p">:]</span> <span class="o">=</span> <span class="mf">1.</span>
+                            <span class="n">component_discounts</span><span class="p">[:,</span> <span class="n">i</span> <span class="o">+</span> <span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="mf">1.</span>
+                        <span class="n">regn_i</span> <span class="o">+=</span> <span class="mi">1</span>
+
+                <span class="c1"># move on to the next block</span>
+                <span class="n">i</span> <span class="o">+=</span> <span class="n">n</span>
+
+        <span class="k">return</span> <span class="n">component_discounts</span></div>
+
+<div class="viewcode-block" id="dglm.update"><a class="viewcode-back" href="../../pybats.html#pybats.dglm.dglm.update">[docs]</a>    <span class="k">def</span> <span class="nf">update</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">X</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="n">update</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="dglm.forecast_marginal"><a class="viewcode-back" href="../../pybats.html#pybats.dglm.dglm.forecast_marginal">[docs]</a>    <span class="k">def</span> <span class="nf">forecast_marginal</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="n">X</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">nsamps</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">mean_only</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">state_mean_var</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">forecast_marginal</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="n">nsamps</span><span class="p">,</span> <span class="n">mean_only</span><span class="p">,</span> <span class="n">state_mean_var</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="dglm.forecast_path"><a class="viewcode-back" href="../../pybats.html#pybats.dglm.dglm.forecast_path">[docs]</a>    <span class="k">def</span> <span class="nf">forecast_path</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="n">X</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">nsamps</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">copula</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">copula</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">forecast_path_copula</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="n">nsamps</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">forecast_path</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="n">nsamps</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="dglm.forecast_path_copula"><a class="viewcode-back" href="../../pybats.html#pybats.dglm.dglm.forecast_path_copula">[docs]</a>    <span class="k">def</span> <span class="nf">forecast_path_copula</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="n">X</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">nsamps</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">forecast_path_copula</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="n">nsamps</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="dglm.forecast_state_mean_and_var"><a class="viewcode-back" href="../../pybats.html#pybats.dglm.dglm.forecast_state_mean_and_var">[docs]</a>    <span class="k">def</span> <span class="nf">forecast_state_mean_and_var</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="n">X</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">forecast_state_mean_and_var</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="n">X</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="dglm.get_mean_and_var"><a class="viewcode-back" href="../../pybats.html#pybats.dglm.dglm.get_mean_and_var">[docs]</a>    <span class="k">def</span> <span class="nf">get_mean_and_var</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">F</span><span class="p">,</span> <span class="n">a</span><span class="p">,</span> <span class="n">R</span><span class="p">):</span>
+        <span class="n">mean</span><span class="p">,</span> <span class="n">var</span> <span class="o">=</span> <span class="n">F</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">a</span><span class="p">,</span> <span class="n">F</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">R</span> <span class="o">@</span> <span class="n">F</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">ravel</span><span class="p">(</span><span class="n">mean</span><span class="p">)[</span><span class="mi">0</span><span class="p">],</span> <span class="n">np</span><span class="o">.</span><span class="n">ravel</span><span class="p">(</span><span class="n">var</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span></div>
+
+<div class="viewcode-block" id="dglm.get_W"><a class="viewcode-back" href="../../pybats.html#pybats.dglm.dglm.get_W">[docs]</a>    <span class="k">def</span> <span class="nf">get_W</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">adapt_discount</span> <span class="o">==</span> <span class="s1">&#39;info&#39;</span><span class="p">:</span>
+            <span class="n">info</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">a</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">R</span><span class="o">.</span><span class="n">diagonal</span><span class="p">()))</span>
+            <span class="n">diag</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">Discount</span><span class="o">.</span><span class="n">diagonal</span><span class="p">()</span>
+            <span class="n">diag</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">diag</span> <span class="o">+</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">diag</span><span class="p">)</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">k</span> <span class="o">*</span> <span class="n">info</span><span class="p">),</span> <span class="mi">5</span><span class="p">)</span>
+            <span class="n">Discount</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">Discount</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">fill_diagonal</span><span class="p">(</span><span class="n">Discount</span><span class="p">,</span> <span class="n">diag</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">adapt_discount</span> <span class="o">==</span> <span class="s1">&#39;positive_regn&#39;</span> <span class="ow">and</span> <span class="n">X</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">Discount</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">build_discount_matrix</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">Discount</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">Discount</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">R</span> <span class="o">/</span> <span class="n">Discount</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">R</span></div></div>
+
+
+<div class="viewcode-block" id="bern_dglm"><a class="viewcode-back" href="../../pybats.html#pybats.dglm.bern_dglm">[docs]</a><span class="k">class</span> <span class="nc">bern_dglm</span><span class="p">(</span><span class="n">dglm</span><span class="p">):</span>
+
+<div class="viewcode-block" id="bern_dglm.get_mean_and_var"><a class="viewcode-back" href="../../pybats.html#pybats.dglm.bern_dglm.get_mean_and_var">[docs]</a>    <span class="k">def</span> <span class="nf">get_mean_and_var</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">F</span><span class="p">,</span> <span class="n">a</span><span class="p">,</span> <span class="n">R</span><span class="p">):</span>
+        <span class="n">ft</span><span class="p">,</span> <span class="n">qt</span> <span class="o">=</span> <span class="n">F</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">a</span><span class="p">,</span> <span class="n">F</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">R</span> <span class="o">@</span> <span class="n">F</span>
+        <span class="n">ft</span><span class="p">,</span> <span class="n">qt</span> <span class="o">=</span> <span class="n">ft</span><span class="o">.</span><span class="n">flatten</span><span class="p">()[</span><span class="mi">0</span><span class="p">],</span> <span class="n">qt</span><span class="o">.</span><span class="n">flatten</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">ft</span><span class="p">,</span> <span class="n">qt</span></div>
+
+<div class="viewcode-block" id="bern_dglm.get_conjugate_params"><a class="viewcode-back" href="../../pybats.html#pybats.dglm.bern_dglm.get_conjugate_params">[docs]</a>    <span class="k">def</span> <span class="nf">get_conjugate_params</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ft</span><span class="p">,</span> <span class="n">qt</span><span class="p">,</span> <span class="n">alpha</span><span class="p">,</span> <span class="n">beta</span><span class="p">):</span>
+        <span class="c1"># print(&#39;beta&#39;, ft, qt, np.sqrt(qt))</span>
+        <span class="c1"># Choose conjugate prior, beta, and match mean &amp; variance</span>
+        <span class="k">return</span> <span class="n">bern_conjugate_params</span><span class="p">(</span><span class="n">ft</span><span class="p">,</span> <span class="n">qt</span><span class="p">,</span> <span class="n">alpha</span><span class="p">,</span> <span class="n">beta</span><span class="p">,</span> <span class="n">interp</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">interpolate</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="bern_dglm.update_conjugate_params"><a class="viewcode-back" href="../../pybats.html#pybats.dglm.bern_dglm.update_conjugate_params">[docs]</a>    <span class="k">def</span> <span class="nf">update_conjugate_params</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">alpha</span><span class="p">,</span> <span class="n">beta</span><span class="p">):</span>
+        <span class="c1"># Update alpha and beta to the conjugate posterior coefficients</span>
+        <span class="n">alpha</span> <span class="o">=</span> <span class="n">alpha</span> <span class="o">+</span> <span class="n">y</span>
+        <span class="n">beta</span> <span class="o">=</span> <span class="n">beta</span> <span class="o">+</span> <span class="mi">1</span> <span class="o">-</span> <span class="n">y</span>
+
+        <span class="c1"># Get updated ft* and qt*</span>
+        <span class="n">ft_star</span> <span class="o">=</span> <span class="n">digamma</span><span class="p">(</span><span class="n">alpha</span><span class="p">)</span> <span class="o">-</span> <span class="n">digamma</span><span class="p">(</span><span class="n">beta</span><span class="p">)</span>
+        <span class="n">qt_star</span> <span class="o">=</span> <span class="n">trigamma</span><span class="p">(</span><span class="n">alpha</span><span class="p">)</span> <span class="o">+</span> <span class="n">trigamma</span><span class="p">(</span><span class="n">beta</span><span class="p">)</span>
+
+        <span class="c1"># constrain this thing from going to crazy places?</span>
+        <span class="n">ft_star</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="o">-</span><span class="mi">8</span><span class="p">,</span> <span class="nb">min</span><span class="p">(</span><span class="n">ft_star</span><span class="p">,</span> <span class="mi">8</span><span class="p">))</span>
+        <span class="n">qt_star</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="mf">0.001</span> <span class="o">**</span> <span class="mi">2</span><span class="p">,</span> <span class="nb">min</span><span class="p">(</span><span class="n">qt_star</span><span class="p">,</span> <span class="mi">4</span> <span class="o">**</span> <span class="mi">2</span><span class="p">))</span>
+
+        <span class="k">return</span> <span class="n">alpha</span><span class="p">,</span> <span class="n">beta</span><span class="p">,</span> <span class="n">ft_star</span><span class="p">,</span> <span class="n">qt_star</span></div>
+
+<div class="viewcode-block" id="bern_dglm.simulate"><a class="viewcode-back" href="../../pybats.html#pybats.dglm.bern_dglm.simulate">[docs]</a>    <span class="k">def</span> <span class="nf">simulate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">alpha</span><span class="p">,</span> <span class="n">beta</span><span class="p">,</span> <span class="n">nsamps</span><span class="p">):</span>
+        <span class="n">p</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">beta</span><span class="p">(</span><span class="n">alpha</span><span class="p">,</span> <span class="n">beta</span><span class="p">,</span> <span class="p">[</span><span class="n">nsamps</span><span class="p">])</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">binomial</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">p</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="p">[</span><span class="n">nsamps</span><span class="p">])</span></div>
+
+<div class="viewcode-block" id="bern_dglm.simulate_from_sampling_model"><a class="viewcode-back" href="../../pybats.html#pybats.dglm.bern_dglm.simulate_from_sampling_model">[docs]</a>    <span class="k">def</span> <span class="nf">simulate_from_sampling_model</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">p</span><span class="p">,</span> <span class="n">nsamps</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">binomial</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">p</span><span class="p">,</span> <span class="p">[</span><span class="n">nsamps</span><span class="p">])</span></div>
+
+<div class="viewcode-block" id="bern_dglm.simulate_from_prior"><a class="viewcode-back" href="../../pybats.html#pybats.dglm.bern_dglm.simulate_from_prior">[docs]</a>    <span class="k">def</span> <span class="nf">simulate_from_prior</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">alpha</span><span class="p">,</span> <span class="n">beta</span><span class="p">,</span> <span class="n">nsamps</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">stats</span><span class="o">.</span><span class="n">beta</span><span class="o">.</span><span class="n">rvs</span><span class="p">(</span><span class="n">a</span><span class="o">=</span><span class="n">alpha</span><span class="p">,</span> <span class="n">b</span><span class="o">=</span><span class="n">beta</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="n">nsamps</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="bern_dglm.prior_inverse_cdf"><a class="viewcode-back" href="../../pybats.html#pybats.dglm.bern_dglm.prior_inverse_cdf">[docs]</a>    <span class="k">def</span> <span class="nf">prior_inverse_cdf</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cdf</span><span class="p">,</span> <span class="n">alpha</span><span class="p">,</span> <span class="n">beta</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">stats</span><span class="o">.</span><span class="n">beta</span><span class="o">.</span><span class="n">ppf</span><span class="p">(</span><span class="n">cdf</span><span class="p">,</span> <span class="n">alpha</span><span class="p">,</span> <span class="n">beta</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="bern_dglm.sampling_density"><a class="viewcode-back" href="../../pybats.html#pybats.dglm.bern_dglm.sampling_density">[docs]</a>    <span class="k">def</span> <span class="nf">sampling_density</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">p</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">stats</span><span class="o">.</span><span class="n">binom</span><span class="o">.</span><span class="n">pmf</span><span class="p">(</span><span class="n">n</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">p</span><span class="o">=</span><span class="n">p</span><span class="p">,</span> <span class="n">k</span><span class="o">=</span><span class="n">y</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="bern_dglm.marginal_cdf"><a class="viewcode-back" href="../../pybats.html#pybats.dglm.bern_dglm.marginal_cdf">[docs]</a>    <span class="k">def</span> <span class="nf">marginal_cdf</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">alpha</span><span class="p">,</span> <span class="n">beta</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">y</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">return</span> <span class="mi">1</span>
+        <span class="k">elif</span> <span class="n">y</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">beta_fxn</span><span class="p">(</span><span class="n">y</span> <span class="o">+</span> <span class="n">alpha</span><span class="p">,</span> <span class="mi">1</span> <span class="o">-</span> <span class="n">y</span> <span class="o">+</span> <span class="n">beta</span><span class="p">)</span> <span class="o">/</span> <span class="n">beta_fxn</span><span class="p">(</span><span class="n">alpha</span><span class="p">,</span> <span class="n">beta</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="bern_dglm.loglik"><a class="viewcode-back" href="../../pybats.html#pybats.dglm.bern_dglm.loglik">[docs]</a>    <span class="k">def</span> <span class="nf">loglik</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">alpha</span><span class="p">,</span> <span class="n">beta</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">stats</span><span class="o">.</span><span class="n">bernoulli</span><span class="o">.</span><span class="n">logpmf</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">alpha</span> <span class="o">/</span> <span class="p">(</span><span class="n">alpha</span> <span class="o">+</span> <span class="n">beta</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="bern_dglm.get_mean"><a class="viewcode-back" href="../../pybats.html#pybats.dglm.bern_dglm.get_mean">[docs]</a>    <span class="k">def</span> <span class="nf">get_mean</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">alpha</span><span class="p">,</span> <span class="n">beta</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">ravel</span><span class="p">(</span><span class="n">alpha</span> <span class="o">/</span> <span class="p">(</span><span class="n">alpha</span> <span class="o">+</span> <span class="n">beta</span><span class="p">))[</span><span class="mi">0</span><span class="p">]</span></div>
+
+<div class="viewcode-block" id="bern_dglm.get_prior_var"><a class="viewcode-back" href="../../pybats.html#pybats.dglm.bern_dglm.get_prior_var">[docs]</a>    <span class="k">def</span> <span class="nf">get_prior_var</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">alpha</span><span class="p">,</span> <span class="n">beta</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">(</span><span class="n">alpha</span> <span class="o">*</span> <span class="n">beta</span><span class="p">)</span> <span class="o">/</span> <span class="p">((</span><span class="n">alpha</span> <span class="o">+</span> <span class="n">beta</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span> <span class="o">*</span> <span class="p">(</span><span class="n">alpha</span> <span class="o">+</span> <span class="n">beta</span> <span class="o">+</span> <span class="mi">1</span><span class="p">))</span></div></div>
+
+
+<div class="viewcode-block" id="pois_dglm"><a class="viewcode-back" href="../../pybats.html#pybats.dglm.pois_dglm">[docs]</a><span class="k">class</span> <span class="nc">pois_dglm</span><span class="p">(</span><span class="n">dglm</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="n">rho</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rho</span> <span class="o">=</span> <span class="n">rho</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+<div class="viewcode-block" id="pois_dglm.get_mean_and_var"><a class="viewcode-back" href="../../pybats.html#pybats.dglm.pois_dglm.get_mean_and_var">[docs]</a>    <span class="k">def</span> <span class="nf">get_mean_and_var</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">F</span><span class="p">,</span> <span class="n">a</span><span class="p">,</span> <span class="n">R</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">F</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">a</span><span class="p">,</span> <span class="n">F</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">R</span> <span class="o">@</span> <span class="n">F</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">rho</span></div>
+
+<div class="viewcode-block" id="pois_dglm.get_conjugate_params"><a class="viewcode-back" href="../../pybats.html#pybats.dglm.pois_dglm.get_conjugate_params">[docs]</a>    <span class="k">def</span> <span class="nf">get_conjugate_params</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ft</span><span class="p">,</span> <span class="n">qt</span><span class="p">,</span> <span class="n">alpha</span><span class="p">,</span> <span class="n">beta</span><span class="p">):</span>
+        <span class="c1"># Choose conjugate prior, gamma, and match mean &amp; variance</span>
+        <span class="c1"># print(&#39;gamma&#39;, ft, qt)</span>
+        <span class="k">return</span> <span class="n">pois_conjugate_params</span><span class="p">(</span><span class="n">ft</span><span class="p">,</span> <span class="n">qt</span><span class="p">,</span> <span class="n">alpha</span><span class="p">,</span> <span class="n">beta</span><span class="p">,</span> <span class="n">interp</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">interpolate</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="pois_dglm.update_conjugate_params"><a class="viewcode-back" href="../../pybats.html#pybats.dglm.pois_dglm.update_conjugate_params">[docs]</a>    <span class="k">def</span> <span class="nf">update_conjugate_params</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">alpha</span><span class="p">,</span> <span class="n">beta</span><span class="p">):</span>
+        <span class="c1"># Update alpha and beta to the conjugate posterior coefficients</span>
+        <span class="n">alpha</span> <span class="o">=</span> <span class="n">alpha</span> <span class="o">+</span> <span class="nb">float</span><span class="p">(</span><span class="n">y</span><span class="p">)</span>
+        <span class="n">beta</span> <span class="o">=</span> <span class="n">beta</span> <span class="o">+</span> <span class="mi">1</span>
+
+        <span class="c1"># Get updated ft* and qt*</span>
+        <span class="n">ft_star</span> <span class="o">=</span> <span class="n">digamma</span><span class="p">(</span><span class="n">alpha</span><span class="p">)</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">beta</span><span class="p">)</span>
+        <span class="n">qt_star</span> <span class="o">=</span> <span class="n">trigamma</span><span class="p">(</span><span class="n">alpha</span><span class="p">)</span>
+
+        <span class="c1"># constrain this thing from going to crazy places?</span>
+        <span class="n">qt_star</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="mf">0.001</span> <span class="o">**</span> <span class="mi">2</span><span class="p">,</span> <span class="nb">min</span><span class="p">(</span><span class="n">qt_star</span><span class="p">,</span> <span class="mi">4</span> <span class="o">**</span> <span class="mi">2</span><span class="p">))</span>
+
+        <span class="k">return</span> <span class="n">alpha</span><span class="p">,</span> <span class="n">beta</span><span class="p">,</span> <span class="n">ft_star</span><span class="p">,</span> <span class="n">qt_star</span></div>
+
+<div class="viewcode-block" id="pois_dglm.simulate"><a class="viewcode-back" href="../../pybats.html#pybats.dglm.pois_dglm.simulate">[docs]</a>    <span class="k">def</span> <span class="nf">simulate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">alpha</span><span class="p">,</span> <span class="n">beta</span><span class="p">,</span> <span class="n">nsamps</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">negative_binomial</span><span class="p">(</span><span class="n">alpha</span><span class="p">,</span> <span class="n">beta</span> <span class="o">/</span> <span class="p">(</span><span class="mi">1</span> <span class="o">+</span> <span class="n">beta</span><span class="p">),</span> <span class="p">[</span><span class="n">nsamps</span><span class="p">])</span></div>
+
+<div class="viewcode-block" id="pois_dglm.simulate_from_sampling_model"><a class="viewcode-back" href="../../pybats.html#pybats.dglm.pois_dglm.simulate_from_sampling_model">[docs]</a>    <span class="k">def</span> <span class="nf">simulate_from_sampling_model</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">rate</span><span class="p">,</span> <span class="n">nsamps</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">poisson</span><span class="p">(</span><span class="n">rate</span><span class="p">,</span> <span class="p">[</span><span class="n">nsamps</span><span class="p">])</span></div>
+
+<div class="viewcode-block" id="pois_dglm.simulate_from_prior"><a class="viewcode-back" href="../../pybats.html#pybats.dglm.pois_dglm.simulate_from_prior">[docs]</a>    <span class="k">def</span> <span class="nf">simulate_from_prior</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">alpha</span><span class="p">,</span> <span class="n">beta</span><span class="p">,</span> <span class="n">nsamps</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">stats</span><span class="o">.</span><span class="n">gamma</span><span class="o">.</span><span class="n">rvs</span><span class="p">(</span><span class="n">a</span><span class="o">=</span><span class="n">alpha</span><span class="p">,</span> <span class="n">scale</span><span class="o">=</span><span class="mi">1</span><span class="o">/</span><span class="n">beta</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="n">nsamps</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="pois_dglm.prior_inverse_cdf"><a class="viewcode-back" href="../../pybats.html#pybats.dglm.pois_dglm.prior_inverse_cdf">[docs]</a>    <span class="k">def</span> <span class="nf">prior_inverse_cdf</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cdf</span><span class="p">,</span> <span class="n">alpha</span><span class="p">,</span> <span class="n">beta</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">stats</span><span class="o">.</span><span class="n">gamma</span><span class="o">.</span><span class="n">ppf</span><span class="p">(</span><span class="n">cdf</span><span class="p">,</span> <span class="n">a</span><span class="o">=</span><span class="n">alpha</span><span class="p">,</span> <span class="n">scale</span><span class="o">=</span><span class="mi">1</span> <span class="o">/</span> <span class="n">beta</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="pois_dglm.sampling_density"><a class="viewcode-back" href="../../pybats.html#pybats.dglm.pois_dglm.sampling_density">[docs]</a>    <span class="k">def</span> <span class="nf">sampling_density</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">mu</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">stats</span><span class="o">.</span><span class="n">poisson</span><span class="o">.</span><span class="n">pmf</span><span class="p">(</span><span class="n">mu</span><span class="o">=</span><span class="n">mu</span><span class="p">,</span> <span class="n">k</span><span class="o">=</span><span class="n">y</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="pois_dglm.marginal_cdf"><a class="viewcode-back" href="../../pybats.html#pybats.dglm.pois_dglm.marginal_cdf">[docs]</a>    <span class="k">def</span> <span class="nf">marginal_cdf</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">alpha</span><span class="p">,</span> <span class="n">beta</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">stats</span><span class="o">.</span><span class="n">nbinom</span><span class="o">.</span><span class="n">cdf</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">alpha</span><span class="p">,</span> <span class="n">beta</span> <span class="o">/</span> <span class="p">(</span><span class="mi">1</span> <span class="o">+</span> <span class="n">beta</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="pois_dglm.marginal_inverse_cdf"><a class="viewcode-back" href="../../pybats.html#pybats.dglm.pois_dglm.marginal_inverse_cdf">[docs]</a>    <span class="k">def</span> <span class="nf">marginal_inverse_cdf</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cdf</span><span class="p">,</span> <span class="n">alpha</span><span class="p">,</span> <span class="n">beta</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">stats</span><span class="o">.</span><span class="n">nbinom</span><span class="o">.</span><span class="n">ppf</span><span class="p">(</span><span class="n">cdf</span><span class="p">,</span> <span class="n">alpha</span><span class="p">,</span> <span class="n">beta</span> <span class="o">/</span> <span class="p">(</span><span class="mi">1</span> <span class="o">+</span> <span class="n">beta</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="pois_dglm.loglik"><a class="viewcode-back" href="../../pybats.html#pybats.dglm.pois_dglm.loglik">[docs]</a>    <span class="k">def</span> <span class="nf">loglik</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">alpha</span><span class="p">,</span> <span class="n">beta</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">stats</span><span class="o">.</span><span class="n">nbinom</span><span class="o">.</span><span class="n">logpmf</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">alpha</span><span class="p">,</span> <span class="n">beta</span> <span class="o">/</span> <span class="p">(</span><span class="mi">1</span> <span class="o">+</span> <span class="n">beta</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="pois_dglm.get_mean"><a class="viewcode-back" href="../../pybats.html#pybats.dglm.pois_dglm.get_mean">[docs]</a>    <span class="k">def</span> <span class="nf">get_mean</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">alpha</span><span class="p">,</span> <span class="n">beta</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">ravel</span><span class="p">(</span><span class="n">alpha</span><span class="o">/</span><span class="n">beta</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span></div>
+
+<div class="viewcode-block" id="pois_dglm.get_prior_var"><a class="viewcode-back" href="../../pybats.html#pybats.dglm.pois_dglm.get_prior_var">[docs]</a>    <span class="k">def</span> <span class="nf">get_prior_var</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">alpha</span><span class="p">,</span> <span class="n">beta</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">alpha</span> <span class="o">/</span> <span class="n">beta</span> <span class="o">**</span> <span class="mi">2</span></div></div>
+
+
+<div class="viewcode-block" id="dlm"><a class="viewcode-back" href="../../pybats.html#pybats.dglm.dlm">[docs]</a><span class="k">class</span> <span class="nc">dlm</span><span class="p">(</span><span class="n">dglm</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="n">n0</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">s0</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">delVar</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">delVar</span> <span class="o">=</span> <span class="n">delVar</span>  <span class="c1"># Discount factor for the variance - using a beta-gamma random walk</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">n</span> <span class="o">=</span> <span class="n">n0</span>  <span class="c1"># Prior sample size for the variance</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">s</span> <span class="o">=</span> <span class="n">s0</span>  <span class="c1"># Prior mean for the variance</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+<div class="viewcode-block" id="dlm.get_mean_and_var"><a class="viewcode-back" href="../../pybats.html#pybats.dglm.dlm.get_mean_and_var">[docs]</a>    <span class="k">def</span> <span class="nf">get_mean_and_var</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">F</span><span class="p">,</span> <span class="n">a</span><span class="p">,</span> <span class="n">R</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">F</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">a</span><span class="p">,</span> <span class="n">F</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">R</span> <span class="o">@</span> <span class="n">F</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">s</span></div>
+
+<div class="viewcode-block" id="dlm.get_mean"><a class="viewcode-back" href="../../pybats.html#pybats.dglm.dlm.get_mean">[docs]</a>    <span class="k">def</span> <span class="nf">get_mean</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ft</span><span class="p">,</span> <span class="n">qt</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">ravel</span><span class="p">(</span><span class="n">ft</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span></div>
+
+<div class="viewcode-block" id="dlm.get_conjugate_params"><a class="viewcode-back" href="../../pybats.html#pybats.dglm.dlm.get_conjugate_params">[docs]</a>    <span class="k">def</span> <span class="nf">get_conjugate_params</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ft</span><span class="p">,</span> <span class="n">qt</span><span class="p">,</span> <span class="n">mean</span><span class="p">,</span> <span class="n">var</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">ft</span><span class="p">,</span> <span class="n">qt</span></div>
+
+<div class="viewcode-block" id="dlm.simulate"><a class="viewcode-back" href="../../pybats.html#pybats.dglm.dlm.simulate">[docs]</a>    <span class="k">def</span> <span class="nf">simulate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mean</span><span class="p">,</span> <span class="n">var</span><span class="p">,</span> <span class="n">nsamps</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">mean</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">var</span><span class="p">)</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">standard_t</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="p">[</span><span class="n">nsamps</span><span class="p">])</span></div>
+
+<div class="viewcode-block" id="dlm.simulate_from_sampling_model"><a class="viewcode-back" href="../../pybats.html#pybats.dglm.dlm.simulate_from_sampling_model">[docs]</a>    <span class="k">def</span> <span class="nf">simulate_from_sampling_model</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mean</span><span class="p">,</span> <span class="n">var</span><span class="p">,</span> <span class="n">nsamps</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="n">mean</span><span class="p">,</span> <span class="n">var</span><span class="p">,</span> <span class="n">nsamps</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="dlm.update"><a class="viewcode-back" href="../../pybats.html#pybats.dglm.dlm.update">[docs]</a>    <span class="k">def</span> <span class="nf">update</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">X</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="n">update_dlm</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">X</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="dlm.forecast_path"><a class="viewcode-back" href="../../pybats.html#pybats.dglm.dlm.forecast_path">[docs]</a>    <span class="k">def</span> <span class="nf">forecast_path</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="n">X</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">nsamps</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">forecast_path_dlm</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="n">nsamps</span><span class="p">)</span></div></div>
+
+<div class="viewcode-block" id="bin_dglm"><a class="viewcode-back" href="../../pybats.html#pybats.dglm.bin_dglm">[docs]</a><span class="k">class</span> <span class="nc">bin_dglm</span><span class="p">(</span><span class="n">dglm</span><span class="p">):</span>
+
+<div class="viewcode-block" id="bin_dglm.get_conjugate_params"><a class="viewcode-back" href="../../pybats.html#pybats.dglm.bin_dglm.get_conjugate_params">[docs]</a>    <span class="k">def</span> <span class="nf">get_conjugate_params</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ft</span><span class="p">,</span> <span class="n">qt</span><span class="p">,</span> <span class="n">alpha</span><span class="p">,</span> <span class="n">beta</span><span class="p">):</span>
+        <span class="c1"># Choose conjugate prior, beta, and match mean &amp; variance</span>
+        <span class="k">return</span> <span class="n">bin_conjugate_params</span><span class="p">(</span><span class="n">ft</span><span class="p">,</span> <span class="n">qt</span><span class="p">,</span> <span class="n">alpha</span><span class="p">,</span> <span class="n">beta</span><span class="p">,</span> <span class="n">interp</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">interpolate</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="bin_dglm.update_conjugate_params"><a class="viewcode-back" href="../../pybats.html#pybats.dglm.bin_dglm.update_conjugate_params">[docs]</a>    <span class="k">def</span> <span class="nf">update_conjugate_params</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">alpha</span><span class="p">,</span> <span class="n">beta</span><span class="p">):</span>
+        <span class="c1"># Update alpha and beta to the conjugate posterior coefficients</span>
+        <span class="n">alpha</span> <span class="o">=</span> <span class="n">alpha</span> <span class="o">+</span> <span class="n">y</span>
+        <span class="n">beta</span> <span class="o">=</span> <span class="n">beta</span> <span class="o">+</span> <span class="n">n</span> <span class="o">-</span> <span class="n">y</span>
+
+        <span class="c1"># Get updated ft* and qt*</span>
+        <span class="n">ft_star</span> <span class="o">=</span> <span class="n">digamma</span><span class="p">(</span><span class="n">alpha</span><span class="p">)</span> <span class="o">-</span> <span class="n">digamma</span><span class="p">(</span><span class="n">beta</span><span class="p">)</span>
+        <span class="n">qt_star</span> <span class="o">=</span> <span class="n">trigamma</span><span class="p">(</span><span class="n">alpha</span><span class="p">)</span> <span class="o">+</span> <span class="n">trigamma</span><span class="p">(</span><span class="n">beta</span><span class="p">)</span>
+
+        <span class="c1"># constrain this thing from going to crazy places?</span>
+        <span class="n">ft_star</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="o">-</span><span class="mi">8</span><span class="p">,</span> <span class="nb">min</span><span class="p">(</span><span class="n">ft_star</span><span class="p">,</span> <span class="mi">8</span><span class="p">))</span>
+        <span class="n">qt_star</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="mf">0.001</span> <span class="o">**</span> <span class="mi">2</span><span class="p">,</span> <span class="nb">min</span><span class="p">(</span><span class="n">qt_star</span><span class="p">,</span> <span class="mi">4</span> <span class="o">**</span> <span class="mi">2</span><span class="p">))</span>
+
+        <span class="k">return</span> <span class="n">alpha</span><span class="p">,</span> <span class="n">beta</span><span class="p">,</span> <span class="n">ft_star</span><span class="p">,</span> <span class="n">qt_star</span></div>
+
+<div class="viewcode-block" id="bin_dglm.simulate"><a class="viewcode-back" href="../../pybats.html#pybats.dglm.bin_dglm.simulate">[docs]</a>    <span class="k">def</span> <span class="nf">simulate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n</span><span class="p">,</span> <span class="n">alpha</span><span class="p">,</span> <span class="n">beta</span><span class="p">,</span> <span class="n">nsamps</span><span class="p">):</span>
+        <span class="n">p</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">beta</span><span class="p">(</span><span class="n">alpha</span><span class="p">,</span> <span class="n">beta</span><span class="p">,</span> <span class="p">[</span><span class="n">nsamps</span><span class="p">])</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">binomial</span><span class="p">(</span><span class="n">n</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">),</span> <span class="n">p</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="p">[</span><span class="n">nsamps</span><span class="p">])</span></div>
+
+<div class="viewcode-block" id="bin_dglm.simulate_from_sampling_model"><a class="viewcode-back" href="../../pybats.html#pybats.dglm.bin_dglm.simulate_from_sampling_model">[docs]</a>    <span class="k">def</span> <span class="nf">simulate_from_sampling_model</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n</span><span class="p">,</span> <span class="n">p</span><span class="p">,</span> <span class="n">nsamps</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">binomial</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="n">p</span><span class="p">,</span> <span class="p">[</span><span class="n">nsamps</span><span class="p">])</span></div>
+
+<div class="viewcode-block" id="bin_dglm.prior_inverse_cdf"><a class="viewcode-back" href="../../pybats.html#pybats.dglm.bin_dglm.prior_inverse_cdf">[docs]</a>    <span class="k">def</span> <span class="nf">prior_inverse_cdf</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cdf</span><span class="p">,</span> <span class="n">alpha</span><span class="p">,</span> <span class="n">beta</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">stats</span><span class="o">.</span><span class="n">beta</span><span class="o">.</span><span class="n">ppf</span><span class="p">(</span><span class="n">cdf</span><span class="p">,</span> <span class="n">alpha</span><span class="p">,</span> <span class="n">beta</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="bin_dglm.marginal_cdf"><a class="viewcode-back" href="../../pybats.html#pybats.dglm.bin_dglm.marginal_cdf">[docs]</a>    <span class="k">def</span> <span class="nf">marginal_cdf</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">n</span><span class="p">,</span> <span class="n">alpha</span><span class="p">,</span> <span class="n">beta</span><span class="p">):</span>
+        <span class="n">cdf</span> <span class="o">=</span> <span class="mf">0.0</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">y</span> <span class="o">+</span> <span class="mi">1</span><span class="p">):</span>
+            <span class="n">cdf</span> <span class="o">+=</span> <span class="n">sc</span><span class="o">.</span><span class="n">misc</span><span class="o">.</span><span class="n">comb</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span> <span class="o">*</span> <span class="n">beta_fxn</span><span class="p">(</span><span class="n">y</span> <span class="o">+</span> <span class="n">alpha</span><span class="p">,</span> <span class="n">n</span> <span class="o">-</span> <span class="n">y</span> <span class="o">+</span> <span class="n">beta</span><span class="p">)</span> <span class="o">/</span> <span class="n">beta_fxn</span><span class="p">(</span><span class="n">alpha</span><span class="p">,</span> <span class="n">beta</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">cdf</span></div>
+
+<div class="viewcode-block" id="bin_dglm.loglik"><a class="viewcode-back" href="../../pybats.html#pybats.dglm.bin_dglm.loglik">[docs]</a>    <span class="k">def</span> <span class="nf">loglik</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">alpha</span><span class="p">,</span> <span class="n">beta</span><span class="p">):</span>
+        <span class="n">n</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="n">data</span>
+        <span class="k">return</span> <span class="n">stats</span><span class="o">.</span><span class="n">binom</span><span class="o">.</span><span class="n">logpmf</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">n</span><span class="p">,</span> <span class="n">alpha</span> <span class="o">/</span> <span class="p">(</span><span class="n">alpha</span> <span class="o">+</span> <span class="n">beta</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="bin_dglm.get_mean"><a class="viewcode-back" href="../../pybats.html#pybats.dglm.bin_dglm.get_mean">[docs]</a>    <span class="k">def</span> <span class="nf">get_mean</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n</span><span class="p">,</span> <span class="n">alpha</span><span class="p">,</span> <span class="n">beta</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">ravel</span><span class="p">(</span><span class="n">n</span> <span class="o">*</span> <span class="p">(</span><span class="n">alpha</span> <span class="o">/</span> <span class="p">(</span><span class="n">alpha</span> <span class="o">+</span> <span class="n">beta</span><span class="p">)))[</span><span class="mi">0</span><span class="p">]</span></div>
+
+<div class="viewcode-block" id="bin_dglm.get_prior_var"><a class="viewcode-back" href="../../pybats.html#pybats.dglm.bin_dglm.get_prior_var">[docs]</a>    <span class="k">def</span> <span class="nf">get_prior_var</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">alpha</span><span class="p">,</span> <span class="n">beta</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">(</span><span class="n">alpha</span> <span class="o">*</span> <span class="n">beta</span><span class="p">)</span> <span class="o">/</span> <span class="p">((</span><span class="n">alpha</span> <span class="o">+</span> <span class="n">beta</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span> <span class="o">*</span> <span class="p">(</span><span class="n">alpha</span> <span class="o">+</span> <span class="n">beta</span> <span class="o">+</span> <span class="mi">1</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="bin_dglm.update"><a class="viewcode-back" href="../../pybats.html#pybats.dglm.bin_dglm.update">[docs]</a>    <span class="k">def</span> <span class="nf">update</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">X</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="n">update_bindglm</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">X</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="bin_dglm.forecast_marginal"><a class="viewcode-back" href="../../pybats.html#pybats.dglm.bin_dglm.forecast_marginal">[docs]</a>    <span class="k">def</span> <span class="nf">forecast_marginal</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="n">X</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">nsamps</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">mean_only</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">forecast_marginal_bindglm</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="n">nsamps</span><span class="p">,</span> <span class="n">mean_only</span><span class="p">)</span></div></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2019, Isaac Lavine.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.5.6</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.10</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

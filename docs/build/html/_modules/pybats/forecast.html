@@ -1,0 +1,563 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>pybats.forecast &#8212; pybats 1.0 documentation</title>
+    
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '1.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.0/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head>
+  <body role="document">
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for pybats.forecast</h1><div class="highlight"><pre>
+<span></span><span class="c1">## The standard DGLM forecast functions</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">scipy</span> <span class="k">import</span> <span class="n">stats</span>
+<span class="kn">from</span> <span class="nn">scipy.special</span> <span class="k">import</span> <span class="n">gamma</span>
+
+<span class="kn">from</span> <span class="nn">pybats.update</span> <span class="k">import</span> <span class="n">update_F</span>
+
+
+<div class="viewcode-block" id="forecast_aR"><a class="viewcode-back" href="../../pybats.html#pybats.forecast.forecast_aR">[docs]</a><span class="k">def</span> <span class="nf">forecast_aR</span><span class="p">(</span><span class="n">mod</span><span class="p">,</span> <span class="n">k</span><span class="p">):</span>
+    <span class="n">Gk</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">matrix_power</span><span class="p">(</span><span class="n">mod</span><span class="o">.</span><span class="n">G</span><span class="p">,</span> <span class="n">k</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="n">a</span> <span class="o">=</span> <span class="n">Gk</span> <span class="o">@</span> <span class="n">mod</span><span class="o">.</span><span class="n">a</span>
+    <span class="n">R</span> <span class="o">=</span> <span class="n">Gk</span> <span class="o">@</span> <span class="n">mod</span><span class="o">.</span><span class="n">R</span> <span class="o">@</span> <span class="n">Gk</span><span class="o">.</span><span class="n">T</span>
+    <span class="k">if</span> <span class="n">mod</span><span class="o">.</span><span class="n">discount_forecast</span><span class="p">:</span>
+        <span class="n">R</span> <span class="o">+=</span> <span class="p">(</span><span class="n">k</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="n">mod</span><span class="o">.</span><span class="n">W</span>
+    <span class="k">return</span> <span class="n">a</span><span class="p">,</span> <span class="n">R</span></div>
+
+
+<div class="viewcode-block" id="forecast_R_cov"><a class="viewcode-back" href="../../pybats.html#pybats.forecast.forecast_R_cov">[docs]</a><span class="k">def</span> <span class="nf">forecast_R_cov</span><span class="p">(</span><span class="n">mod</span><span class="p">,</span> <span class="n">k1</span><span class="p">,</span> <span class="n">k2</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    :param mod: model</span>
+<span class="sd">    :param k1: 1st Forecast Horizon (smaller)</span>
+<span class="sd">    :param k2: 2nd Forecast Horizon (larger)</span>
+<span class="sd">    :return: State vector covariance across k1, k2. West &amp; Harrison the covariance is defined as Ct(k,j), pg. 106</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">k2</span> <span class="o">&lt;</span> <span class="n">k1</span><span class="p">:</span>
+        <span class="n">tmp</span> <span class="o">=</span> <span class="n">k1</span>
+        <span class="n">k1</span> <span class="o">=</span> <span class="n">k2</span>
+        <span class="n">k2</span> <span class="o">=</span> <span class="n">tmp</span>
+    <span class="n">Gk</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">matrix_power</span><span class="p">(</span><span class="n">mod</span><span class="o">.</span><span class="n">G</span><span class="p">,</span> <span class="n">k2</span> <span class="o">-</span> <span class="n">k1</span><span class="p">)</span>
+    <span class="n">a</span><span class="p">,</span> <span class="n">Rk1</span> <span class="o">=</span> <span class="n">forecast_aR</span><span class="p">(</span><span class="n">mod</span><span class="p">,</span> <span class="n">k1</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">Gk</span> <span class="o">@</span> <span class="n">Rk1</span></div>
+
+
+<div class="viewcode-block" id="forecast_marginal"><a class="viewcode-back" href="../../pybats.html#pybats.forecast.forecast_marginal">[docs]</a><span class="k">def</span> <span class="nf">forecast_marginal</span><span class="p">(</span><span class="n">mod</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="n">X</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">nsamps</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span> <span class="n">mean_only</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span> <span class="n">state_mean_var</span> <span class="o">=</span> <span class="kc">False</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Forecast function k steps ahead (marginal)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Plug in the correct F values</span>
+    <span class="n">F</span> <span class="o">=</span> <span class="n">update_F</span><span class="p">(</span><span class="n">mod</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="n">F</span><span class="o">=</span><span class="n">mod</span><span class="o">.</span><span class="n">F</span><span class="o">.</span><span class="n">copy</span><span class="p">())</span>
+
+    <span class="c1"># Evolve to the prior for time t + k</span>
+    <span class="n">a</span><span class="p">,</span> <span class="n">R</span> <span class="o">=</span> <span class="n">forecast_aR</span><span class="p">(</span><span class="n">mod</span><span class="p">,</span> <span class="n">k</span><span class="p">)</span>
+
+    <span class="c1"># Mean and variance</span>
+    <span class="n">ft</span><span class="p">,</span> <span class="n">qt</span> <span class="o">=</span> <span class="n">mod</span><span class="o">.</span><span class="n">get_mean_and_var</span><span class="p">(</span><span class="n">F</span><span class="p">,</span> <span class="n">a</span><span class="p">,</span> <span class="n">R</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">state_mean_var</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">ft</span><span class="p">,</span> <span class="n">qt</span>
+        
+    <span class="c1"># Choose conjugate prior, match mean and variance</span>
+    <span class="n">param1</span><span class="p">,</span> <span class="n">param2</span> <span class="o">=</span> <span class="n">mod</span><span class="o">.</span><span class="n">get_conjugate_params</span><span class="p">(</span><span class="n">ft</span><span class="p">,</span> <span class="n">qt</span><span class="p">,</span> <span class="n">mod</span><span class="o">.</span><span class="n">param1</span><span class="p">,</span> <span class="n">mod</span><span class="o">.</span><span class="n">param2</span><span class="p">)</span>
+    
+    <span class="k">if</span> <span class="n">mean_only</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">mod</span><span class="o">.</span><span class="n">get_mean</span><span class="p">(</span><span class="n">param1</span><span class="p">,</span> <span class="n">param2</span><span class="p">)</span>
+        
+    <span class="c1"># Simulate from the forecast distribution</span>
+    <span class="k">return</span> <span class="n">mod</span><span class="o">.</span><span class="n">simulate</span><span class="p">(</span><span class="n">param1</span><span class="p">,</span> <span class="n">param2</span><span class="p">,</span> <span class="n">nsamps</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="forecast_path"><a class="viewcode-back" href="../../pybats.html#pybats.forecast.forecast_path">[docs]</a><span class="k">def</span> <span class="nf">forecast_path</span><span class="p">(</span><span class="n">mod</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="n">X</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">nsamps</span> <span class="o">=</span> <span class="mi">1</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Forecast function for the k-step path</span>
+<span class="sd">    k: steps ahead to forecast</span>
+<span class="sd">    X: array with k rows for the future regression components</span>
+<span class="sd">    nsamps: Number of samples to draw from forecast distribution</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+        
+    <span class="n">samps</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">([</span><span class="n">nsamps</span><span class="p">,</span> <span class="n">k</span><span class="p">])</span>
+        
+    <span class="n">F</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">mod</span><span class="o">.</span><span class="n">F</span><span class="p">)</span>
+        
+    <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nsamps</span><span class="p">):</span>
+        <span class="n">param1</span> <span class="o">=</span> <span class="n">mod</span><span class="o">.</span><span class="n">param1</span>
+        <span class="n">param2</span> <span class="o">=</span> <span class="n">mod</span><span class="o">.</span><span class="n">param2</span>
+        
+        <span class="n">a</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">mod</span><span class="o">.</span><span class="n">a</span><span class="p">)</span>
+        <span class="n">R</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">mod</span><span class="o">.</span><span class="n">R</span><span class="p">)</span>
+                
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">k</span><span class="p">):</span>
+
+            <span class="c1"># Plug in the correct F values</span>
+            <span class="k">if</span> <span class="n">mod</span><span class="o">.</span><span class="n">nregn</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">F</span> <span class="o">=</span> <span class="n">update_F</span><span class="p">(</span><span class="n">mod</span><span class="p">,</span> <span class="n">X</span><span class="p">[</span><span class="n">i</span><span class="p">,:],</span> <span class="n">F</span><span class="o">=</span><span class="n">F</span><span class="p">)</span>
+            <span class="c1"># if mod.nregn &gt; 0:</span>
+            <span class="c1">#     F[mod.iregn] = X[i,:].reshape(mod.nregn,1)</span>
+
+            <span class="c1"># Get mean and variance</span>
+            <span class="n">ft</span><span class="p">,</span> <span class="n">qt</span> <span class="o">=</span> <span class="n">mod</span><span class="o">.</span><span class="n">get_mean_and_var</span><span class="p">(</span><span class="n">F</span><span class="p">,</span> <span class="n">a</span><span class="p">,</span> <span class="n">R</span><span class="p">)</span>
+
+            <span class="c1"># Choose conjugate prior, match mean and variance</span>
+            <span class="n">param1</span><span class="p">,</span> <span class="n">param2</span> <span class="o">=</span> <span class="n">mod</span><span class="o">.</span><span class="n">get_conjugate_params</span><span class="p">(</span><span class="n">ft</span><span class="p">,</span> <span class="n">qt</span><span class="p">,</span> <span class="n">param1</span><span class="p">,</span> <span class="n">param2</span><span class="p">)</span>
+
+            <span class="c1"># Simulate next observation</span>
+            <span class="n">samps</span><span class="p">[</span><span class="n">n</span><span class="p">,</span> <span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">mod</span><span class="o">.</span><span class="n">simulate</span><span class="p">(</span><span class="n">param1</span><span class="p">,</span> <span class="n">param2</span><span class="p">,</span> <span class="n">nsamps</span> <span class="o">=</span> <span class="mi">1</span><span class="p">)</span>
+
+            <span class="c1"># Update based on that observation</span>
+            <span class="n">param1</span><span class="p">,</span> <span class="n">param2</span><span class="p">,</span> <span class="n">ft_star</span><span class="p">,</span> <span class="n">qt_star</span> <span class="o">=</span> <span class="n">mod</span><span class="o">.</span><span class="n">update_conjugate_params</span><span class="p">(</span><span class="n">samps</span><span class="p">[</span><span class="n">n</span><span class="p">,</span> <span class="n">i</span><span class="p">],</span> <span class="n">param1</span><span class="p">,</span> <span class="n">param2</span><span class="p">)</span>
+
+            <span class="c1"># Kalman filter update on the state vector (using Linear Bayes approximation)</span>
+            <span class="n">m</span> <span class="o">=</span> <span class="n">a</span> <span class="o">+</span> <span class="n">R</span> <span class="o">@</span> <span class="n">F</span> <span class="o">*</span> <span class="p">(</span><span class="n">ft_star</span> <span class="o">-</span> <span class="n">ft</span><span class="p">)</span><span class="o">/</span><span class="n">qt</span>
+            <span class="n">C</span> <span class="o">=</span> <span class="n">R</span> <span class="o">-</span> <span class="n">R</span> <span class="o">@</span> <span class="n">F</span> <span class="o">@</span> <span class="n">F</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">R</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">qt_star</span><span class="o">/</span><span class="n">qt</span><span class="p">)</span><span class="o">/</span><span class="n">qt</span>
+            
+            <span class="c1"># Get priors a, R for the next time step</span>
+            <span class="n">a</span> <span class="o">=</span> <span class="n">mod</span><span class="o">.</span><span class="n">G</span> <span class="o">@</span> <span class="n">m</span>
+            <span class="n">R</span> <span class="o">=</span> <span class="n">mod</span><span class="o">.</span><span class="n">G</span> <span class="o">@</span> <span class="n">C</span> <span class="o">@</span> <span class="n">mod</span><span class="o">.</span><span class="n">G</span><span class="o">.</span><span class="n">T</span>
+            <span class="n">R</span> <span class="o">=</span> <span class="p">(</span><span class="n">R</span> <span class="o">+</span> <span class="n">R</span><span class="o">.</span><span class="n">T</span><span class="p">)</span><span class="o">/</span><span class="mi">2</span>
+                
+            <span class="c1"># Discount information</span>
+            <span class="k">if</span> <span class="n">mod</span><span class="o">.</span><span class="n">discount_forecast</span><span class="p">:</span>
+                <span class="n">R</span> <span class="o">=</span> <span class="n">R</span> <span class="o">+</span> <span class="n">mod</span><span class="o">.</span><span class="n">W</span>
+
+    <span class="k">return</span> <span class="n">samps</span></div>
+
+
+<div class="viewcode-block" id="forecast_path_copula"><a class="viewcode-back" href="../../pybats.html#pybats.forecast.forecast_path_copula">[docs]</a><span class="k">def</span> <span class="nf">forecast_path_copula</span><span class="p">(</span><span class="n">mod</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="n">X</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">nsamps</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span> <span class="n">t_dist</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">nu</span><span class="o">=</span><span class="mi">9</span><span class="p">,</span> <span class="n">return_cov</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Forecast function for the k-step path</span>
+<span class="sd">    k: steps ahead to forecast</span>
+<span class="sd">    X: array with k rows for the future regression components</span>
+<span class="sd">    nsamps: Number of samples to draw from forecast distribution</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    
+    <span class="n">lambda_mu</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">([</span><span class="n">k</span><span class="p">])</span>
+    <span class="n">lambda_cov</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">([</span><span class="n">k</span><span class="p">,</span> <span class="n">k</span><span class="p">])</span>
+    
+    <span class="n">F</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">mod</span><span class="o">.</span><span class="n">F</span><span class="p">)</span>
+                        
+    <span class="n">Flist</span> <span class="o">=</span> <span class="p">[</span><span class="kc">None</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">k</span><span class="p">)]</span>
+    <span class="n">Rlist</span> <span class="o">=</span> <span class="p">[</span><span class="kc">None</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">k</span><span class="p">)]</span>
+    
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">k</span><span class="p">):</span>
+
+        <span class="c1"># Evolve to the prior at time t + i + 1</span>
+        <span class="n">a</span><span class="p">,</span> <span class="n">R</span> <span class="o">=</span> <span class="n">forecast_aR</span><span class="p">(</span><span class="n">mod</span><span class="p">,</span> <span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span>
+
+        <span class="n">Rlist</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">R</span>
+
+        <span class="c1"># Plug in the correct F values</span>
+        <span class="k">if</span> <span class="n">mod</span><span class="o">.</span><span class="n">nregn</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">F</span> <span class="o">=</span> <span class="n">update_F</span><span class="p">(</span><span class="n">mod</span><span class="p">,</span> <span class="n">X</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="p">:],</span> <span class="n">F</span><span class="o">=</span><span class="n">F</span><span class="p">)</span>
+        <span class="c1"># if mod.nregn &gt; 0:</span>
+        <span class="c1">#     F[mod.iregn] = X[i,:].reshape(mod.nregn,1)</span>
+            
+        <span class="n">Flist</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">F</span><span class="p">)</span>
+            
+        <span class="c1"># Find lambda mean and var</span>
+        <span class="n">ft</span><span class="p">,</span> <span class="n">qt</span> <span class="o">=</span> <span class="n">mod</span><span class="o">.</span><span class="n">get_mean_and_var</span><span class="p">(</span><span class="n">F</span><span class="p">,</span> <span class="n">a</span><span class="p">,</span> <span class="n">R</span><span class="p">)</span>
+        <span class="n">lambda_mu</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">ft</span>
+        <span class="n">lambda_cov</span><span class="p">[</span><span class="n">i</span><span class="p">,</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">qt</span>
+        
+        <span class="c1"># Find covariances with previous lambda values</span>
+        <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">i</span><span class="p">):</span>
+            <span class="c1"># Covariance matrix between the state vector at times j, i, i &gt; j</span>
+            <span class="n">cov_ij</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">matrix_power</span><span class="p">(</span><span class="n">mod</span><span class="o">.</span><span class="n">G</span><span class="p">,</span> <span class="n">i</span><span class="o">-</span><span class="n">j</span><span class="p">)</span> <span class="o">@</span> <span class="n">Rlist</span><span class="p">[</span><span class="n">j</span><span class="p">]</span>
+            <span class="c1"># Covariance between lambda at times j, i</span>
+            <span class="n">lambda_cov</span><span class="p">[</span><span class="n">j</span><span class="p">,</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">lambda_cov</span><span class="p">[</span><span class="n">i</span><span class="p">,</span><span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="n">Flist</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">cov_ij</span> <span class="o">@</span> <span class="n">Flist</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+
+    <span class="k">if</span> <span class="n">return_cov</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">lambda_cov</span>
+
+    <span class="k">if</span> <span class="n">y</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">forecast_path_copula_density_MC</span><span class="p">(</span><span class="n">mod</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">lambda_mu</span><span class="p">,</span> <span class="n">lambda_cov</span><span class="p">,</span> <span class="n">t_dist</span><span class="p">,</span> <span class="n">nu</span><span class="p">,</span> <span class="n">nsamps</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">forecast_path_copula_sim</span><span class="p">(</span><span class="n">mod</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="n">lambda_mu</span><span class="p">,</span> <span class="n">lambda_cov</span><span class="p">,</span> <span class="n">nsamps</span><span class="p">,</span> <span class="n">t_dist</span><span class="p">,</span> <span class="n">nu</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="forecast_marginal_bindglm"><a class="viewcode-back" href="../../pybats.html#pybats.forecast.forecast_marginal_bindglm">[docs]</a><span class="k">def</span> <span class="nf">forecast_marginal_bindglm</span><span class="p">(</span><span class="n">mod</span><span class="p">,</span> <span class="n">n</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="n">X</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">nsamps</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">mean_only</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Forecast function k steps ahead (marginal)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Plug in the correct F values</span>
+    <span class="n">F</span> <span class="o">=</span> <span class="n">update_F</span><span class="p">(</span><span class="n">mod</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="n">F</span><span class="o">=</span><span class="n">mod</span><span class="o">.</span><span class="n">F</span><span class="o">.</span><span class="n">copy</span><span class="p">())</span>
+    <span class="c1"># F = np.copy(mod.F)</span>
+    <span class="c1"># if mod.nregn &gt; 0:</span>
+    <span class="c1">#     F[mod.iregn] = X.reshape(mod.nregn,1)</span>
+
+    <span class="c1"># Evolve to the prior for time t + k</span>
+    <span class="n">a</span><span class="p">,</span> <span class="n">R</span> <span class="o">=</span> <span class="n">forecast_aR</span><span class="p">(</span><span class="n">mod</span><span class="p">,</span> <span class="n">k</span><span class="p">)</span>
+
+    <span class="c1"># Mean and variance</span>
+    <span class="n">ft</span><span class="p">,</span> <span class="n">qt</span> <span class="o">=</span> <span class="n">mod</span><span class="o">.</span><span class="n">get_mean_and_var</span><span class="p">(</span><span class="n">F</span><span class="p">,</span> <span class="n">a</span><span class="p">,</span> <span class="n">R</span><span class="p">)</span>
+
+    <span class="c1"># Choose conjugate prior, match mean and variance</span>
+    <span class="n">param1</span><span class="p">,</span> <span class="n">param2</span> <span class="o">=</span> <span class="n">mod</span><span class="o">.</span><span class="n">get_conjugate_params</span><span class="p">(</span><span class="n">ft</span><span class="p">,</span> <span class="n">qt</span><span class="p">,</span> <span class="n">mod</span><span class="o">.</span><span class="n">param1</span><span class="p">,</span> <span class="n">mod</span><span class="o">.</span><span class="n">param2</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">mean_only</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">mod</span><span class="o">.</span><span class="n">get_mean</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="n">param1</span><span class="p">,</span> <span class="n">param2</span><span class="p">)</span>
+
+    <span class="c1"># Simulate from the forecast distribution</span>
+    <span class="k">return</span> <span class="n">mod</span><span class="o">.</span><span class="n">simulate</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="n">param1</span><span class="p">,</span> <span class="n">param2</span><span class="p">,</span> <span class="n">nsamps</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="forecast_path_dlm"><a class="viewcode-back" href="../../pybats.html#pybats.forecast.forecast_path_dlm">[docs]</a><span class="k">def</span> <span class="nf">forecast_path_dlm</span><span class="p">(</span><span class="n">mod</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="n">X</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">nsamps</span> <span class="o">=</span> <span class="mi">1</span><span class="p">):</span>
+
+    <span class="n">samps</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">([</span><span class="n">nsamps</span><span class="p">,</span> <span class="n">k</span><span class="p">])</span>
+    <span class="n">F</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">mod</span><span class="o">.</span><span class="n">F</span><span class="p">)</span>
+
+    <span class="c1">## Initialize samples of the state vector and variance from the prior</span>
+    <span class="n">v</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">gamma</span><span class="p">(</span><span class="n">shape</span> <span class="o">=</span> <span class="n">mod</span><span class="o">.</span><span class="n">n</span><span class="o">/</span><span class="mi">2</span><span class="p">,</span> <span class="n">scale</span> <span class="o">=</span> <span class="mi">2</span><span class="o">/</span><span class="p">(</span><span class="n">mod</span><span class="o">.</span><span class="n">n</span> <span class="o">*</span> <span class="n">mod</span><span class="o">.</span><span class="n">s</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span> <span class="n">size</span> <span class="o">=</span> <span class="n">nsamps</span><span class="p">)</span>
+    <span class="n">thetas</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">var</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">multivariate_normal</span><span class="p">(</span><span class="n">mean</span> <span class="o">=</span> <span class="n">mod</span><span class="o">.</span><span class="n">a</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">),</span> <span class="n">cov</span> <span class="o">=</span> <span class="n">var</span><span class="o">/</span><span class="n">mod</span><span class="o">.</span><span class="n">s</span> <span class="o">*</span> <span class="n">mod</span><span class="o">.</span><span class="n">R</span><span class="p">,</span> <span class="n">size</span> <span class="o">=</span> <span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">T</span><span class="p">,</span>
+                     <span class="n">v</span><span class="p">))</span>
+
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">k</span><span class="p">):</span>
+
+        <span class="c1"># Plug in the correct F values</span>
+        <span class="k">if</span> <span class="n">mod</span><span class="o">.</span><span class="n">nregn</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">F</span> <span class="o">=</span> <span class="n">update_F</span><span class="p">(</span><span class="n">mod</span><span class="p">,</span> <span class="n">X</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="p">:],</span> <span class="n">F</span><span class="o">=</span><span class="n">F</span><span class="p">)</span>
+        <span class="c1"># if mod.nregn &gt; 0:</span>
+        <span class="c1">#     F[mod.iregn] = X[i, :].reshape(mod.nregn,1)</span>
+
+        <span class="c1"># mean</span>
+        <span class="n">ft</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">theta</span><span class="p">:</span> <span class="n">F</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">theta</span><span class="p">,</span>
+                        <span class="n">thetas</span><span class="p">)))</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+
+        <span class="c1"># Simulate from the sampling model</span>
+        <span class="n">samps</span><span class="p">[:,</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">mod</span><span class="o">.</span><span class="n">simulate_from_sampling_model</span><span class="p">(</span><span class="n">ft</span><span class="p">,</span> <span class="n">v</span><span class="p">,</span> <span class="n">nsamps</span><span class="p">)</span>
+
+        <span class="c1"># Evolve the state vector and variance for the next timestep</span>
+        <span class="n">v</span> <span class="o">=</span> <span class="n">v</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">beta</span><span class="p">(</span><span class="n">mod</span><span class="o">.</span><span class="n">delVar</span><span class="o">*</span><span class="n">mod</span><span class="o">.</span><span class="n">n</span><span class="o">/</span><span class="mi">2</span><span class="p">,</span> <span class="p">((</span><span class="mi">1</span><span class="o">-</span><span class="n">mod</span><span class="o">.</span><span class="n">delVar</span><span class="p">)</span><span class="o">*</span><span class="n">mod</span><span class="o">.</span><span class="n">n</span><span class="p">)</span><span class="o">/</span><span class="mi">2</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="n">nsamps</span><span class="p">)</span>
+        <span class="n">thetas</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span>
+            <span class="nb">map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">theta</span><span class="p">,</span> <span class="n">var</span><span class="p">:</span> <span class="n">theta</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">multivariate_normal</span><span class="p">(</span><span class="n">mean</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">theta</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span> <span class="n">cov</span><span class="o">=</span><span class="n">var</span> <span class="o">/</span> <span class="n">mod</span><span class="o">.</span><span class="n">s</span> <span class="o">*</span> <span class="n">mod</span><span class="o">.</span><span class="n">W</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">T</span><span class="p">,</span>
+                <span class="n">thetas</span><span class="p">,</span> <span class="n">v</span><span class="p">))</span>
+
+    <span class="k">return</span> <span class="n">samps</span></div>
+
+
+<div class="viewcode-block" id="forecast_path_copula_sim"><a class="viewcode-back" href="../../pybats.html#pybats.forecast.forecast_path_copula_sim">[docs]</a><span class="k">def</span> <span class="nf">forecast_path_copula_sim</span><span class="p">(</span><span class="n">mod</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="n">lambda_mu</span><span class="p">,</span> <span class="n">lambda_cov</span><span class="p">,</span> <span class="n">nsamps</span><span class="p">,</span> <span class="n">t_dist</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span> <span class="n">nu</span> <span class="o">=</span> <span class="mi">9</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    lambda_mu: kx1 Mean vector for forecast mean over t+1:t+k</span>
+<span class="sd">    lambda_cov: kxk Covariance matrix for the forecast over t+1:t+k</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+        
+    <span class="k">if</span> <span class="n">t_dist</span><span class="p">:</span>
+        <span class="c1">#nu = 8</span>
+        <span class="n">scale</span> <span class="o">=</span> <span class="n">lambda_cov</span> <span class="o">*</span> <span class="p">((</span><span class="n">nu</span> <span class="o">-</span> <span class="mi">2</span><span class="p">)</span> <span class="o">/</span> <span class="n">nu</span><span class="p">)</span>
+        <span class="n">joint_samps</span> <span class="o">=</span> <span class="n">multivariate_t</span><span class="p">(</span><span class="n">lambda_mu</span><span class="p">,</span> <span class="n">scale</span><span class="p">,</span> <span class="n">nu</span><span class="p">,</span> <span class="n">nsamps</span><span class="p">)</span><span class="o">.</span><span class="n">T</span>
+        <span class="n">genlist</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">f</span><span class="p">,</span> <span class="n">q</span><span class="p">:</span> <span class="n">stats</span><span class="o">.</span><span class="n">t</span><span class="p">(</span><span class="n">loc</span> <span class="o">=</span> <span class="n">f</span><span class="p">,</span> <span class="n">scale</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">q</span><span class="p">),</span> <span class="n">df</span> <span class="o">=</span> <span class="n">nu</span><span class="p">),</span>
+                      <span class="n">lambda_mu</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">diag</span><span class="p">(</span><span class="n">scale</span><span class="p">)))</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="c1"># Simulate from a joint multivariate normal with lambda_mu, lambda_cov</span>
+        <span class="n">joint_samps</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">multivariate_normal</span><span class="p">(</span><span class="n">lambda_mu</span><span class="p">,</span> <span class="n">lambda_cov</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="n">nsamps</span><span class="p">)</span><span class="o">.</span><span class="n">T</span>
+        <span class="n">genlist</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">f</span><span class="p">,</span> <span class="n">q</span><span class="p">:</span> <span class="n">stats</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">q</span><span class="p">)),</span>
+                      <span class="n">lambda_mu</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">diag</span><span class="p">(</span><span class="n">lambda_cov</span><span class="p">)))</span>
+    
+    <span class="c1"># Find the marginal conjugate parameters</span>
+    <span class="n">conj_params</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">f</span><span class="p">,</span> <span class="n">q</span><span class="p">:</span> <span class="n">mod</span><span class="o">.</span><span class="n">get_conjugate_params</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">q</span><span class="p">,</span> <span class="n">mod</span><span class="o">.</span><span class="n">param1</span><span class="p">,</span> <span class="n">mod</span><span class="o">.</span><span class="n">param2</span><span class="p">),</span>
+                           <span class="n">lambda_mu</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">diag</span><span class="p">(</span><span class="n">lambda_cov</span><span class="p">)))</span>
+    
+    <span class="c1"># Use the marginal CDF of the joint distribution to convert our samples into uniform RVs</span>
+    <span class="n">unif_rvs</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">gen</span><span class="p">,</span> <span class="n">samps</span><span class="p">:</span> <span class="n">gen</span><span class="o">.</span><span class="n">cdf</span><span class="p">(</span><span class="n">samps</span><span class="p">),</span>
+              <span class="n">genlist</span><span class="p">,</span> <span class="n">joint_samps</span><span class="p">))</span>
+    
+    <span class="c1"># Use inverse-CDF along each margin to get implied PRIOR value (e.g. a gamma dist RV for a poisson sampling model)</span>
+    <span class="n">priorlist</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">params</span><span class="p">,</span> <span class="n">unif_rv</span><span class="p">:</span> <span class="n">mod</span><span class="o">.</span><span class="n">prior_inverse_cdf</span><span class="p">(</span><span class="n">unif_rv</span><span class="p">,</span> <span class="n">params</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">params</span><span class="p">[</span><span class="mi">1</span><span class="p">]),</span>
+                    <span class="n">conj_params</span><span class="p">,</span> <span class="n">unif_rvs</span><span class="p">))</span>
+    
+    <span class="c1"># Simulate from the sampling model (e.g. poisson)</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">prior</span><span class="p">:</span> <span class="n">mod</span><span class="o">.</span><span class="n">simulate_from_sampling_model</span><span class="p">(</span><span class="n">prior</span><span class="p">,</span> <span class="n">nsamps</span><span class="p">),</span>
+            <span class="n">priorlist</span><span class="p">)))</span><span class="o">.</span><span class="n">T</span></div>
+
+
+<div class="viewcode-block" id="forecast_path_copula_density_MC"><a class="viewcode-back" href="../../pybats.html#pybats.forecast.forecast_path_copula_density_MC">[docs]</a><span class="k">def</span> <span class="nf">forecast_path_copula_density_MC</span><span class="p">(</span><span class="n">mod</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">lambda_mu</span><span class="p">,</span> <span class="n">lambda_cov</span><span class="p">,</span> <span class="n">t_dist</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">nu</span> <span class="o">=</span> <span class="mi">9</span><span class="p">,</span> <span class="n">nsamps</span> <span class="o">=</span> <span class="mi">500</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    lambda_mu: kx1 Mean vector for forecast mean over t+1:t+k</span>
+<span class="sd">    lambda_cov: kxk Covariance matrix for the forecast over t+1:t+k</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">not_missing</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">logical_not</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">y</span><span class="p">))</span>
+    <span class="n">y</span> <span class="o">=</span> <span class="n">y</span><span class="p">[</span><span class="n">not_missing</span><span class="p">]</span>
+    <span class="n">lambda_mu</span> <span class="o">=</span> <span class="n">lambda_mu</span><span class="p">[</span><span class="n">not_missing</span><span class="p">]</span>
+    <span class="n">lambda_cov</span> <span class="o">=</span> <span class="n">lambda_cov</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ix_</span><span class="p">(</span><span class="n">not_missing</span><span class="p">,</span> <span class="n">not_missing</span><span class="p">)]</span>
+
+    <span class="c1"># Get the marginals of the multivariate distribution</span>
+    <span class="k">if</span> <span class="n">t_dist</span><span class="p">:</span>
+        <span class="n">scale</span> <span class="o">=</span> <span class="n">lambda_cov</span> <span class="o">*</span> <span class="p">((</span><span class="n">nu</span> <span class="o">-</span> <span class="mi">2</span><span class="p">)</span> <span class="o">/</span> <span class="n">nu</span><span class="p">)</span>
+        <span class="n">joint_samps</span> <span class="o">=</span> <span class="n">multivariate_t</span><span class="p">(</span><span class="n">lambda_mu</span><span class="p">,</span> <span class="n">scale</span><span class="p">,</span> <span class="n">nu</span><span class="p">,</span> <span class="n">nsamps</span><span class="p">)</span><span class="o">.</span><span class="n">T</span>
+        <span class="n">genlist</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">f</span><span class="p">,</span> <span class="n">q</span><span class="p">:</span> <span class="n">stats</span><span class="o">.</span><span class="n">t</span><span class="p">(</span><span class="n">loc</span><span class="o">=</span><span class="n">f</span><span class="p">,</span> <span class="n">scale</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">q</span><span class="p">),</span> <span class="n">df</span><span class="o">=</span><span class="n">nu</span><span class="p">),</span>
+                           <span class="n">lambda_mu</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">diag</span><span class="p">(</span><span class="n">scale</span><span class="p">)))</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">joint_samps</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">multivariate_normal</span><span class="p">(</span><span class="n">lambda_mu</span><span class="p">,</span> <span class="n">lambda_cov</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="n">nsamps</span><span class="p">)</span><span class="o">.</span><span class="n">T</span>
+        <span class="n">genlist</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">f</span><span class="p">,</span> <span class="n">q</span><span class="p">:</span> <span class="n">stats</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">q</span><span class="p">)),</span>
+                           <span class="n">lambda_mu</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">diag</span><span class="p">(</span><span class="n">lambda_cov</span><span class="p">)))</span>
+
+    <span class="c1"># Find the marginal distribution conjugate parameters</span>
+    <span class="n">conj_params</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">f</span><span class="p">,</span> <span class="n">q</span><span class="p">:</span> <span class="n">mod</span><span class="o">.</span><span class="n">get_conjugate_params</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">q</span><span class="p">,</span> <span class="n">mod</span><span class="o">.</span><span class="n">param1</span><span class="p">,</span> <span class="n">mod</span><span class="o">.</span><span class="n">param2</span><span class="p">),</span>
+                           <span class="n">lambda_mu</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">diag</span><span class="p">(</span><span class="n">lambda_cov</span><span class="p">)))</span>
+
+    <span class="c1"># Use the marginal CDF of the joint distribution to convert our samples into uniform RVs</span>
+    <span class="n">unif_rvs</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">gen</span><span class="p">,</span> <span class="n">samps</span><span class="p">:</span> <span class="n">gen</span><span class="o">.</span><span class="n">cdf</span><span class="p">(</span><span class="n">samps</span><span class="p">),</span>
+                       <span class="n">genlist</span><span class="p">,</span> <span class="n">joint_samps</span><span class="p">))</span>
+
+    <span class="c1"># Use inverse-CDF along each margin to get implied PRIOR value (e.g. a gamma dist RV for a poisson sampling model)</span>
+    <span class="n">priorlist</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">params</span><span class="p">,</span> <span class="n">cdf</span><span class="p">:</span> <span class="n">mod</span><span class="o">.</span><span class="n">prior_inverse_cdf</span><span class="p">(</span><span class="n">cdf</span><span class="p">,</span> <span class="n">params</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">params</span><span class="p">[</span><span class="mi">1</span><span class="p">]),</span>
+                         <span class="n">conj_params</span><span class="p">,</span> <span class="n">unif_rvs</span><span class="p">))</span>
+
+    <span class="c1"># Get the density of the y values, using Monte Carlo integration (i.e. an average over the samples)</span>
+    <span class="n">density_list</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">y</span><span class="p">,</span> <span class="n">prior</span><span class="p">:</span> <span class="n">mod</span><span class="o">.</span><span class="n">sampling_density</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">prior</span><span class="p">),</span>
+                            <span class="n">y</span><span class="p">,</span> <span class="n">priorlist</span><span class="p">))</span>
+
+    <span class="c1"># Get the product of the densities to get the path density (they are independent, conditional upon the prior value at each time t+k)</span>
+    <span class="n">path_density_list</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">dens</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">dens</span><span class="p">))),</span>
+                                 <span class="nb">zip</span><span class="p">(</span><span class="o">*</span><span class="n">density_list</span><span class="p">)))</span>
+
+    <span class="c1"># Return their average, on the log scale</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">path_density_list</span><span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="forecast_joint_copula_sim"><a class="viewcode-back" href="../../pybats.html#pybats.forecast.forecast_joint_copula_sim">[docs]</a><span class="k">def</span> <span class="nf">forecast_joint_copula_sim</span><span class="p">(</span><span class="n">mod_list</span><span class="p">,</span> <span class="n">lambda_mu</span><span class="p">,</span> <span class="n">lambda_cov</span><span class="p">,</span> <span class="n">nsamps</span><span class="p">,</span> <span class="n">t_dist</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">nu</span><span class="o">=</span><span class="mi">9</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    lambda_mu: kx1 Mean vector for forecast mean over t+1:t+k</span>
+<span class="sd">    lambda_cov: kxk Covariance matrix for the forecast over t+1:t+k</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">if</span> <span class="n">t_dist</span><span class="p">:</span>
+        <span class="c1"># nu = 8</span>
+        <span class="n">scale</span> <span class="o">=</span> <span class="n">lambda_cov</span> <span class="o">*</span> <span class="p">((</span><span class="n">nu</span> <span class="o">-</span> <span class="mi">2</span><span class="p">)</span> <span class="o">/</span> <span class="n">nu</span><span class="p">)</span>
+        <span class="n">joint_samps</span> <span class="o">=</span> <span class="n">multivariate_t</span><span class="p">(</span><span class="n">lambda_mu</span><span class="p">,</span> <span class="n">scale</span><span class="p">,</span> <span class="n">nu</span><span class="p">,</span> <span class="n">nsamps</span><span class="p">)</span><span class="o">.</span><span class="n">T</span>
+        <span class="n">genlist</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">f</span><span class="p">,</span> <span class="n">q</span><span class="p">:</span> <span class="n">stats</span><span class="o">.</span><span class="n">t</span><span class="p">(</span><span class="n">loc</span><span class="o">=</span><span class="n">f</span><span class="p">,</span> <span class="n">scale</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">q</span><span class="p">),</span> <span class="n">df</span><span class="o">=</span><span class="n">nu</span><span class="p">),</span>
+                           <span class="n">lambda_mu</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">diag</span><span class="p">(</span><span class="n">scale</span><span class="p">)))</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="c1"># Simulate from a joint multivariate normal with lambda_mu, lambda_cov</span>
+        <span class="n">joint_samps</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">multivariate_normal</span><span class="p">(</span><span class="n">lambda_mu</span><span class="p">,</span> <span class="n">lambda_cov</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="n">nsamps</span><span class="p">)</span><span class="o">.</span><span class="n">T</span>
+        <span class="n">genlist</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">f</span><span class="p">,</span> <span class="n">q</span><span class="p">:</span> <span class="n">stats</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">q</span><span class="p">)),</span>
+                           <span class="n">lambda_mu</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">diag</span><span class="p">(</span><span class="n">lambda_cov</span><span class="p">)))</span>
+
+    <span class="c1"># Find the marginal conjugate parameters</span>
+    <span class="n">conj_params</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">mod</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">mod_list</span><span class="p">):</span>
+        <span class="n">conj_params</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">mod</span><span class="o">.</span><span class="n">get_conjugate_params</span><span class="p">(</span><span class="n">lambda_mu</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">lambda_cov</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">i</span><span class="p">],</span> <span class="n">mod</span><span class="o">.</span><span class="n">param1</span><span class="p">,</span> <span class="n">mod</span><span class="o">.</span><span class="n">param2</span><span class="p">))</span>
+
+    <span class="c1"># Use the marginal CDF of the joint distribution to convert our samples into uniform RVs</span>
+    <span class="n">unif_rvs</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">gen</span><span class="p">,</span> <span class="n">samps</span><span class="p">:</span> <span class="n">gen</span><span class="o">.</span><span class="n">cdf</span><span class="p">(</span><span class="n">samps</span><span class="p">),</span>
+                        <span class="n">genlist</span><span class="p">,</span> <span class="n">joint_samps</span><span class="p">))</span>
+
+    <span class="c1"># If any are numerically 1 or 0, fix them:</span>
+    <span class="k">def</span> <span class="nf">numeric_fix</span><span class="p">(</span><span class="n">u</span><span class="p">):</span>
+        <span class="n">u</span><span class="p">[</span><span class="n">u</span> <span class="o">==</span> <span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">-</span> <span class="mf">1E-5</span>
+        <span class="n">u</span><span class="p">[</span><span class="n">u</span> <span class="o">==</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mf">1E-5</span>
+        <span class="k">return</span> <span class="n">u</span>
+    <span class="n">unif_rvs</span> <span class="o">=</span> <span class="p">[</span><span class="n">numeric_fix</span><span class="p">(</span><span class="n">u</span><span class="p">)</span> <span class="k">for</span> <span class="n">u</span> <span class="ow">in</span> <span class="n">unif_rvs</span><span class="p">]</span>
+
+    <span class="c1"># Use inverse-CDF along each margin to get implied PRIOR value (e.g. a gamma dist RV for a poisson sampling model)</span>
+    <span class="n">priorlist</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">mod</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="n">unif_rv</span><span class="p">:</span> <span class="n">mod</span><span class="o">.</span><span class="n">prior_inverse_cdf</span><span class="p">(</span><span class="n">unif_rv</span><span class="p">,</span> <span class="n">params</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">params</span><span class="p">[</span><span class="mi">1</span><span class="p">]),</span>
+                         <span class="n">mod_list</span><span class="p">,</span> <span class="n">conj_params</span><span class="p">,</span> <span class="n">unif_rvs</span><span class="p">))</span>
+
+    <span class="c1"># Simulate from the sampling model (e.g. poisson)</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">mod</span><span class="p">,</span> <span class="n">prior</span><span class="p">:</span> <span class="n">mod</span><span class="o">.</span><span class="n">simulate_from_sampling_model</span><span class="p">(</span><span class="n">prior</span><span class="p">,</span> <span class="n">nsamps</span><span class="p">),</span>
+                             <span class="n">mod_list</span><span class="p">,</span> <span class="n">priorlist</span><span class="p">)))</span><span class="o">.</span><span class="n">T</span></div>
+
+
+<div class="viewcode-block" id="forecast_joint_copula_density_MC"><a class="viewcode-back" href="../../pybats.html#pybats.forecast.forecast_joint_copula_density_MC">[docs]</a><span class="k">def</span> <span class="nf">forecast_joint_copula_density_MC</span><span class="p">(</span><span class="n">mod_list</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">lambda_mu</span><span class="p">,</span> <span class="n">lambda_cov</span><span class="p">,</span> <span class="n">t_dist</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">nu</span> <span class="o">=</span> <span class="mi">9</span><span class="p">,</span> <span class="n">nsamps</span> <span class="o">=</span> <span class="mi">500</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    lambda_mu: kx1 Mean vector for forecast mean over t+1:t+k</span>
+<span class="sd">    lambda_cov: kxk Covariance matrix for the forecast over t+1:t+k</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">not_missing</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">logical_not</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">y</span><span class="p">))</span>
+    <span class="n">y</span> <span class="o">=</span> <span class="n">y</span><span class="p">[</span><span class="n">not_missing</span><span class="p">]</span>
+    <span class="n">lambda_mu</span> <span class="o">=</span> <span class="n">lambda_mu</span><span class="p">[</span><span class="n">not_missing</span><span class="p">]</span>
+    <span class="n">lambda_cov</span> <span class="o">=</span> <span class="n">lambda_cov</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ix_</span><span class="p">(</span><span class="n">not_missing</span><span class="p">,</span> <span class="n">not_missing</span><span class="p">)]</span>
+
+    <span class="c1"># Get the marginals of the multivariate distribution</span>
+    <span class="k">if</span> <span class="n">t_dist</span><span class="p">:</span>
+        <span class="n">scale</span> <span class="o">=</span> <span class="n">lambda_cov</span> <span class="o">*</span> <span class="p">((</span><span class="n">nu</span> <span class="o">-</span> <span class="mi">2</span><span class="p">)</span> <span class="o">/</span> <span class="n">nu</span><span class="p">)</span>
+        <span class="n">joint_samps</span> <span class="o">=</span> <span class="n">multivariate_t</span><span class="p">(</span><span class="n">lambda_mu</span><span class="p">,</span> <span class="n">scale</span><span class="p">,</span> <span class="n">nu</span><span class="p">,</span> <span class="n">nsamps</span><span class="p">)</span><span class="o">.</span><span class="n">T</span>
+        <span class="n">genlist</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">f</span><span class="p">,</span> <span class="n">q</span><span class="p">:</span> <span class="n">stats</span><span class="o">.</span><span class="n">t</span><span class="p">(</span><span class="n">loc</span><span class="o">=</span><span class="n">f</span><span class="p">,</span> <span class="n">scale</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">q</span><span class="p">),</span> <span class="n">df</span><span class="o">=</span><span class="n">nu</span><span class="p">),</span>
+                           <span class="n">lambda_mu</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">diag</span><span class="p">(</span><span class="n">scale</span><span class="p">)))</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">joint_samps</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">multivariate_normal</span><span class="p">(</span><span class="n">lambda_mu</span><span class="p">,</span> <span class="n">lambda_cov</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="n">nsamps</span><span class="p">)</span><span class="o">.</span><span class="n">T</span>
+        <span class="n">genlist</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">f</span><span class="p">,</span> <span class="n">q</span><span class="p">:</span> <span class="n">stats</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">q</span><span class="p">)),</span>
+                           <span class="n">lambda_mu</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">diag</span><span class="p">(</span><span class="n">lambda_cov</span><span class="p">)))</span>
+
+    <span class="c1"># Find the marginal distribution conjugate parameters</span>
+    <span class="n">conj_params</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">mod</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">mod_list</span><span class="p">):</span>
+        <span class="n">conj_params</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">mod</span><span class="o">.</span><span class="n">get_conjugate_params</span><span class="p">(</span><span class="n">lambda_mu</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">lambda_cov</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">i</span><span class="p">],</span> <span class="n">mod</span><span class="o">.</span><span class="n">param1</span><span class="p">,</span> <span class="n">mod</span><span class="o">.</span><span class="n">param2</span><span class="p">))</span>
+
+    <span class="c1"># Use the marginal CDF of the joint distribution to convert our samples into uniform RVs</span>
+    <span class="n">unif_rvs</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">gen</span><span class="p">,</span> <span class="n">samps</span><span class="p">:</span> <span class="n">gen</span><span class="o">.</span><span class="n">cdf</span><span class="p">(</span><span class="n">samps</span><span class="p">),</span>
+                       <span class="n">genlist</span><span class="p">,</span> <span class="n">joint_samps</span><span class="p">))</span>
+
+    <span class="c1"># Use inverse-CDF along each margin to get implied PRIOR value (e.g. a gamma dist RV for a poisson sampling model)</span>
+    <span class="n">priorlist</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">mod</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="n">cdf</span><span class="p">:</span> <span class="n">mod</span><span class="o">.</span><span class="n">prior_inverse_cdf</span><span class="p">(</span><span class="n">cdf</span><span class="p">,</span> <span class="n">params</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">params</span><span class="p">[</span><span class="mi">1</span><span class="p">]),</span>
+                         <span class="n">mod_list</span><span class="p">,</span> <span class="n">conj_params</span><span class="p">,</span> <span class="n">unif_rvs</span><span class="p">))</span>
+
+    <span class="c1"># Get the density of the y values, using Monte Carlo integration (i.e. an average over the samples)</span>
+    <span class="n">density_list</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">mod</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">prior</span><span class="p">:</span> <span class="n">mod</span><span class="o">.</span><span class="n">sampling_density</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">prior</span><span class="p">),</span>
+                            <span class="n">mod_list</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">priorlist</span><span class="p">))</span>
+
+    <span class="c1"># Get the product of the densities to get the joint density (they are independent, conditional upon the prior value at each time t+k)</span>
+    <span class="n">joint_density_list</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">dens</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">dens</span><span class="p">))),</span>
+                                 <span class="nb">zip</span><span class="p">(</span><span class="o">*</span><span class="n">density_list</span><span class="p">)))</span>
+
+    <span class="c1"># Return their average, on the log scale</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">joint_density_list</span><span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="multivariate_t"><a class="viewcode-back" href="../../pybats.html#pybats.forecast.multivariate_t">[docs]</a><span class="k">def</span> <span class="nf">multivariate_t</span><span class="p">(</span><span class="n">mean</span><span class="p">,</span> <span class="n">scale</span><span class="p">,</span> <span class="n">nu</span><span class="p">,</span> <span class="n">nsamps</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    mean = mean</span>
+<span class="sd">    scale = covariance matrix * ((nu-2)/nu)</span>
+<span class="sd">    nu = degrees of freedom</span>
+<span class="sd">    nsamps = # of samples to produce</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="n">p</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">mean</span><span class="p">)</span>
+    <span class="n">g</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">tile</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">gamma</span><span class="p">(</span><span class="n">nu</span><span class="o">/</span><span class="mf">2.</span><span class="p">,</span><span class="mf">2.</span><span class="o">/</span><span class="n">nu</span><span class="p">,</span> <span class="n">nsamps</span><span class="p">),</span> <span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span><span class="o">.</span><span class="n">T</span>
+    <span class="n">Z</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">multivariate_normal</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">p</span><span class="p">),</span> <span class="n">scale</span><span class="p">,</span> <span class="n">nsamps</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">mean</span> <span class="o">+</span> <span class="n">Z</span><span class="o">/</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">g</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="multivariate_t_density"><a class="viewcode-back" href="../../pybats.html#pybats.forecast.multivariate_t_density">[docs]</a><span class="k">def</span> <span class="nf">multivariate_t_density</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">mean</span><span class="p">,</span> <span class="n">scale</span><span class="p">,</span> <span class="n">nu</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    y = vector of observations</span>
+<span class="sd">    mean = mean</span>
+<span class="sd">    scale = covariance matrix * ((nu-2)/nu)</span>
+<span class="sd">    nu = degrees of freedom</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="n">y</span> <span class="o">=</span> <span class="n">y</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="n">mean</span> <span class="o">=</span> <span class="n">mean</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="n">dim</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">y</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">dim</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="n">constant</span> <span class="o">=</span> <span class="n">gamma</span><span class="p">((</span><span class="n">nu</span> <span class="o">+</span> <span class="n">dim</span><span class="p">)</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">gamma</span><span class="p">(</span><span class="n">nu</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">((</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="n">nu</span><span class="p">)</span> <span class="o">**</span> <span class="n">dim</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">det</span><span class="p">(</span><span class="n">scale</span><span class="p">)))</span>
+        <span class="n">dens</span> <span class="o">=</span> <span class="p">(</span><span class="mf">1.</span> <span class="o">+</span> <span class="p">((</span><span class="n">y</span> <span class="o">-</span> <span class="n">mean</span><span class="p">)</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">inv</span><span class="p">(</span><span class="n">scale</span><span class="p">)</span> <span class="o">@</span> <span class="p">(</span><span class="n">y</span> <span class="o">-</span> <span class="n">mean</span><span class="p">))</span> <span class="o">/</span> <span class="n">nu</span><span class="p">)</span> <span class="o">**</span> <span class="p">(</span><span class="o">-</span><span class="p">(</span><span class="n">nu</span> <span class="o">+</span> <span class="n">dim</span><span class="p">)</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">constant</span> <span class="o">=</span> <span class="n">gamma</span><span class="p">((</span><span class="n">nu</span> <span class="o">+</span> <span class="n">dim</span><span class="p">)</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">gamma</span><span class="p">(</span><span class="n">nu</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">((</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="n">nu</span><span class="p">)</span> <span class="o">**</span> <span class="n">dim</span> <span class="o">*</span> <span class="n">scale</span><span class="p">))</span>
+        <span class="n">dens</span> <span class="o">=</span> <span class="p">(</span><span class="mf">1.</span> <span class="o">+</span> <span class="p">((</span><span class="n">y</span> <span class="o">-</span> <span class="n">mean</span><span class="p">))</span><span class="o">**</span><span class="mi">2</span> <span class="o">/</span> <span class="p">(</span><span class="n">nu</span> <span class="o">*</span> <span class="n">scale</span><span class="p">))</span> <span class="o">**</span> <span class="p">(</span><span class="o">-</span><span class="p">(</span><span class="n">nu</span> <span class="o">+</span> <span class="n">dim</span><span class="p">)</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="mf">1.</span> <span class="o">*</span> <span class="n">constant</span> <span class="o">*</span> <span class="n">dens</span></div>
+
+
+<div class="viewcode-block" id="forecast_state_mean_and_var"><a class="viewcode-back" href="../../pybats.html#pybats.forecast.forecast_state_mean_and_var">[docs]</a><span class="k">def</span> <span class="nf">forecast_state_mean_and_var</span><span class="p">(</span><span class="n">mod</span><span class="p">,</span> <span class="n">k</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span> <span class="n">X</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">       Forecast function that returns the mean and variance of lambda = state vector * predictors</span>
+<span class="sd">       &quot;&quot;&quot;</span>
+    <span class="c1"># Plug in the correct F values</span>
+    <span class="n">F</span> <span class="o">=</span> <span class="n">update_F</span><span class="p">(</span><span class="n">mod</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="n">F</span><span class="o">=</span><span class="n">mod</span><span class="o">.</span><span class="n">F</span><span class="o">.</span><span class="n">copy</span><span class="p">())</span>
+    <span class="c1"># F = np.copy(mod.F)</span>
+    <span class="c1"># if mod.nregn &gt; 0:</span>
+    <span class="c1">#     F[mod.iregn] = X.reshape(mod.nregn, 1)</span>
+
+    <span class="c1"># Evolve to the prior for time t + k</span>
+    <span class="n">a</span><span class="p">,</span> <span class="n">R</span> <span class="o">=</span> <span class="n">forecast_aR</span><span class="p">(</span><span class="n">mod</span><span class="p">,</span> <span class="n">k</span><span class="p">)</span>
+
+    <span class="c1"># Mean and variance</span>
+    <span class="n">ft</span><span class="p">,</span> <span class="n">qt</span> <span class="o">=</span> <span class="n">mod</span><span class="o">.</span><span class="n">get_mean_and_var</span><span class="p">(</span><span class="n">F</span><span class="p">,</span> <span class="n">a</span><span class="p">,</span> <span class="n">R</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">ft</span><span class="p">,</span> <span class="n">qt</span></div>
+
+
+<div class="viewcode-block" id="forecast_marginal_density_MC"><a class="viewcode-back" href="../../pybats.html#pybats.forecast.forecast_marginal_density_MC">[docs]</a><span class="k">def</span> <span class="nf">forecast_marginal_density_MC</span><span class="p">(</span><span class="n">mod</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="n">X</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">nsamps</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Returns the log forecast density of an observation y</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Plug in the correct F values</span>
+    <span class="n">F</span> <span class="o">=</span> <span class="n">update_F</span><span class="p">(</span><span class="n">mod</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="n">F</span><span class="o">=</span><span class="n">mod</span><span class="o">.</span><span class="n">F</span><span class="o">.</span><span class="n">copy</span><span class="p">())</span>
+    <span class="c1"># F = np.copy(mod.F)</span>
+    <span class="c1"># if mod.nregn &gt; 0:</span>
+    <span class="c1">#     F[mod.iregn] = X.reshape(mod.nregn, 1)</span>
+
+    <span class="c1"># Evolve to the prior for time t + k</span>
+    <span class="n">a</span><span class="p">,</span> <span class="n">R</span> <span class="o">=</span> <span class="n">forecast_aR</span><span class="p">(</span><span class="n">mod</span><span class="p">,</span> <span class="n">k</span><span class="p">)</span>
+
+    <span class="c1"># Mean and variance</span>
+    <span class="n">ft</span><span class="p">,</span> <span class="n">qt</span> <span class="o">=</span> <span class="n">mod</span><span class="o">.</span><span class="n">get_mean_and_var</span><span class="p">(</span><span class="n">F</span><span class="p">,</span> <span class="n">a</span><span class="p">,</span> <span class="n">R</span><span class="p">)</span>
+
+    <span class="c1"># Choose conjugate prior, match mean and variance</span>
+    <span class="n">param1</span><span class="p">,</span> <span class="n">param2</span> <span class="o">=</span> <span class="n">mod</span><span class="o">.</span><span class="n">get_conjugate_params</span><span class="p">(</span><span class="n">ft</span><span class="p">,</span> <span class="n">qt</span><span class="p">,</span> <span class="n">mod</span><span class="o">.</span><span class="n">param1</span><span class="p">,</span> <span class="n">mod</span><span class="o">.</span><span class="n">param2</span><span class="p">)</span>
+
+    <span class="c1"># Simulate from the conjugate prior</span>
+    <span class="n">prior_samps</span> <span class="o">=</span> <span class="n">mod</span><span class="o">.</span><span class="n">simulate_from_prior</span><span class="p">(</span><span class="n">param1</span><span class="p">,</span> <span class="n">param2</span><span class="p">,</span> <span class="n">nsamps</span><span class="p">)</span>
+
+    <span class="c1"># Get the densities</span>
+    <span class="n">densities</span> <span class="o">=</span> <span class="n">mod</span><span class="o">.</span><span class="n">sampling_density</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">prior_samps</span><span class="p">)</span>
+
+    <span class="c1"># Take a Monte Carlo average, and return the mean density, on the log scale</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">densities</span><span class="p">))</span></div>
+
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2019, Isaac Lavine.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.5.6</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.10</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

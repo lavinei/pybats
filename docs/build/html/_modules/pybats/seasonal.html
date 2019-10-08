@@ -1,0 +1,227 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>pybats.seasonal &#8212; pybats 1.0 documentation</title>
+    
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '1.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.0/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head>
+  <body role="document">
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for pybats.seasonal</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+
+<span class="kn">from</span> <span class="nn">.forecast</span> <span class="k">import</span> <span class="n">forecast_aR</span><span class="p">,</span> <span class="n">forecast_R_cov</span>
+
+
+<div class="viewcode-block" id="seascomp"><a class="viewcode-back" href="../../pybats.html#pybats.seasonal.seascomp">[docs]</a><span class="k">def</span> <span class="nf">seascomp</span><span class="p">(</span><span class="n">period</span><span class="p">,</span> <span class="n">harmComponents</span><span class="p">):</span>
+    <span class="n">p</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">harmComponents</span><span class="p">)</span>
+    <span class="n">n</span> <span class="o">=</span> <span class="mi">2</span><span class="o">*</span><span class="n">p</span>
+    <span class="n">F</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">([</span><span class="n">n</span><span class="p">,</span> <span class="mi">1</span><span class="p">])</span>
+    <span class="n">F</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="n">n</span><span class="p">:</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="n">G</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">([</span><span class="n">n</span><span class="p">,</span> <span class="n">n</span><span class="p">])</span>
+
+    <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">p</span><span class="p">):</span>
+        <span class="n">c</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="o">*</span><span class="n">harmComponents</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="o">/</span><span class="n">period</span><span class="p">)</span>
+        <span class="n">s</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="o">*</span><span class="n">harmComponents</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="o">/</span><span class="n">period</span><span class="p">)</span>
+        <span class="n">idx</span> <span class="o">=</span> <span class="mi">2</span><span class="o">*</span><span class="n">j</span>
+        <span class="n">G</span><span class="p">[</span><span class="n">idx</span><span class="p">:(</span><span class="n">idx</span><span class="o">+</span><span class="mi">2</span><span class="p">),</span> <span class="n">idx</span><span class="p">:(</span><span class="n">idx</span><span class="o">+</span><span class="mi">2</span><span class="p">)]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="n">c</span><span class="p">,</span> <span class="n">s</span><span class="p">],[</span><span class="o">-</span><span class="n">s</span><span class="p">,</span> <span class="n">c</span><span class="p">]])</span>
+
+    <span class="k">return</span> <span class="p">[</span><span class="n">F</span><span class="p">,</span> <span class="n">G</span><span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="createFourierToSeasonalL"><a class="viewcode-back" href="../../pybats.html#pybats.seasonal.createFourierToSeasonalL">[docs]</a><span class="k">def</span> <span class="nf">createFourierToSeasonalL</span><span class="p">(</span><span class="n">period</span><span class="p">,</span> <span class="n">harmComponents</span><span class="p">,</span> <span class="n">Fseas</span><span class="p">,</span> <span class="n">Gseas</span><span class="p">):</span>
+    <span class="n">p</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">harmComponents</span><span class="p">)</span>
+    <span class="n">L</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">([</span><span class="n">period</span><span class="p">,</span> <span class="mi">2</span><span class="o">*</span><span class="n">p</span><span class="p">])</span>
+    <span class="n">L</span><span class="p">[</span><span class="mi">0</span><span class="p">,:]</span> <span class="o">=</span> <span class="n">Fseas</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">period</span><span class="p">):</span>
+        <span class="n">L</span><span class="p">[</span><span class="n">i</span><span class="p">,:]</span> <span class="o">=</span> <span class="n">L</span><span class="p">[</span><span class="n">i</span><span class="o">-</span><span class="mi">1</span><span class="p">,:]</span> <span class="o">@</span> <span class="n">Gseas</span>
+        
+    <span class="k">return</span> <span class="n">L</span></div>
+
+
+<div class="viewcode-block" id="fourierToSeasonal"><a class="viewcode-back" href="../../pybats.html#pybats.seasonal.fourierToSeasonal">[docs]</a><span class="k">def</span> <span class="nf">fourierToSeasonal</span><span class="p">(</span><span class="n">mod</span><span class="p">):</span>
+    <span class="n">phi</span> <span class="o">=</span> <span class="n">mod</span><span class="o">.</span><span class="n">L</span> <span class="o">@</span> <span class="n">mod</span><span class="o">.</span><span class="n">m</span><span class="p">[</span><span class="n">mod</span><span class="o">.</span><span class="n">iseas</span><span class="p">]</span>
+    <span class="n">var</span> <span class="o">=</span> <span class="n">mod</span><span class="o">.</span><span class="n">L</span> <span class="o">@</span> <span class="n">mod</span><span class="o">.</span><span class="n">C</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ix_</span><span class="p">(</span><span class="n">mod</span><span class="o">.</span><span class="n">iseas</span><span class="p">,</span> <span class="n">mod</span><span class="o">.</span><span class="n">iseas</span><span class="p">)]</span> <span class="o">@</span> <span class="n">mod</span><span class="o">.</span><span class="n">L</span><span class="o">.</span><span class="n">T</span>
+    <span class="k">return</span> <span class="n">phi</span><span class="p">,</span> <span class="n">var</span></div>
+
+
+<div class="viewcode-block" id="fourierToSeasonalFxnl"><a class="viewcode-back" href="../../pybats.html#pybats.seasonal.fourierToSeasonalFxnl">[docs]</a><span class="k">def</span> <span class="nf">fourierToSeasonalFxnl</span><span class="p">(</span><span class="n">L</span><span class="p">,</span> <span class="n">m</span><span class="p">,</span> <span class="n">C</span><span class="p">,</span> <span class="n">iseas</span><span class="p">):</span>
+    <span class="n">phi</span> <span class="o">=</span> <span class="n">L</span> <span class="o">@</span> <span class="n">m</span><span class="p">[</span><span class="n">iseas</span><span class="p">]</span>
+    <span class="n">var</span> <span class="o">=</span> <span class="n">L</span> <span class="o">@</span> <span class="n">C</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ix_</span><span class="p">(</span><span class="n">iseas</span><span class="p">,</span> <span class="n">iseas</span><span class="p">)]</span> <span class="o">@</span> <span class="n">L</span><span class="o">.</span><span class="n">T</span>
+    <span class="k">return</span> <span class="n">phi</span><span class="p">,</span> <span class="n">var</span></div>
+
+<span class="c1">################# FUNCTIONS FOR EXTRACTING SEASONAL COMPONENTS (FOR LATENT FACTOR INFERENCE) ##############</span>
+
+<div class="viewcode-block" id="get_seasonal_effect_fxnl"><a class="viewcode-back" href="../../pybats.html#pybats.seasonal.get_seasonal_effect_fxnl">[docs]</a><span class="k">def</span> <span class="nf">get_seasonal_effect_fxnl</span><span class="p">(</span><span class="n">L</span><span class="p">,</span> <span class="n">m</span><span class="p">,</span> <span class="n">C</span><span class="p">,</span> <span class="n">iseas</span><span class="p">):</span>
+    <span class="n">phi</span><span class="p">,</span> <span class="n">var</span> <span class="o">=</span> <span class="n">fourierToSeasonalFxnl</span><span class="p">(</span><span class="n">L</span><span class="p">,</span> <span class="n">m</span><span class="p">,</span> <span class="n">C</span><span class="p">,</span> <span class="n">iseas</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">phi</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">var</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="sample_seasonal_effect_fxnl"><a class="viewcode-back" href="../../pybats.html#pybats.seasonal.sample_seasonal_effect_fxnl">[docs]</a><span class="k">def</span> <span class="nf">sample_seasonal_effect_fxnl</span><span class="p">(</span><span class="n">L</span><span class="p">,</span> <span class="n">m</span><span class="p">,</span> <span class="n">C</span><span class="p">,</span> <span class="n">iseas</span><span class="p">,</span> <span class="n">delVar</span><span class="p">,</span> <span class="n">n</span><span class="p">,</span> <span class="n">nsamps</span><span class="p">):</span>
+    <span class="n">phi_samps</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">([</span><span class="n">nsamps</span><span class="p">])</span>
+    <span class="n">phi</span><span class="p">,</span> <span class="n">var</span> <span class="o">=</span> <span class="n">fourierToSeasonalFxnl</span><span class="p">(</span><span class="n">L</span><span class="p">,</span> <span class="n">m</span><span class="p">,</span> <span class="n">C</span><span class="p">,</span> <span class="n">iseas</span><span class="p">)</span>
+    <span class="n">phi_samps</span><span class="p">[:]</span> <span class="o">=</span> <span class="n">phi</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">var</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">])</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">standard_t</span><span class="p">(</span><span class="n">delVar</span><span class="o">*</span><span class="n">n</span><span class="p">,</span> <span class="n">size</span> <span class="o">=</span> <span class="p">[</span><span class="n">nsamps</span><span class="p">])</span>
+    <span class="k">return</span> <span class="n">phi_samps</span></div>
+
+
+<div class="viewcode-block" id="forecast_weekly_seasonal_factor"><a class="viewcode-back" href="../../pybats.html#pybats.seasonal.forecast_weekly_seasonal_factor">[docs]</a><span class="k">def</span> <span class="nf">forecast_weekly_seasonal_factor</span><span class="p">(</span><span class="n">mod</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="n">sample</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span> <span class="n">nsamps</span> <span class="o">=</span> <span class="mi">1</span><span class="p">):</span>
+    <span class="n">a</span><span class="p">,</span> <span class="n">R</span> <span class="o">=</span> <span class="n">forecast_aR</span><span class="p">(</span><span class="n">mod</span><span class="p">,</span> <span class="n">k</span><span class="p">)</span>
+
+    <span class="n">idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">mod</span><span class="o">.</span><span class="n">seasPeriods</span><span class="p">)</span> <span class="o">==</span> <span class="mi">7</span><span class="p">)[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+
+    <span class="k">if</span> <span class="n">sample</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">sample_seasonal_effect_fxnl</span><span class="p">(</span><span class="n">mod</span><span class="o">.</span><span class="n">L</span><span class="p">[</span><span class="n">idx</span><span class="p">],</span> <span class="n">a</span><span class="p">,</span> <span class="n">R</span><span class="p">,</span> <span class="n">mod</span><span class="o">.</span><span class="n">iseas</span><span class="p">[</span><span class="n">idx</span><span class="p">],</span> <span class="n">mod</span><span class="o">.</span><span class="n">delVar</span><span class="p">,</span> <span class="n">mod</span><span class="o">.</span><span class="n">n</span><span class="p">,</span> <span class="n">nsamps</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">get_seasonal_effect_fxnl</span><span class="p">(</span><span class="n">mod</span><span class="o">.</span><span class="n">L</span><span class="p">[</span><span class="n">idx</span><span class="p">],</span> <span class="n">a</span><span class="p">,</span> <span class="n">R</span><span class="p">,</span> <span class="n">mod</span><span class="o">.</span><span class="n">iseas</span><span class="p">[</span><span class="n">idx</span><span class="p">])</span></div>
+
+
+<div class="viewcode-block" id="forecast_path_weekly_seasonal_factor"><a class="viewcode-back" href="../../pybats.html#pybats.seasonal.forecast_path_weekly_seasonal_factor">[docs]</a><span class="k">def</span> <span class="nf">forecast_path_weekly_seasonal_factor</span><span class="p">(</span><span class="n">mod</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="n">today</span><span class="p">,</span> <span class="n">period</span><span class="p">):</span>
+    <span class="n">phi_mu</span> <span class="o">=</span> <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">([</span><span class="n">period</span><span class="p">])</span> <span class="k">for</span> <span class="n">h</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">k</span><span class="p">)]</span>
+    <span class="n">phi_sigma</span> <span class="o">=</span> <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">([</span><span class="n">period</span><span class="p">,</span> <span class="n">period</span><span class="p">])</span> <span class="k">for</span> <span class="n">h</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">k</span><span class="p">)]</span>
+    <span class="n">phi_psi</span> <span class="o">=</span> <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">([</span><span class="n">period</span><span class="p">,</span> <span class="n">period</span><span class="p">,</span> <span class="n">h</span><span class="p">])</span> <span class="k">for</span> <span class="n">h</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">k</span><span class="p">)]</span>
+
+    <span class="n">idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">mod</span><span class="o">.</span><span class="n">seasPeriods</span><span class="p">)</span> <span class="o">==</span> <span class="mi">7</span><span class="p">)[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">L</span> <span class="o">=</span> <span class="n">mod</span><span class="o">.</span><span class="n">L</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span>
+    <span class="n">iseas</span> <span class="o">=</span> <span class="n">mod</span><span class="o">.</span><span class="n">iseas</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span>
+
+    <span class="k">for</span> <span class="n">h</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">k</span><span class="p">):</span>
+
+        <span class="c1"># Get the marginal a, R</span>
+        <span class="n">a</span><span class="p">,</span> <span class="n">R</span> <span class="o">=</span> <span class="n">forecast_aR</span><span class="p">(</span><span class="n">mod</span><span class="p">,</span> <span class="n">h</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+
+        <span class="n">m</span><span class="p">,</span> <span class="n">v</span> <span class="o">=</span> <span class="n">get_seasonal_effect_fxnl</span><span class="p">(</span><span class="n">L</span><span class="p">,</span> <span class="n">a</span><span class="p">,</span> <span class="n">R</span><span class="p">,</span> <span class="n">iseas</span><span class="p">)</span>
+        <span class="n">day</span> <span class="o">=</span> <span class="p">(</span><span class="n">today</span> <span class="o">+</span> <span class="n">h</span><span class="p">)</span> <span class="o">%</span> <span class="n">period</span>
+        <span class="n">phi_mu</span><span class="p">[</span><span class="n">h</span><span class="p">][</span><span class="n">day</span><span class="p">]</span> <span class="o">=</span> <span class="n">m</span>
+        <span class="n">phi_sigma</span><span class="p">[</span><span class="n">h</span><span class="p">][</span><span class="n">day</span><span class="p">,</span> <span class="n">day</span><span class="p">]</span> <span class="o">=</span> <span class="n">v</span>
+        <span class="c1"># phi_mu[h], phi_sigma[h] = get_latent_factor_fxnl_old((today + h) % period, mod.L, a, R, mod.iseas, mod.seasPeriods[0])</span>
+
+        <span class="c1"># Find covariances with previous latent factor values</span>
+        <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">h</span><span class="p">):</span>
+            <span class="c1"># Covariance matrix between the state vector at times j, i, i &gt; j</span>
+            <span class="n">day_j</span> <span class="o">=</span> <span class="p">(</span><span class="n">today</span> <span class="o">+</span> <span class="n">j</span><span class="p">)</span> <span class="o">%</span> <span class="n">period</span>
+            <span class="n">cov_jh</span> <span class="o">=</span> <span class="n">forecast_R_cov</span><span class="p">(</span><span class="n">mod</span><span class="p">,</span> <span class="n">j</span><span class="p">,</span> <span class="n">h</span><span class="p">)[</span><span class="n">np</span><span class="o">.</span><span class="n">ix_</span><span class="p">(</span><span class="n">iseas</span><span class="p">,</span> <span class="n">iseas</span><span class="p">)]</span>
+            <span class="n">phi_psi</span><span class="p">[</span><span class="n">h</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="n">day</span><span class="p">,</span> <span class="n">day_j</span><span class="p">,</span> <span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="n">phi_psi</span><span class="p">[</span><span class="n">h</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="n">day_j</span><span class="p">,</span> <span class="n">day</span><span class="p">,</span> <span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">L</span> <span class="o">@</span> <span class="n">cov_jh</span> <span class="o">@</span> <span class="n">L</span><span class="o">.</span><span class="n">T</span><span class="p">)[</span><span class="n">day</span><span class="p">,</span> <span class="n">day_j</span><span class="p">]</span>
+            <span class="c1"># cov_ij = (np.linalg.matrix_power(mod.G, h-j) @ Rlist[j])[np.ix_(mod.iseas, mod.iseas)]</span>
+
+    <span class="k">return</span> <span class="n">phi_mu</span><span class="p">,</span> <span class="n">phi_sigma</span><span class="p">,</span> <span class="n">phi_psi</span></div>
+
+
+<div class="viewcode-block" id="sample_seasonal_effect_fxnl_old"><a class="viewcode-back" href="../../pybats.html#pybats.seasonal.sample_seasonal_effect_fxnl_old">[docs]</a><span class="k">def</span> <span class="nf">sample_seasonal_effect_fxnl_old</span><span class="p">(</span><span class="n">day</span><span class="p">,</span> <span class="n">L</span><span class="p">,</span> <span class="n">m</span><span class="p">,</span> <span class="n">C</span><span class="p">,</span> <span class="n">iseas</span><span class="p">,</span> <span class="n">seasPeriods</span><span class="p">,</span> <span class="n">delVar</span><span class="p">,</span> <span class="n">n</span><span class="p">,</span> <span class="n">nsamps</span><span class="p">):</span>
+    <span class="n">phi_samps</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">([</span><span class="n">nsamps</span><span class="p">,</span> <span class="n">seasPeriods</span><span class="p">])</span>
+    <span class="n">phi</span><span class="p">,</span> <span class="n">var</span> <span class="o">=</span> <span class="n">fourierToSeasonalFxnl</span><span class="p">(</span><span class="n">L</span><span class="p">,</span> <span class="n">m</span><span class="p">,</span> <span class="n">C</span><span class="p">,</span> <span class="n">iseas</span><span class="p">)</span>
+    <span class="n">phi_samps</span><span class="p">[:,</span> <span class="n">day</span><span class="p">]</span> <span class="o">=</span> <span class="n">phi</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">var</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">])</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">standard_t</span><span class="p">(</span><span class="n">delVar</span><span class="o">*</span><span class="n">n</span><span class="p">,</span> <span class="n">size</span> <span class="o">=</span> <span class="p">[</span><span class="n">nsamps</span><span class="p">])</span>
+    <span class="k">return</span> <span class="n">phi_samps</span></div>
+
+
+<div class="viewcode-block" id="get_latent_factor_fxnl_old"><a class="viewcode-back" href="../../pybats.html#pybats.seasonal.get_latent_factor_fxnl_old">[docs]</a><span class="k">def</span> <span class="nf">get_latent_factor_fxnl_old</span><span class="p">(</span><span class="n">day</span><span class="p">,</span> <span class="n">L</span><span class="p">,</span> <span class="n">m</span><span class="p">,</span> <span class="n">C</span><span class="p">,</span> <span class="n">iseas</span><span class="p">,</span> <span class="n">seasPeriods</span><span class="p">):</span>
+    <span class="n">phi_mu</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">([</span><span class="n">seasPeriods</span><span class="p">,</span> <span class="mi">1</span><span class="p">])</span>
+    <span class="n">phi_sigma</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">([</span><span class="n">seasPeriods</span><span class="p">,</span> <span class="n">seasPeriods</span><span class="p">])</span>
+    <span class="n">phi</span><span class="p">,</span> <span class="n">var</span> <span class="o">=</span> <span class="n">fourierToSeasonalFxnl</span><span class="p">(</span><span class="n">L</span><span class="p">,</span> <span class="n">m</span><span class="p">,</span> <span class="n">C</span><span class="p">,</span> <span class="n">iseas</span><span class="p">)</span>
+    <span class="n">phi_mu</span><span class="p">[</span><span class="n">day</span><span class="p">]</span> <span class="o">=</span> <span class="n">phi</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">phi_sigma</span><span class="p">[</span><span class="n">day</span><span class="p">,</span> <span class="n">day</span><span class="p">]</span> <span class="o">=</span> <span class="n">var</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">phi_mu</span><span class="p">,</span> <span class="n">phi_sigma</span></div>
+
+
+<div class="viewcode-block" id="forecast_weekly_seasonal_factor_old"><a class="viewcode-back" href="../../pybats.html#pybats.seasonal.forecast_weekly_seasonal_factor_old">[docs]</a><span class="k">def</span> <span class="nf">forecast_weekly_seasonal_factor_old</span><span class="p">(</span><span class="n">mod</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="n">today</span><span class="p">,</span> <span class="n">period</span><span class="p">,</span> <span class="n">sample</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span> <span class="n">nsamps</span> <span class="o">=</span> <span class="mi">1</span><span class="p">):</span>
+    <span class="n">Gk</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">matrix_power</span><span class="p">(</span><span class="n">mod</span><span class="o">.</span><span class="n">G</span><span class="p">,</span> <span class="n">k</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">a</span> <span class="o">=</span> <span class="n">Gk</span> <span class="o">@</span> <span class="n">mod</span><span class="o">.</span><span class="n">a</span>
+    <span class="n">R</span> <span class="o">=</span> <span class="n">Gk</span> <span class="o">@</span> <span class="n">mod</span><span class="o">.</span><span class="n">R</span> <span class="o">@</span> <span class="n">Gk</span><span class="o">.</span><span class="n">T</span> <span class="o">+</span> <span class="p">(</span><span class="n">k</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="o">*</span><span class="n">mod</span><span class="o">.</span><span class="n">W</span>
+
+    <span class="k">if</span> <span class="n">sample</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">sample_seasonal_effect_fxnl_old</span><span class="p">((</span><span class="n">today</span> <span class="o">+</span> <span class="n">k</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">%</span> <span class="n">period</span><span class="p">,</span> <span class="n">mod</span><span class="o">.</span><span class="n">L</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">a</span><span class="p">,</span> <span class="n">R</span><span class="p">,</span> <span class="n">mod</span><span class="o">.</span><span class="n">iseas</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">mod</span><span class="o">.</span><span class="n">seasPeriods</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">mod</span><span class="o">.</span><span class="n">delVar</span><span class="p">,</span> <span class="n">mod</span><span class="o">.</span><span class="n">n</span><span class="p">,</span> <span class="n">nsamps</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">get_latent_factor_fxnl_old</span><span class="p">((</span><span class="n">today</span> <span class="o">+</span> <span class="n">k</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">%</span> <span class="n">period</span><span class="p">,</span> <span class="n">mod</span><span class="o">.</span><span class="n">L</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">a</span><span class="p">,</span> <span class="n">R</span><span class="p">,</span> <span class="n">mod</span><span class="o">.</span><span class="n">iseas</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">mod</span><span class="o">.</span><span class="n">seasPeriods</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span></div>
+
+
+<div class="viewcode-block" id="get_seasonal_effect_old"><a class="viewcode-back" href="../../pybats.html#pybats.seasonal.get_seasonal_effect_old">[docs]</a><span class="k">def</span> <span class="nf">get_seasonal_effect_old</span><span class="p">(</span><span class="n">mod</span><span class="p">,</span> <span class="n">day</span><span class="p">):</span>
+    <span class="n">phi_mu</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">([</span><span class="n">mod</span><span class="o">.</span><span class="n">seasPeriods</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="mi">1</span><span class="p">])</span>
+    <span class="n">phi_sigma</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">([</span><span class="n">mod</span><span class="o">.</span><span class="n">seasPeriods</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">mod</span><span class="o">.</span><span class="n">seasPeriods</span><span class="p">[</span><span class="mi">0</span><span class="p">]])</span>
+    <span class="n">phi</span><span class="p">,</span> <span class="n">var</span> <span class="o">=</span> <span class="n">fourierToSeasonal</span><span class="p">(</span><span class="n">mod</span><span class="p">)</span>
+    <span class="n">phi_mu</span><span class="p">[</span><span class="n">day</span><span class="p">]</span> <span class="o">=</span> <span class="n">phi</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">phi_sigma</span><span class="p">[</span><span class="n">day</span><span class="p">,</span> <span class="n">day</span><span class="p">]</span> <span class="o">=</span> <span class="n">var</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">phi_mu</span><span class="p">,</span> <span class="n">phi_sigma</span></div>
+
+
+<div class="viewcode-block" id="sample_seasonal_effect_old"><a class="viewcode-back" href="../../pybats.html#pybats.seasonal.sample_seasonal_effect_old">[docs]</a><span class="k">def</span> <span class="nf">sample_seasonal_effect_old</span><span class="p">(</span><span class="n">mod</span><span class="p">,</span> <span class="n">day</span><span class="p">,</span> <span class="n">nsamps</span><span class="p">):</span>
+    <span class="n">phi_samps</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">([</span><span class="n">nsamps</span><span class="p">,</span> <span class="n">mod</span><span class="o">.</span><span class="n">seasPeriods</span><span class="p">[</span><span class="mi">0</span><span class="p">]])</span>
+    <span class="n">phi</span><span class="p">,</span> <span class="n">var</span> <span class="o">=</span> <span class="n">fourierToSeasonalFxnl</span><span class="p">(</span><span class="n">mod</span><span class="o">.</span><span class="n">L</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">mod</span><span class="o">.</span><span class="n">m</span><span class="p">,</span> <span class="n">mod</span><span class="o">.</span><span class="n">C</span><span class="p">,</span> <span class="n">mod</span><span class="o">.</span><span class="n">iseas</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="n">phi_samps</span><span class="p">[:,</span> <span class="n">day</span><span class="p">]</span> <span class="o">=</span> <span class="n">phi</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">var</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">])</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">standard_t</span><span class="p">(</span><span class="n">mod</span><span class="o">.</span><span class="n">delVar</span><span class="o">*</span><span class="n">mod</span><span class="o">.</span><span class="n">n</span><span class="p">,</span> <span class="n">size</span> <span class="o">=</span> <span class="p">[</span><span class="n">nsamps</span><span class="p">])</span>
+    <span class="k">return</span> <span class="n">phi_samps</span></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2019, Isaac Lavine.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.5.6</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.10</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

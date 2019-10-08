@@ -3,3 +3,5 @@ __pycache__/*
 /pybats/__pycache__/*
 /pybats/__pycache__/
 *.pyc
+/dist/
+/*.egg-info

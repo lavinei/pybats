@@ -1,0 +1,208 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>pybats.analysis &#8212; pybats 1.0 documentation</title>
+    
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '1.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.0/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head>
+  <body role="document">
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for pybats.analysis</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+
+<span class="kn">from</span> <span class="nn">.define_models</span> <span class="k">import</span> <span class="n">define_dglm</span>
+<span class="kn">from</span> <span class="nn">.shared</span> <span class="k">import</span> <span class="n">define_holiday_regressors</span>
+<span class="kn">from</span> <span class="nn">collections.abc</span> <span class="k">import</span> <span class="n">Iterable</span>
+
+
+<div class="viewcode-block" id="analysis"><a class="viewcode-back" href="../../pybats.html#pybats.analysis.analysis">[docs]</a><span class="k">def</span> <span class="nf">analysis</span><span class="p">(</span><span class="n">Y</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span>
+             <span class="n">k</span><span class="p">,</span> <span class="n">forecast_start</span><span class="p">,</span> <span class="n">forecast_end</span><span class="p">,</span> <span class="n">nsamps</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span> <span class="n">mean_only</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+             <span class="n">model_prior</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">family</span> <span class="o">=</span> <span class="s1">&#39;normal&#39;</span><span class="p">,</span> <span class="n">prior_length</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span> <span class="n">ntrend</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+             <span class="n">dates</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">holidays</span> <span class="o">=</span> <span class="p">[],</span>
+             <span class="n">seasPeriods</span> <span class="o">=</span> <span class="p">[],</span> <span class="n">seasHarmComponents</span> <span class="o">=</span> <span class="p">[],</span>
+             <span class="n">ret</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;model&#39;</span><span class="p">,</span> <span class="s1">&#39;forecast&#39;</span><span class="p">],</span>
+             <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    :param Y: Array of observations (n * 1)</span>
+<span class="sd">    :param X: Array of covariates (n * p)</span>
+<span class="sd">    :param k: forecast horizon (how many days ahead to forecast)</span>
+<span class="sd">    :param forecast_start: date or index value to start forecasting (beginning with 0)</span>
+<span class="sd">    :param forecast_end: date or index value to end forecasting</span>
+<span class="sd">    :param nsamps: Number of forecast samples to draw</span>
+<span class="sd">    :param mean_only: True/False - return the mean only when forecasting, instead of samples?</span>
+<span class="sd">    :param model_prior: A prespecified model of class DGLM</span>
+<span class="sd">    :param family: Exponential family for Y. Options: &#39;normal&#39;, &#39;poisson&#39;, &#39;bernoulli&#39;</span>
+<span class="sd">    :param prior_length: If model_prior is not given, a DGLM will be defined using the first &#39;prior_length&#39; observations in Y, X.</span>
+<span class="sd">    :param ntrend: Number of trend components in the model. 1 = local intercept , 2 = local intercept + local level</span>
+<span class="sd">    :param dates: Array of dates (n * 1)</span>
+<span class="sd">    :param holidays: List of Holidays to be given a special indicator (from pandas.tseries.holiday)</span>
+<span class="sd">    :param seasPeriods: A list of periods for seasonal effects (e.g. [7] for a weekly effect, where Y is daily data)</span>
+<span class="sd">    :param seasHarmComponents: A list of lists of harmonic components for a seasonal period (e.g. [[1,2,3]] if seasPeriods=[7])</span>
+<span class="sd">    :param ret: A list of values to return. Options include: [&#39;model&#39;, &#39;forecast, &#39;model_coef&#39;]</span>
+<span class="sd">    :param kwargs: Further key word arguments to define the model prior. Common arguments include discount factors deltrend, delregn, delseas, and delhol</span>
+<span class="sd">    :return:</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># Add the holiday indicator variables to the regression matrix</span>
+    <span class="n">nhol</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">holidays</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">nhol</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">X</span> <span class="o">=</span> <span class="n">define_holiday_regressors</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">dates</span><span class="p">,</span> <span class="n">holidays</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">model_prior</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">mod</span> <span class="o">=</span> <span class="n">define_dglm</span><span class="p">(</span><span class="n">Y</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="n">family</span><span class="o">=</span><span class="n">family</span><span class="p">,</span> <span class="n">prior_length</span><span class="o">=</span><span class="n">prior_length</span><span class="p">,</span> <span class="n">ntrend</span><span class="o">=</span><span class="n">ntrend</span><span class="p">,</span> <span class="n">nhol</span><span class="o">=</span><span class="n">nhol</span><span class="p">,</span>
+                                 <span class="n">seasPeriods</span><span class="o">=</span><span class="n">seasPeriods</span><span class="p">,</span> <span class="n">seasHarmComponents</span><span class="o">=</span><span class="n">seasHarmComponents</span><span class="p">,</span>
+                                 <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">mod</span> <span class="o">=</span> <span class="n">model_prior</span>
+
+
+    <span class="c1"># Convert dates into row numbers</span>
+    <span class="k">if</span> <span class="n">dates</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">dates</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="n">dates</span><span class="p">)</span>
+        <span class="c1"># dates = pd.to_datetime(dates, format=&#39;%y/%m/%d&#39;)</span>
+        <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">forecast_start</span><span class="p">)</span> <span class="o">==</span> <span class="nb">type</span><span class="p">(</span><span class="n">dates</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="mi">0</span><span class="p">]):</span>
+            <span class="n">forecast_start</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">dates</span> <span class="o">==</span> <span class="n">forecast_start</span><span class="p">)[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">forecast_end</span><span class="p">)</span> <span class="o">==</span> <span class="nb">type</span><span class="p">(</span><span class="n">dates</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="mi">0</span><span class="p">]):</span>
+            <span class="n">forecast_end</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">dates</span> <span class="o">==</span> <span class="n">forecast_end</span><span class="p">)[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+
+    <span class="c1"># Define the run length</span>
+    <span class="n">T</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">([</span><span class="nb">len</span><span class="p">(</span><span class="n">Y</span><span class="p">)</span> <span class="o">-</span> <span class="n">k</span><span class="p">,</span> <span class="n">forecast_end</span><span class="p">])</span> <span class="o">+</span> <span class="mi">1</span>
+
+    <span class="k">if</span> <span class="n">ret</span><span class="o">.</span><span class="fm">__contains__</span><span class="p">(</span><span class="s1">&#39;model_coef&#39;</span><span class="p">):</span>
+        <span class="n">m</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">T</span><span class="p">,</span> <span class="n">mod</span><span class="o">.</span><span class="n">p</span><span class="p">)</span>
+        <span class="n">C</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">T</span><span class="p">,</span> <span class="n">mod</span><span class="o">.</span><span class="n">p</span><span class="p">,</span> <span class="n">mod</span><span class="o">.</span><span class="n">p</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">family</span> <span class="o">==</span> <span class="s1">&#39;normal&#39;</span><span class="p">:</span>
+            <span class="n">n</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">T</span><span class="p">)</span>
+            <span class="n">s</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">T</span><span class="p">)</span>
+
+    <span class="c1"># Create dummy variable if there are no regression covariates</span>
+    <span class="k">if</span> <span class="n">X</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">X</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="kc">None</span><span class="p">]</span><span class="o">*</span><span class="n">T</span><span class="p">)</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">)</span>
+
+    <span class="c1"># Initialize updating + forecasting</span>
+    <span class="n">horizons</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">k</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">mean_only</span><span class="p">:</span>
+        <span class="n">forecast</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="n">forecast_end</span> <span class="o">-</span> <span class="n">forecast_start</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">k</span><span class="p">])</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">forecast</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">([</span><span class="n">nsamps</span><span class="p">,</span> <span class="n">forecast_end</span> <span class="o">-</span> <span class="n">forecast_start</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">k</span><span class="p">])</span>
+
+    <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">prior_length</span><span class="p">,</span> <span class="n">T</span><span class="p">):</span>
+
+        <span class="k">if</span> <span class="n">forecast_start</span> <span class="o">&lt;=</span> <span class="n">t</span> <span class="o">&lt;=</span> <span class="n">forecast_end</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">t</span> <span class="o">==</span> <span class="n">forecast_start</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;beginning forecasting&#39;</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">ret</span><span class="o">.</span><span class="fm">__contains__</span><span class="p">(</span><span class="s1">&#39;forecast&#39;</span><span class="p">):</span>
+                <span class="c1"># Get the forecast samples for all the items over the 1:k step ahead marginal forecast distributions</span>
+                <span class="n">forecast</span><span class="p">[:,</span> <span class="n">t</span> <span class="o">-</span> <span class="n">forecast_start</span><span class="p">,</span> <span class="p">:]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span>
+                    <span class="k">lambda</span> <span class="n">k</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span>
+                    <span class="n">mod</span><span class="o">.</span><span class="n">forecast_marginal</span><span class="p">(</span><span class="n">k</span><span class="o">=</span><span class="n">k</span><span class="p">,</span> <span class="n">X</span><span class="o">=</span><span class="n">x</span><span class="p">,</span> <span class="n">nsamps</span><span class="o">=</span><span class="n">nsamps</span><span class="p">,</span> <span class="n">mean_only</span><span class="o">=</span><span class="n">mean_only</span><span class="p">),</span>
+                    <span class="n">horizons</span><span class="p">,</span> <span class="n">X</span><span class="p">[</span><span class="n">t</span> <span class="o">+</span> <span class="n">horizons</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="p">:])))</span><span class="o">.</span><span class="n">squeeze</span><span class="p">()</span><span class="o">.</span><span class="n">T</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">k</span><span class="p">)</span><span class="c1">#.reshape(-1, 1)</span>
+
+
+        <span class="c1"># Now observe the true y value, and update:</span>
+        <span class="n">mod</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">y</span><span class="o">=</span><span class="n">Y</span><span class="p">[</span><span class="n">t</span><span class="p">],</span> <span class="n">X</span><span class="o">=</span><span class="n">X</span><span class="p">[</span><span class="n">t</span><span class="p">])</span>
+
+        <span class="k">if</span> <span class="n">ret</span><span class="o">.</span><span class="fm">__contains__</span><span class="p">(</span><span class="s1">&#39;model_coef&#39;</span><span class="p">):</span>
+            <span class="n">m</span><span class="p">[</span><span class="n">t</span><span class="p">,:]</span> <span class="o">=</span> <span class="n">mod</span><span class="o">.</span><span class="n">m</span>
+            <span class="n">C</span><span class="p">[</span><span class="n">t</span><span class="p">,:,:]</span> <span class="o">=</span> <span class="n">mod</span><span class="o">.</span><span class="n">C</span>
+            <span class="k">if</span> <span class="n">family</span> <span class="o">==</span> <span class="s1">&#39;normal&#39;</span><span class="p">:</span>
+                <span class="n">n</span><span class="p">[</span><span class="n">t</span><span class="p">]</span> <span class="o">=</span> <span class="n">mod</span><span class="o">.</span><span class="n">n</span> <span class="o">/</span> <span class="n">mod</span><span class="o">.</span><span class="n">delVar</span>
+                <span class="n">s</span><span class="p">[</span><span class="n">t</span><span class="p">]</span> <span class="o">=</span> <span class="n">mod</span><span class="o">.</span><span class="n">s</span>
+
+    <span class="n">out</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">obj</span> <span class="ow">in</span> <span class="n">ret</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">obj</span> <span class="o">==</span> <span class="s1">&#39;forecast&#39;</span><span class="p">:</span> <span class="n">out</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">forecast</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">obj</span> <span class="o">==</span> <span class="s1">&#39;model&#39;</span><span class="p">:</span> <span class="n">out</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">mod</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">obj</span> <span class="o">==</span> <span class="s1">&#39;model_coef&#39;</span><span class="p">:</span>
+            <span class="n">mod_coef</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;m&#39;</span><span class="p">:</span><span class="n">m</span><span class="p">,</span> <span class="s1">&#39;C&#39;</span><span class="p">:</span><span class="n">C</span><span class="p">}</span>
+            <span class="k">if</span> <span class="n">family</span> <span class="o">==</span> <span class="s1">&#39;normal&#39;</span><span class="p">:</span>
+                <span class="n">mod_coef</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s1">&#39;n&#39;</span><span class="p">:</span><span class="n">n</span><span class="p">,</span> <span class="s1">&#39;s&#39;</span><span class="p">:</span><span class="n">s</span><span class="p">})</span>
+
+            <span class="n">out</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">mod_coef</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">out</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">out</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">out</span></div>
+
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2019, Isaac Lavine.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.5.6</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.10</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>
