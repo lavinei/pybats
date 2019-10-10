@@ -15,7 +15,6 @@ from scipy import stats
 
 
 class dglm:
-
     def __init__(self,
                  a0=None,
                  R0=None,
@@ -31,20 +30,22 @@ class dglm:
                  adapt_factor=0.5,
                  discount_forecast=False):
         """
+        A Dynamic Generalized Linear Model (DGLM). Generic Class. Children include Poisson, Bernoulli, and Binomial DGLMs, as well as the Normal DLM.
         :param a0: Prior mean vector
         :param R0: Prior covariance matrix
         :param nregn: Number of regression components
         :param ntrend: Number of trend components
+        :param nhol: Number of holiday components
         :param seasPeriods: List of periods of seasonal components
         :param seasHarmComponents: List of harmonic components included for each period
         :param deltrend: Discount factor on trend components
         :param delregn: Discount factor on regression components
         :param delhol: Discount factor on holiday components (currently deprecated)
         :param delseas: Discount factor on seasonal components
-        :param interpolate: Whether to use interpolation for conjugate parameters
-        :param adapt_discount: What method of discount adaption. False = None, 'info' = information based,\
-         'positive-regn' = only discount if regression information is available
-        :param discount_forecast: Whether to use discounting into the future
+        :param interpolate: Whether to use interpolation for conjugate parameters (provides a computational speedup)
+        :param adapt_discount: What method of discount adaption. False = None, 'positive-regn' = only discount if regression information is available, 'info' = information based,\
+        :param adapt_factor: If adapt_discount='info', then a higher value adapt_factor leads to a quicker adaptation (with less discounting) on overly uncertain parameters
+        :param discount_forecast: Whether to use discounting when forecasting
         """
 
         # Setting up trend F, G matrices
@@ -90,13 +91,6 @@ class dglm:
             Fseas = np.empty([0]).reshape(-1, 1)
             Gseas = np.empty([0, 0])
             nseas = 0
-        # elif len(seasPeriods) == 1:
-        #     Fseas, Gseas = seascomp(seasPeriods[0], seasHarmComponents[0])
-        #     nseas = Gseas.shape[0]
-        #     self.L = createFourierToSeasonalL(seasPeriods[0], seasHarmComponents[0], Fseas, Gseas)
-        #     self.iseas = list(range(i, i + nseas))
-        #     i += nseas
-        # elif len(seasPeriods) > 1:
         else:
             output = list(map(seascomp, seasPeriods, seasHarmComponents))
             Flist = [x[0] for x in output]

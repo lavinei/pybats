@@ -1,20 +1,21 @@
 import numpy as np
 
-from .dglm import dlm, pois_dglm, bern_dglm
+from .dglm import dlm, pois_dglm, bern_dglm, bin_dglm
 import statsmodels.api as sm
 
 
-def define_dglm(Y, X, family="normal",
+def define_dglm(Y, X, family="normal", n=None,
                 ntrend=1, nhol=0,
                 seasPeriods=[7], seasHarmComponents = [[1, 2, 3]],
                 deltrend = .995, delregn =.995, delseas = .999, delVar = 0.999, delhol=1,
                 n0 = 1, s0 = 1,
                 a0=None, R0=None,
-                adapt_discount=False, prior_length=None,
+                adapt_discount=False, discount_forecast=False,
+                prior_length=None, return_aR=False,
                 **kwargs):
     """
     :param Y: Observation array used to define prior
-    :param X: Predictor array used to define prior
+    :param X: Predictor array used to define prior (includes indicator columns for holidays)
     :param ntrend: Number of trend components. 1 = Intercept only. 2 = Intercept + slope
     :param nhol: Number of holiday components
     :param seasPeriods: List of periods for seasonal components
@@ -29,58 +30,78 @@ def define_dglm(Y, X, family="normal",
     :param a0: Prior state vector mean
     :param R0: Prior state vector covariance
     :param adapt_discount: Optional. Can be 'info' or 'positive_regn'. Ways to adapt discount factors, and prevent exploding variance.
+    :param discount_forecast: Optional, boolean. Should forecasts be discounted? If yes, variance added to state vector with state evolution equation.
     :param prior_length: Optional, number of rows from Y, X to use. Otherwise all are used
     :param kwargs:
     :return: Returns an initialized DGLM
     """
 
-    if prior_length is not None:
-        if prior_length > 0:
-            Y = Y[:prior_length]
-            X = X[:prior_length]
+    if a0 is None or R0 is None:
+        # Inferring the number of observations to use for the prior
+        if prior_length is not None:
+            n_obs = prior_length
+        else:
+            n_obs = len(Y)
 
-    # Infer the number of regression and holiday components
-    nregn = ncol(X) - nhol
-    nseas = 2 * sum(map(len, seasHarmComponents))
+        # Adding an intercept to the X matrix, if it doesn't already exist
+        if X is None and ntrend >= 1:
+            X_withintercept = np.ones([n_obs, 1])
+        elif ntrend >= 1:
+            if len(X.shape) == 1:
+                X = X.reshape(-1,1)
 
-    # Learn a prior based on the first 'prior_length' observations
-    if family == "normal":
-        prior_mean, prior_cov, p = define_dlm_params(Y, X)
-    elif family == "poisson":
-        prior_mean, prior_cov, p = define_pois_params(Y, X)
-    elif family == "bernoulli":
-        prior_mean, prior_cov, p = define_bern_params(Y, X)
+            if not np.all(X[:,0] == 1):
+                X_withintercept = np.c_[np.ones([n_obs, 1]), X[:n_obs]]
+            else:
+                X_withintercept = X[:n_obs]
 
-    # Define a standard prior - setting latent factor priors at 1
-    # Unless prior mean (a0) and prior variance (R0) are supplied as arguments
-    prior = [[prior_mean[0]], [0] * (ntrend - 1), [*prior_mean[1:]], [0] * nseas]
-    if a0 is None:
-        a0 = np.array([m for ms in prior for m in ms]).reshape(-1, 1)
-    if R0 is None:
-        R0 = np.identity(a0.shape[0])
-        idx = [i for i in range(p + ntrend - 1)]
-        for j in range(1, ntrend):
-            idx.pop(j)
-        R0[np.ix_(idx, idx)] = prior_cov
+        # Selecting only the correct number of observations (relevant if prior_length is given
+        Y = Y[:n_obs]
+        if n is not None:
+            n = n[:n_obs]
 
-    # Add variance to holiday indicators - few observations, may be significantly different than other days
-    ihol = range(ntrend + nregn, ntrend + nregn + nhol)
-    for idx in ihol:
-        R0[idx, idx] = R0[idx, idx] * 2
+        # Infer the number of regression and holiday components
+        nregn = ncol(X_withintercept) - nhol - 1
+        nseas = 2 * sum(map(len, seasHarmComponents))
+
+        # Learn a prior based on the first 'prior_length' observations
+        if family == "normal":
+            prior_mean, prior_cov, p = define_dlm_params(Y, X_withintercept)
+        elif family == "poisson":
+            prior_mean, prior_cov, p = define_pois_params(Y, X_withintercept)
+        elif family == "bernoulli":
+            prior_mean, prior_cov, p = define_bern_params(Y, X_withintercept)
+        elif family == "binomial":
+            prior_mean, prior_cov, p = define_bin_params(Y, n, X_withintercept)
+
+        # Define a standard prior - setting latent factor priors at 1
+        # Unless prior mean (a0) and prior variance (R0) are supplied as arguments
+        prior = [[prior_mean[0]], [0] * (ntrend - 1), [*prior_mean[1:]], [0] * nseas]
+        if a0 is None:
+            a0 = np.array([m for ms in prior for m in ms]).reshape(-1, 1)
+        if R0 is None:
+            R0 = np.identity(a0.shape[0])
+            idx = [i for i in range(p + ntrend - 1)]
+            for j in range(1, ntrend):
+                idx.pop(j)
+            R0[np.ix_(idx, idx)] = prior_cov
+
+        # Add variance to holiday indicators - few observations, may be significantly different than other days
+        ihol = range(ntrend + nregn, ntrend + nregn + nhol)
+        for idx in ihol:
+            R0[idx, idx] = R0[idx, idx] * 2
+    else:
+        # Infer the number of regression and holiday components
+        p = len(a0)
+        nseas = 2 * sum(map(len, seasHarmComponents))
+        nregn = p - ntrend - nhol - nseas
+
+
+    if return_aR:
+        return a0, R0, nregn
 
     if family == "normal":
         mod = dlm(a0=a0, R0=R0,
-              nregn=nregn,
-              ntrend=ntrend,
-              nhol=nhol,
-              seasPeriods=seasPeriods,
-              seasHarmComponents=seasHarmComponents,
-              deltrend=deltrend, delregn=delregn,
-              delseas=delseas, delhol=delhol,
-              n0=n0, s0=s0, delVar=delVar,
-              adapt_discount=adapt_discount)
-    elif family == "poisson":
-        mod = pois_dglm(a0=a0, R0=R0,
                   nregn=nregn,
                   ntrend=ntrend,
                   nhol=nhol,
@@ -88,7 +109,20 @@ def define_dglm(Y, X, family="normal",
                   seasHarmComponents=seasHarmComponents,
                   deltrend=deltrend, delregn=delregn,
                   delseas=delseas, delhol=delhol,
-                  adapt_discount=adapt_discount)
+                  n0=n0, s0=s0, delVar=delVar,
+                  adapt_discount=adapt_discount,
+                  discount_forecast = discount_forecast)
+    elif family == "poisson":
+        mod = pois_dglm(a0=a0, R0=R0,
+                        nregn=nregn,
+                        ntrend=ntrend,
+                        nhol=nhol,
+                        seasPeriods=seasPeriods,
+                        seasHarmComponents=seasHarmComponents,
+                        deltrend=deltrend, delregn=delregn,
+                        delseas=delseas, delhol=delhol,
+                        adapt_discount=adapt_discount,
+                        discount_forecast = discount_forecast)
     elif family == "bernoulli":
         mod = bern_dglm(a0=a0, R0=R0,
                         nregn=nregn,
@@ -98,8 +132,19 @@ def define_dglm(Y, X, family="normal",
                         seasHarmComponents=seasHarmComponents,
                         deltrend=deltrend, delregn=delregn,
                         delseas=delseas, delhol=delhol,
-                        adapt_discount=adapt_discount)
-
+                        adapt_discount=adapt_discount,
+                        discount_forecast = discount_forecast)
+    elif family == "binomial":
+        mod = bin_dglm(a0=a0, R0=R0,
+                       nregn=nregn,
+                       ntrend=ntrend,
+                       nhol=nhol,
+                       seasPeriods=seasPeriods,
+                       seasHarmComponents=seasHarmComponents,
+                       deltrend=deltrend, delregn=delregn,
+                       delseas=delseas, delhol=delhol,
+                       adapt_discount=adapt_discount,
+                       discount_forecast = discount_forecast)
 
 
     return mod
@@ -107,16 +152,10 @@ def define_dglm(Y, X, family="normal",
 
 def define_dlm_params(Y, X=None):
     n = len(Y)
-    p = 1 + ncol(X)
+    p = ncol(X)
     g = max(2, int(n / 2))
 
-    if X is None:
-        X = np.ones([n, 1])
-    else:
-        X = sm.add_constant(X)
-
     linear_mod = sm.OLS(Y, X).fit()
-
 
     dlm_mean = linear_mod.params
     dlm_cov = fill_diag((g / (1 + g)) * linear_mod.cov_params())
@@ -126,12 +165,8 @@ def define_dlm_params(Y, X=None):
 
 def define_bern_params(Y, X=None):
     n = len(Y)
-    p = 1 + ncol(X)
+    p = ncol(X)
 
-    if X is None:
-        X_bern = np.ones([n, 1])
-    else:
-        X_bern = np.c_[np.ones([n, 1]), X]
     nonzeros = Y.nonzero()[0]
 
     g = max(2, int(n/2))
@@ -139,7 +174,7 @@ def define_bern_params(Y, X=None):
         Y_bern = np.c_[np.zeros([n, 1]), np.ones([n, 1])]
         Y_bern[Y.nonzero()[0], 0] = 1
         Y_bern[Y.nonzero()[0], 1] = 0
-        bern_mod = sm.GLM(endog=Y_bern, exog=X_bern, family=sm.families.Binomial()).fit()
+        bern_mod = sm.GLM(endog=Y_bern, exog=X, family=sm.families.Binomial()).fit()
         bern_params = bern_mod.params
         bern_cov = fill_diag((g/(1+g))*bern_mod.cov_params())
     except:
@@ -155,14 +190,32 @@ def define_bern_params(Y, X=None):
     return bern_params, bern_cov, p
 
 
+def define_bin_params(Y, n, X=None):
+    n_obs = len(Y)
+    p = ncol(X)
+
+    g = max(2, int(n_obs / 2))
+    try:
+        bin_mod = sm.GLM(endog=np.c_[Y, n], exog=X, family=sm.families.Binomial()).fit()
+        bin_params = bin_mod.params
+        bin_cov = fill_diag((g/(1+g))*bin_mod.cov_params())
+    except:
+        if np.sum(Y) > 0:
+            binmean = np.sum(Y) / np.sum(n)
+            binmean = np.log(binmean / (1 - binmean))
+            bin_params = np.zeros(p)
+            bin_params[0] = binmean
+        else:
+            bin_params = np.zeros(p)
+            bin_params[0] = np.max([-3, -np.sum(n)])
+        bin_cov = np.identity(p)
+
+    return bin_params, bin_cov, p
+
+
 def define_pois_params(Y, X=None):
     n = len(Y)
-    p = 1 + ncol(X)
-
-    if X is None:
-        X = np.ones([n, 1])
-    else:
-        X = np.c_[np.ones([n, 1]), X]
+    p = ncol(X)
 
     g = max(2, int(n/2))
     try:

@@ -51,7 +51,6 @@ def plot_coef(fig, ax, coef, dates, linewidth=1, linecolor=None, legend_inside_p
 
 def plot_corr(fig, ax, corr, labels=None):
     ax = sns.heatmap(corr, vmin=-1, vmax=1, center=0,
-                       # mask=np.zeros_like(cor, dtype=np.bool),
                        cmap=sns.diverging_palette(10, 240, as_cmap=True),
                        cbar=True,
                        square=True, ax=ax,
