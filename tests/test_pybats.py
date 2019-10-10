@@ -3,6 +3,7 @@ import sys
 
 sys.path.insert(0,'../')
 from pybats.dglm import dlm, pois_dglm, bern_dglm, bin_dglm
+from pybats.analysis import analysis
 
 
 def test_update():
@@ -57,7 +58,6 @@ def test_update():
     ans = np.array([-1.00331466e-04,  1.11099963])
     assert (np.equal(np.round(ans, 5), np.round(mod_bern.R[0:2, 1], 5)).all())
 
-
 def test_forecast_marginal():
     a0 = np.array([1, 1, 1])
     R0 = np.eye(3)
@@ -91,7 +91,7 @@ def test_forecast_marginal():
     assert (np.equal(np.round(ans[0], 5), np.round(m_bern, 5)).all())
 
 
-def test_forecast_path_copula():
+def test_forecast_path():
     a0 = np.array([1, 1, 1])
     R0 = np.eye(3)/10
     mod_p = pois_dglm(a0, R0, ntrend=2, nregn=1, deltrend=1, delregn=.9)
@@ -109,3 +109,33 @@ def test_forecast_path_copula():
     samps_path = mod_p.forecast_path(k = 2, X=X, nsamps=2000, copula=False)
     m_samp = samps_path.mean(axis=0)
     assert (np.equal(np.round(m_samp - m_marg, 0), np.zeros(2)).all())
+
+
+def test_analysis():
+    n = 10
+    nsamps = 20000
+    Y_bern = np.array([1,1,1,0,0,0,1,0,1,0])
+    Y_pois = np.array([3,4,5,6,7,6,5,4,3,0])
+    Y_normal = np.array([-0.89869204, -0.05157582, -0.8791316 ,  0.68601364,  0.81527565,
+        1.39849476,  0.82644302,  0.45728248,  0.24817863, -0.50030532])
+    n_bin = np.array([10]*(n+1))
+
+
+    mod_b, samples = analysis(Y_bern, X=None, k=1, forecast_start=n, forecast_end=n, nsamps=nsamps, family='bernoulli', prior_length=5,
+                        ret=['model', 'forecast'])
+    assert(np.abs(1/(1+np.exp(-mod_b.a[0,0])) - samples.mean()) < 0.01)
+
+    mod_p, samples = analysis(Y_pois, X=None, k=1, forecast_start=n, forecast_end=n, nsamps=nsamps,
+                                 family='poisson', prior_length=5,
+                                 ret=['model', 'forecast'])
+    assert (np.abs(np.exp(mod_p.a[0,0]) - samples.mean()) < 0.1)
+
+    mod_n, samples = analysis(Y_normal, X=None, k=1, forecast_start=n, forecast_end=n, nsamps=nsamps,
+                                 family='normal', prior_length=5,
+                                 ret=['model', 'forecast'])
+    assert (np.abs(mod_n.a[0, 0] - samples.mean()) < 0.1)
+
+    mod_bin, samples = analysis(Y=Y_pois, n=n_bin, X=None, k=1, forecast_start=n, forecast_end=n, nsamps=nsamps,
+                              family='binomial', prior_length=5,
+                              ret=['model', 'forecast'])
+    assert(np.abs((1/(1+np.exp(-mod_bin.a[0,0])))*n_bin[-1] - samples.mean()) < 0.1)
