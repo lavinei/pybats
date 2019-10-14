@@ -40,11 +40,11 @@ We use the *analysis* function as a helper to a) define the model b) Run sequent
 from pybats.analysis import analysis
 
 mod, samples = analysis(Y, X, family="poisson",
-forecast_start = forecast_start,    # First time step to forecast on
+forecast_start=forecast_start,    # First time step to forecast on
 forecast_end=forecast_end,          # Final time step to forecast on
-k = k,                              # Forecast horizon. If k>1, default is to forecast 1:k steps ahead, marginally
+k=k,                              # Forecast horizon. If k>1, default is to forecast 1:k steps ahead, marginally
 prior_length=6,                     # How many data point to use in defining prior
-rho = .5,                           # Random effect extension, increases variance of Poisson DGLM (see Berry and West, 2019)
+rho=.5,                           # Random effect extension, increases variance of Poisson DGLM (see Berry and West, 2019)
 deltrend=0.95,                      # Discount factor on the trend component (intercept)
 delregn=0.95                        # Discount factor on the regression component
 )
