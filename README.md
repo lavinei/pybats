@@ -62,7 +62,8 @@ forecast = median(samples)                                  # Take the median as
 fig, ax = plt.subplots(1,1)                                 # Plot the 1-step ahead point forecast plus the 95% credible interval
 ax = plot_data_forecast(fig, ax, Y[forecast_start:forecast_end + k], forecast, samples,
                         dates=np.arange(forecast_start, forecast_end+1, dtype='int'))
-ax = ax_style(ax, ylabel='Sales', xlabel='Time', xlim=[forecast_start, forecast_end])
+ax = ax_style(ax, ylabel='Sales', xlabel='Time', xlim=[forecast_start, forecast_end],
+              legend=['Forecast', 'Sales', 'Credible Interval'])
 plt.savefig('./forecast.jpg')
 ```
 
