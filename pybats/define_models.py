@@ -113,6 +113,10 @@ def define_dglm(Y, X, family="normal", n=None,
                   adapt_discount=adapt_discount,
                   discount_forecast = discount_forecast)
     elif family == "poisson":
+        if kwargs.get('rho') is not None:
+            rho = kwargs.get('rho')
+        else:
+            rho = 1
         mod = pois_dglm(a0=a0, R0=R0,
                         nregn=nregn,
                         ntrend=ntrend,
@@ -122,7 +126,8 @@ def define_dglm(Y, X, family="normal", n=None,
                         deltrend=deltrend, delregn=delregn,
                         delseas=delseas, delhol=delhol,
                         adapt_discount=adapt_discount,
-                        discount_forecast = discount_forecast)
+                        discount_forecast = discount_forecast,
+                        rho = rho)
     elif family == "bernoulli":
         mod = bern_dglm(a0=a0, R0=R0,
                         nregn=nregn,

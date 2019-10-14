@@ -70,6 +70,9 @@ def analysis(Y, X, k, forecast_start, forecast_end,
     # Create dummy variable if there are no regression covariates
     if X is None:
         X = np.array([None]*T).reshape(-1,1)
+    else:
+        if len(X.shape) == 1:
+            X = X.reshape(-1,1)
 
     # Initialize updating + forecasting
     horizons = np.arange(1, k + 1)

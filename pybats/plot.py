@@ -1,6 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
-from datetime import datetime
+from datetime import datetime, date
 import seaborn as sns
 from pandas.plotting import register_matplotlib_converters
 register_matplotlib_converters()
@@ -18,7 +18,7 @@ def plot_data_forecast(fig, ax, y, f, samples, dates, linewidth=1, linecolor='b'
     ax = ax_style(ax, **kwargs)
 
     # If dates are actually dates, then format the dates on the x-axis
-    if isinstance(dates[0], datetime):
+    if isinstance(dates[0], (datetime, date)):
         fig.autofmt_xdate()
 
     return ax
@@ -32,7 +32,7 @@ def plot_coef(fig, ax, coef, dates, linewidth=1, linecolor=None, legend_inside_p
             ax.plot(dates, coef, linewidth=linewidth)
 
         # If dates are actually dates, then format the dates on the x-axis
-        if isinstance(dates[0], datetime):
+        if isinstance(dates[0], (datetime, date)):
             fig.autofmt_xdate()
 
         ax = ax_style(ax, legend_inside_plot=legend_inside_plot, **kwargs)
@@ -78,8 +78,8 @@ def ax_style(ax, ylim=None, xlim=None, xlabel=None, ylabel=None, title=None,
     if title is not None: ax.set_title(title)
 
     # remove the top and right borders
-    ax.spines['top'].set_visible(False)
-    ax.spines['right'].set_visible(False)
+    ax.spines['top'].set_visible(topborder)
+    ax.spines['right'].set_visible(rightborder)
 
     plt.tight_layout()
 
