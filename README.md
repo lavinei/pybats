@@ -20,12 +20,16 @@ import numpy as np
 from pybats.shared import load_sales_example
 
 data = load_sales_example()                                 # Load example sales and advertising data. Source: Abraham & Ledolter (1983)
-print(data[:5])
 ```
+| Sales | Advertising |
+|-------|-------------|
+| 15    | 12.0        |
+| 16    | 20.5        |
+| 18    | 21.0        |
 
-Second, we extract the outcome ($Y$) and covariate ($X$) from this dataset. We'll set the forecast horizon $k=1$ for this example. We could look at multiple forecast horizons by setting $k$ to a larger value. Then the 'analysis' function will automatically perform marginal forecasts across horizons $1:k$.
+Second, we extract the outcome (_Y_) and covariate (_X_) from this dataset. We'll set the forecast horizon _k=1_ for this example. We could look at multiple forecast horizons by setting k to a larger value. Then the 'analysis' function will automatically perform marginal forecasts across horizons _1:k_.
 
-Finally, we set the start and end time for forecasting. In this case we specify the start and end date with intergers, because there are no dates associated with this dataset.
+Finally, we set the start and end time for forecasting. In this case we specify the start and end date with integers, because there are no dates associated with this dataset.
 ```
 Y = data['Sales'].values
 X = data['Advertising'].values
@@ -35,7 +39,7 @@ forecast_start = 15                                         # Start forecast at 
 forecast_end = 35                                           # End forecast at time step 35 (final time step)
 ```
 
-We use the *analysis* function as a helper to a) define the model b) Run sequential updating (forward filtering) and c) forecasting. By default, it will return samples from the forecast distribution as well as the model after the final observation.
+We use the _analysis_ function as a helper to a) define the model b) Run sequential updating (forward filtering) and c) forecasting. By default, it will return samples from the forecast distribution as well as the model after the final observation.
 ```
 from pybats.analysis import analysis
 
@@ -50,7 +54,7 @@ delregn=0.95                        # Discount factor on the regression componen
 )
 ```
 
-The model has the posterior mean and variance of the state vector stored as ```mod.a``` and ```mod.C``` respectively.  In this example, we are purely interested in the forecasts. We'll take the median as the point forecast, and also plot the $95\%$ credible interval.
+The model has the posterior mean and variance of the state vector stored as ```mod.a``` and ```mod.C``` respectively.  In this example, we are purely interested in the forecasts. We plot the sales, median forecast, and 95\% credible interval.
 ```
 import matplotlib.pyplot as plt
 from pybats.point_forecast import median
@@ -68,7 +72,7 @@ plt.savefig('./forecast.jpg')
 ```
 
 The resulting forecast image is:
-![forecast](examples/forecast.jpg "1-step Forecasts and Credible Intervals")
+![forecast](https://raw.githubusercontent.com/lavinei/pybats/master/examples/forecast.jpg?token=AFB5IUD5IC6S34A4VJM7MT25VYLZQ "1-step Forecasts and Credible Intervals")
 
 References:
 1. Berry, L., West, M., 2018. Bayesian forecasting of many count-valued time series. Submitted for publication. ArXiv:1805.05232
