@@ -194,8 +194,14 @@ class dglm:
     def forecast_marginal(self, k, X=None, nsamps=1, mean_only=False, state_mean_var=False):
         return forecast_marginal(self, k, X, nsamps, mean_only, state_mean_var)
 
-    def forecast_path(self, k, X=None, nsamps=1, **kwargs):
-        return forecast_path(self, k, X, nsamps)
+    def forecast_path(self, k, X=None, nsamps=1, copula=True, **kwargs):
+        if copula:
+            return forecast_path_copula(self, k, X, nsamps, **kwargs)
+        else:
+            return forecast_path(self, k, X, nsamps)
+
+    def forecast_path_copula(self, k, X=None, nsamps=1, **kwargs):
+        return forecast_path_copula(self, k, X, nsamps, **kwargs)
 
     def forecast_state_mean_and_var(self, k, X = None):
         return forecast_state_mean_and_var(self, k, X)
