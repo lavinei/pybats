@@ -11,7 +11,7 @@
    :maxdepth: 2
    :caption: Contents:
 
-   includeme
+   examples
 
 
 
