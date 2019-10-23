@@ -16,5 +16,5 @@ setup(
         "Operating System :: OS Independent",
     ], install_requires=['pandas', 'numpy', 'statsmodels', 'scipy'],
     package_dir={'pybats': 'pybats'},
-    package_data={'pybats': ['pkg_data/*.pickle.gzip', 'pkg_data/sales.csv']}
+    package_data={'pybats': ['pkg_data/*.pickle.gzip', 'pkg_data/sales.csv', 'pkg_data/*']}
 )

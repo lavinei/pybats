@@ -51,4 +51,8 @@ def cov2corr(cov):
 
 def load_sales_example():
     data_dir = os.path.dirname(os.path.abspath(__file__)) + '/pkg_data/'
-    return pd.read_csv(data_dir + 'sales.csv')
+    return pd.read_csv(data_dir + 'sales.csv', index_col=0)
+
+def load_sales_example2():
+    data_dir = os.path.dirname(os.path.abspath(__file__)) + '/pkg_data/'
+    return pd.read_pickle(data_dir + 'sim_sales_data')

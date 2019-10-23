@@ -4,7 +4,7 @@ import scipy as sc
 from collections.abc import Iterable
 from .seasonal import seascomp, createFourierToSeasonalL
 from .update import update, update_dlm, update_bindglm
-from .forecast import forecast_marginal, forecast_path, forecast_path_copula,\
+from .forecast import forecast_marginal, forecast_path,\
     forecast_marginal_bindglm, forecast_path_dlm, forecast_state_mean_and_var
 from .conjugates import trigamma, bern_conjugate_params, bin_conjugate_params, pois_conjugate_params
 
@@ -194,14 +194,8 @@ class dglm:
     def forecast_marginal(self, k, X=None, nsamps=1, mean_only=False, state_mean_var=False):
         return forecast_marginal(self, k, X, nsamps, mean_only, state_mean_var)
 
-    def forecast_path(self, k, X=None, nsamps=1, copula=True, **kwargs):
-        if copula:
-            return forecast_path_copula(self, k, X, nsamps, **kwargs)
-        else:
-            return forecast_path(self, k, X, nsamps)
-
-    def forecast_path_copula(self, k, X=None, nsamps=1, **kwargs):
-        return forecast_path_copula(self, k, X, nsamps, **kwargs)
+    def forecast_path(self, k, X=None, nsamps=1, **kwargs):
+        return forecast_path(self, k, X, nsamps)
 
     def forecast_state_mean_and_var(self, k, X = None):
         return forecast_state_mean_and_var(self, k, X)

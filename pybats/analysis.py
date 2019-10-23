@@ -60,8 +60,8 @@ def analysis(Y, X, k, forecast_start, forecast_end,
     T = np.min([len(Y), forecast_end]) + 1
 
     if ret.__contains__('model_coef'):
-        m = np.zeros(T, mod.p)
-        C = np.zeros(T, mod.p, mod.p)
+        m = np.zeros([T, mod.a.shape[0]])
+        C = np.zeros([T, mod.a.shape[0], mod.a.shape[0]])
         if family == 'normal':
             n = np.zeros(T)
             s = np.zeros(T)
@@ -109,7 +109,7 @@ def analysis(Y, X, k, forecast_start, forecast_end,
                 mod.update(y=Y[t], X=X[t])
 
             if ret.__contains__('model_coef'):
-                m[t,:] = mod.m
+                m[t,:] = mod.m.reshape(-1)
                 C[t,:,:] = mod.C
                 if family == 'normal':
                     n[t] = mod.n / mod.delVar

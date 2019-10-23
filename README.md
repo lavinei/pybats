@@ -44,11 +44,11 @@ We use the _analysis_ function as a helper to a) define the model b) Run sequent
 from pybats.analysis import analysis
 
 mod, samples = analysis(Y, X, family="poisson",
-forecast_start=forecast_start,    # First time step to forecast on
+forecast_start=forecast_start,      # First time step to forecast on
 forecast_end=forecast_end,          # Final time step to forecast on
-k=k,                              # Forecast horizon. If k>1, default is to forecast 1:k steps ahead, marginally
+k=k,                                # Forecast horizon. If k>1, default is to forecast 1:k steps ahead, marginally
 prior_length=6,                     # How many data point to use in defining prior
-rho=.5,                           # Random effect extension, increases variance of Poisson DGLM (see Berry and West, 2019)
+rho=.5,                             # Random effect extension, increases variance of Poisson DGLM (see Berry and West, 2019)
 deltrend=0.95,                      # Discount factor on the trend component (intercept)
 delregn=0.95                        # Discount factor on the regression component
 )
@@ -74,10 +74,18 @@ plt.savefig('./forecast.jpg')
 The resulting forecast image is:
 ![forecast](https://raw.githubusercontent.com/lavinei/pybats/master/examples/forecast.jpg?token=AFB5IUD5IC6S34A4VJM7MT25VYLZQ "1-step Forecasts and Credible Intervals")
 
-References:
+**References:**
 1. Berry, L., West, M., 2018. Bayesian forecasting of many count-valued time series. Submitted for publication. ArXiv:1805.05232
 
 2. Berry, L., Helman, P., West, M., 2018. Probabilistic forecasting of heterogeneous consumer transaction-sales time series. Submitted for publication. arXiv:1808.04698
 
 3. West, M., Harrison, J., 1997. Bayesian Forecasting and Dynamic Models, 2nd Edition. Springer-Verlag,
 New York, Inc.
+
+**Acknowledgements:**
+
+PyBATS was developed with support from [84.51](https://www.8451.com).
+
+**Contributors:**
+
+[Isaac Lavine](https://lavinei.github.io/), Andrew Cron

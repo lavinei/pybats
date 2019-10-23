@@ -10,7 +10,7 @@ def define_dglm(Y, X, family="normal", n=None,
                 deltrend = .995, delregn =.995, delseas = .999, delVar = 0.999, delhol=1,
                 n0 = 1, s0 = 1,
                 a0=None, R0=None,
-                adapt_discount=False, discount_forecast=False,
+                adapt_discount='info', discount_forecast=False,
                 prior_length=None, return_aR=False,
                 **kwargs):
     """
