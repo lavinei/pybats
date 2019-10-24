@@ -14,7 +14,7 @@ setup(
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
-    ], install_requires=['pandas', 'numpy', 'statsmodels', 'scipy'],
+    ], install_requires=['pandas', 'numpy', 'statsmodels', 'scipy', 'matplotlib', 'seaborn'],
     package_dir={'pybats': 'pybats'},
     package_data={'pybats': ['pkg_data/*.pickle.gzip', 'pkg_data/sales.csv', 'pkg_data/*']}
 )
