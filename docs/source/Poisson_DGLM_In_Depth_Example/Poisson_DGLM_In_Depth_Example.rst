@@ -83,33 +83,33 @@ Load in the data
       <tbody>
         <tr>
           <td>2014-06-01</td>
-          <td>6.0</td>
-          <td>-0.03</td>
+          <td>16.0</td>
+          <td>0.10</td>
           <td>0.0</td>
         </tr>
         <tr>
           <td>2014-06-02</td>
-          <td>10.0</td>
-          <td>0.14</td>
-          <td>0.0</td>
+          <td>6.0</td>
+          <td>-0.12</td>
+          <td>1.0</td>
         </tr>
         <tr>
           <td>2014-06-03</td>
-          <td>8.0</td>
-          <td>-0.09</td>
-          <td>0.0</td>
+          <td>11.0</td>
+          <td>0.06</td>
+          <td>1.0</td>
         </tr>
         <tr>
           <td>2014-06-04</td>
-          <td>6.0</td>
-          <td>-0.13</td>
+          <td>11.0</td>
+          <td>0.09</td>
           <td>0.0</td>
         </tr>
         <tr>
           <td>2014-06-05</td>
-          <td>10.0</td>
-          <td>-0.05</td>
-          <td>0.0</td>
+          <td>18.0</td>
+          <td>0.09</td>
+          <td>1.0</td>
         </tr>
       </tbody>
     </table>
@@ -230,8 +230,8 @@ You’re probably wondering: How accurate are those point forecasts?
 
 .. parsed-literal::
 
-    2.35658153242
-    36.2635365406
+    2.86935166994
+    43.2259680035
 
 
 The first loss function is the Mean Absolute Deviation (MAD). Note that
@@ -248,7 +248,7 @@ sales data either! The median is not the optimal forecast to minimize
 ZAPE, but it’s a simple and easy point forecast to obtain.
 
 Okay, now let’s zoom in to just the final 60 days of forecasting, to a
-more detail picture of our online, sequential forecasts:
+more detailed picture of our online, sequential forecasts:
 
 .. code::
 
@@ -288,11 +288,13 @@ seasonal coefficients, using the ‘mod.iseas’ property to get the indices
 for the seasonal components.
 
 Then, we transform these harmonic seasonal components into interpretable
-coefficients for the 7 days of the week.
+coefficients for the 7 days of the week. For more details on this
+process, look at *Bayesian Forecasting and Dynamic Models* by Harrison
+and West, Chapter 8.
 
 .. code::
 
-    harm_post_mean = coef['m'][:,mod.iseas[0]]
+    harm_post_mean = model_coef['m'][:,mod.iseas[0]]
     dow_post_mean = mod.L[0] @ harm_post_mean.T
 
 Next, we’ll align these 7 components with the days of the week, and plot
@@ -321,8 +323,9 @@ that day.
 
 .. code::
 
+    start_day = 200    # Only starting to plot after model has learned the day-of-week effect
     fig, ax = plt.subplots(1,1)
-    ax = plot_coef(fig, ax, dow_post_mean_plot, dates=data.loc[:forecast_end].index, legend=days)
+    ax = plot_coef(fig, ax, dow_post_mean_plot.iloc[start_day:], dates=data.iloc[start_day:].loc[:forecast_end].index, legend=days)
 
 .. code::
 
@@ -333,11 +336,9 @@ that day.
 .. image:: output_29_0.png
 
 
-Okay, now this is interesting! First, we can see it takes a while for
-the model to learn the day-of-week effects. Once they stabilize, we have
-a few clear takeaways:
+Okay, now this is interesting! We have a few clear takeaways:
 
--  Saturday and Sunday have the highest sales, followed by Friday
+-  Saturday and Sunday have the highest sales
 -  Monday through Thursday all have very similar sales, with
    coefficients between -0.1 to -0.2.
 
@@ -367,7 +368,7 @@ above:
 .. code::
 
     fig, ax = plt.subplots(1,1)
-    ax = plot_coef(fig, ax, np.exp(dow_post_mean_plot), dates=data.loc[:forecast_end].index, legend=days)
+    ax = plot_coef(fig, ax, np.exp(dow_post_mean_plot)[start_day:], dates=data.iloc[start_day:].loc[:forecast_end].index, legend=days)
 
 .. code::
 
@@ -380,20 +381,21 @@ above:
 
 Perfect, this is very clear! A multiplicative seasonal effect of 1 has
 no effect on Sales. Anything larger than 1 boosts sales, and smaller
-than 1 reduces them.
+than 1 reduces them. Looking at the end of the time period, we can say:
 
 -  Saturday and Sunday have around 30-40% higher sales than the average
-   day, and Friday has around 10% higher sales.
+   day.
 -  Monday-Thursday all have between 10-20% lower sales than the average
    day.
+-  Friday lands in the middle, with approximately average sales.
 
 The long term trends look fairly stable, which is natural - shopping
 habits change slowly over time. Part of that also comes from our model
-definition. The discount factor on the seasonality is very close to 1,
-so we discount historical information very slowly. If we believed that
-these trends changed more rapidly over time, we could re-run the
-analysis with a lower discount factor, using the parameter *delseas* as
-an argument to the analysis function.
+definition. The discount factor on the seasonality component is very
+close to 1, so we discount historical information slowly. If we believed
+that these day-of-week effects changed more rapidly over time, we could
+re-run the analysis with a lower discount factor, using the parameter
+*delseas* as an argument to the analysis function.
 
 Conclusions
 ~~~~~~~~~~~
@@ -425,4 +427,3 @@ There’s plenty more that we could have explored here as well:
    future, and then taking a sum over each sample from the forecast
    distribution. This is known as *path forecasting*, and can be
    accomplished with the method *mod.path_forecast*.
-
