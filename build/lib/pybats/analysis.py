@@ -14,10 +14,30 @@ def analysis(Y, X, k, forecast_start, forecast_end,
              ret=['model', 'forecast'], mean_only = False,
              **kwargs):
     """
+    This is a helpful function to run a standard analysis. The function will:
+    1. Automatically initialize a DGLM
+    2. Run sequential updating
+    3. Forecast at each specified time step
+
+    This function has many arguments to specify the model components. Here's a simple example for a Poisson DGLM:
+
+    .. code::
+
+        mod, samples = analysis(Y, X, family="poisson",
+                                forecast_start=15,      # First time step to forecast on
+                                forecast_end=20,        # Final time step to forecast on
+                                k=1,                    # Forecast horizon. If k>1, default is to forecast 1:k steps ahead, marginally
+                                prior_length=6,         # Number of observations to use in defining prior
+                                rho=.5,                 # Random effect extension, increases variance of Poisson DGLM (see Berry and West, 2019)
+                                deltrend=0.95,          # Discount factor on the trend component (intercept)
+                                delregn=0.95            # Discount factor on the regression component
+                                )
+
+
     :param Y: Array of observations (n * 1)
     :param X: Array of covariates (n * p)
     :param k: forecast horizon (how many days ahead to forecast)
-    :param forecast_start: date or index value to start forecasting (beginning with 0)
+    :param forecast_start: date or index value to start forecasting (beginning with 0).
     :param forecast_end: date or index value to end forecasting
     :param family: Exponential family for Y. Options: 'normal', 'poisson', 'bernoulli', or 'binomial'
     :param nsamps: Number of forecast samples to draw
@@ -25,14 +45,15 @@ def analysis(Y, X, k, forecast_start, forecast_end,
     :param model_prior: A prespecified model of class DGLM
     :param prior_length: If model_prior is not given, a DGLM will be defined using the first 'prior_length' observations in Y, X.
     :param ntrend: Number of trend components in the model. 1 = local intercept , 2 = local intercept + local level
-    :param dates: Array of dates (n * 1)
+    :param dates: Array of dates (n * 1). Must be specified if forecast_start and forecast_end are dates.
     :param holidays: List of Holidays to be given a special indicator (from pandas.tseries.holiday)
     :param seasPeriods: A list of periods for seasonal effects (e.g. [7] for a weekly effect, where Y is daily data)
     :param seasHarmComponents: A list of lists of harmonic components for a seasonal period (e.g. [[1,2,3]] if seasPeriods=[7])
     :param ret: A list of values to return. Options include: ['model', 'forecast, 'model_coef']
     :param mean_only: True/False - return the mean only when forecasting, instead of samples?
     :param kwargs: Further key word arguments to define the model prior. Common arguments include discount factors deltrend, delregn, delseas, and delhol.
-    :return:
+
+    :return: Default is a list with [model, forecast_samples]. forecast_samples will have dimension (nsamps by forecast_length by k), where forecast_length is the number of time steps between forecast_start and forecast_end. The output can be customized with the 'ret' parameter, which is a list of values to return.
     """
 
     # Add the holiday indicator variables to the regression matrix

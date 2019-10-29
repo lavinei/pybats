@@ -83,33 +83,33 @@ Load in the data
       <tbody>
         <tr>
           <td>2014-06-01</td>
-          <td>16.0</td>
-          <td>0.10</td>
+          <td>15.0</td>
+          <td>1.11</td>
           <td>0.0</td>
         </tr>
         <tr>
           <td>2014-06-02</td>
-          <td>6.0</td>
-          <td>-0.12</td>
-          <td>1.0</td>
-        </tr>
-        <tr>
-          <td>2014-06-03</td>
-          <td>11.0</td>
-          <td>0.06</td>
-          <td>1.0</td>
-        </tr>
-        <tr>
-          <td>2014-06-04</td>
-          <td>11.0</td>
-          <td>0.09</td>
+          <td>13.0</td>
+          <td>2.19</td>
           <td>0.0</td>
         </tr>
         <tr>
-          <td>2014-06-05</td>
-          <td>18.0</td>
-          <td>0.09</td>
+          <td>2014-06-03</td>
+          <td>6.0</td>
+          <td>0.23</td>
+          <td>0.0</td>
+        </tr>
+        <tr>
+          <td>2014-06-04</td>
+          <td>2.0</td>
+          <td>-0.05</td>
           <td>1.0</td>
+        </tr>
+        <tr>
+          <td>2014-06-05</td>
+          <td>6.0</td>
+          <td>-0.14</td>
+          <td>0.0</td>
         </tr>
       </tbody>
     </table>
@@ -121,7 +121,7 @@ The simulated dataset contains daily sales of an item from June 1, 2014
 to June 1, 2018.
 
 -  The Price column represents percent change in price from the moving
-   average. So it’s centered at 0, and will react when a sale occurs.
+   average, so it’s centered at 0.
 -  Promotion is a 0-1 indicator for a specific sale or promotion on the
    item.
 
@@ -230,8 +230,8 @@ You’re probably wondering: How accurate are those point forecasts?
 
 .. parsed-literal::
 
-    2.86935166994
-    43.2259680035
+    2.72003929273
+    49.3051456543
 
 
 The first loss function is the Mean Absolute Deviation (MAD). Note that
