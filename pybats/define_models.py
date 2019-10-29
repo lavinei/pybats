@@ -14,6 +14,22 @@ def define_dglm(Y, X, family="normal", n=None,
                 prior_length=None, return_aR=False,
                 **kwargs):
     """
+    A helper function to define a DGLM.
+
+    This function is especially useful if you do not know how to specifify a prior mean and variance (a0, R0) for the state vector.
+
+    .. code::
+
+        mod = define_dglm(Y, X, family='poisson',       # Observation vector Y, regression predictors X, and the exponential family.
+                          prior_length=21,              # Number of observations to use in defining prior
+                          ntrend=1,                     # Number of 'trend' or polynomial components. 1=intercept (local level). 2=intercept and local slope.
+                          nhol=0,                       # Number of holiday indicators in the model. These are regression components.
+                          seasPeriods=[7],              # List of the periods of seasonal components. This includes a seasonal component with period 7, which is typical for day-of-week seasonality.
+                          seasHarmComponents=[[1,2,3]]  # List of harmonic components for each seasonal component. These components go up to period/2, rounded down. So we include the 1st, 2nd, and 3rd component for a seasonality with period 7.
+                          )
+
+    This function is called automatically within 'analysis' if a model prior is not specified.
+
     :param Y: Observation array used to define prior
     :param X: Predictor array used to define prior (includes indicator columns for holidays)
     :param ntrend: Number of trend components. 1 = Intercept only. 2 = Intercept + slope

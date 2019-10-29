@@ -1,4 +1,3 @@
-# These are for the general DGLM
 import numpy as np
 import scipy as sc
 from collections.abc import Iterable
@@ -15,6 +14,12 @@ from scipy import stats
 
 
 class dglm:
+    """
+    Core class of dynamic generalized linear models (DGLMs).
+
+    Children include Poisson, Bernoulli, and Binomial DGLMs, as well as the Normal DLM.
+    """
+    
     def __init__(self,
                  a0=None,
                  R0=None,
@@ -31,6 +36,7 @@ class dglm:
                  discount_forecast=False):
         """
         A Dynamic Generalized Linear Model (DGLM). Generic Class. Children include Poisson, Bernoulli, and Binomial DGLMs, as well as the Normal DLM.
+
         :param a0: Prior mean vector
         :param R0: Prior covariance matrix
         :param nregn: Number of regression components
@@ -189,12 +195,57 @@ class dglm:
         return component_discounts
 
     def update(self, y=None, X=None, **kwargs):
+        """
+        Update the DGLM state vector mean and covariance after observing 'y', with covariates 'X'.
+
+        >>> mod.update(y[t], X[t])
+
+        Posterior mean and covariance:
+
+        >>> [mod.m, mod.C]
+        
+        You can also access the state vector *prior* mean and variance for the next time step.
+        The state vector prior mean will be the same as the posterior mean. The variance will be larger, due to discounting.
+
+        >>> [mod.a, mod.R]
+
+
+        :param y: Observation
+        :param X: Regression variables
+        :return: No output; DGLM state vector is updated.
+        """
+
         update(self, y, X, **kwargs)
 
     def forecast_marginal(self, k, X=None, nsamps=1, mean_only=False, state_mean_var=False):
+        """
+        Simulate from the forecast distribution at time *t+k*.
+
+        >>> k = 1
+        >>> mod.forecast_marginal(k, X[t+k], nsamps=1000)
+
+        :param k: Forecast horizon (forecast at time *t+k*).
+        :param X: Regression variables at time *t+k*
+        :param nsamps: Number of samples to simulate from the forecast distribution.
+        :param mean_only: Bool. Return the forecast mean only? If True, no simulation is performed.
+        :param state_mean_var: Bool. Return the mean and variance of the linear predictor at time *t+k*? If True, no simulation is performed.
+        :return: Samples from the forecast distribution at time *t+k*
+        """
+
         return forecast_marginal(self, k, X, nsamps, mean_only, state_mean_var)
 
     def forecast_path(self, k, X=None, nsamps=1, **kwargs):
+        """
+        Simulate from the path forecast (the joint forecast) distribution from *1* to *k* steps ahead.
+
+        >>> k = 7
+        >>> mod.forecast_path(k, X[t+1:t+k+1], nsamps=1000)
+
+        :param k: Forecast horizon (forecast from time *t+1* to *t+k*)
+        :param X: Regression matrix shape *k* by *p*. Each row *h* has the regression variables for time *t+h*.
+        :param nsamps: Number of samples to simulate from the forecast distribution.
+        :return: Samples from the path (joint) forecast distribution from time *t+1* through time *t+k*
+        """
         return forecast_path(self, k, X, nsamps)
 
     def forecast_state_mean_and_var(self, k, X = None):
