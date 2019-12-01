@@ -137,38 +137,88 @@ def forecast_marginal_bindglm(mod, n, k, X=None, nsamps=1, mean_only=False):
     return mod.simulate(n, param1, param2, nsamps)
 
 
-def forecast_path_dlm(mod, k, X = None, nsamps = 1):
+def forecast_path_dlm(mod, k, X=None, nsamps=1, approx=True):
+    """
+    Forecast function for the k-step path
+    k: steps ahead to forecast
+    X: array with k rows for the future regression components
+    nsamps: Number of samples to draw from forecast distribution
+    """
 
-    samps = np.zeros([nsamps, k])
-    F = np.copy(mod.F)
+    if approx:
 
-    ## Initialize samples of the state vector and variance from the prior
-    v = 1.0 / np.random.gamma(shape = mod.n/2, scale = 2/(mod.n * mod.s[0]), size = nsamps)
-    thetas = list(map(lambda var: np.random.multivariate_normal(mean = mod.a.reshape(-1), cov = var/mod.s * mod.R, size = 1).T,
-                     v))
+        mean = np.zeros([k])
+        cov = np.zeros([k, k])
 
-    for i in range(k):
+        F = np.copy(mod.F)
 
-        # Plug in the correct F values
-        if mod.nregn > 0:
-            F = update_F(mod, X[i, :], F=F)
-        # if mod.nregn > 0:
-        #     F[mod.iregn] = X[i, :].reshape(mod.nregn,1)
+        Flist = [None for x in range(k)]
+        Rlist = [None for x in range(k)]
 
-        # mean
-        ft = np.array(list(map(lambda theta: F.T @ theta,
-                        thetas))).reshape(-1)
+        for i in range(k):
 
-        # Simulate from the sampling model
-        samps[:,i] = mod.simulate_from_sampling_model(ft, v, nsamps)
+            # Evolve to the prior at time t + i + 1
+            a, R = forecast_aR(mod, i + 1)
 
-        # Evolve the state vector and variance for the next timestep
-        v = v * np.random.beta(mod.delVar*mod.n/2, ((1-mod.delVar)*mod.n)/2, size=nsamps)
-        thetas = list(
-            map(lambda theta, var: theta + np.random.multivariate_normal(mean = np.zeros(theta.shape[0]), cov=var / mod.s * mod.W, size=1).T,
-                thetas, v))
+            Rlist[i] = R
 
-    return samps
+            # Plug in the correct F values
+            if mod.nregn > 0:
+                F = update_F(mod, X[i, :], F=F)
+
+            Flist[i] = np.copy(F)
+
+            # Find lambda mean and var
+            ft, qt = mod.get_mean_and_var(F, a, R)
+            mean[i] = ft
+            cov[i, i] = qt
+
+            # Find covariances with previous lambda values
+            for j in range(i):
+                # Covariance matrix between the state vector at times j, i, i > j
+                cov_ij = np.linalg.matrix_power(mod.G, i - j) @ Rlist[j]
+                # Covariance between lambda at times j, i
+                cov[j, i] = cov[i, j] = Flist[j].T @ cov_ij @ Flist[i]
+
+        return multivariate_t(mean, cov, mod.n, nsamps)
+
+    else:
+
+        samps = np.zeros([nsamps, k])
+        F = np.copy(mod.F)
+        p = len(F)
+
+        ## Initialize samples of the state vector and variance from the prior
+        v = 1.0 / np.random.gamma(shape=mod.n / 2, scale=2 / (mod.n * mod.s[0]), size=nsamps)
+        thetas = np.array(list(
+            map(lambda var: np.random.multivariate_normal(mean=mod.a.reshape(-1), cov=var / mod.s * mod.R, size=1).T,
+                v))).squeeze()
+
+        for i in range(k):
+
+            # Plug in the correct F values
+            if mod.nregn > 0:
+                F = update_F(mod, X[i, :], F=F)
+
+            # mean
+            ft = (thetas @ F).reshape(-1)
+
+            # Simulate from the sampling model
+            samps[:, i] = mod.simulate_from_sampling_model(ft, v, nsamps)
+
+            # Evolve the state vector and variance for the next timestep
+            if mod.discount_forecast:
+                v = v * np.random.beta(mod.delVar * mod.n / 2, ((1 - mod.delVar) * mod.n) / 2, size=nsamps)
+                thetas = np.array(list(
+                    map(lambda theta, var: mod.G @ theta + np.random.multivariate_normal(mean=np.zeros(p),
+                                                                                         cov=var / mod.s * mod.W,
+                                                                                         size=1),
+                        thetas, v))).squeeze()
+            else:
+                v = v
+                thetas = (mod.G @ thetas.T).T
+
+        return samps
 
 def multivariate_t(mean, scale, nu, nsamps):
     '''
