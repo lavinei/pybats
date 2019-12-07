@@ -28,6 +28,14 @@ def save(obj, filename):
 
 
 def define_holiday_regressors(X, dates, holidays=None):
+    """
+    Add columns to the predictor matrix X for a specified list of holidays
+
+    :param X: (Array) Predictor matrix without columns for the holidays
+    :param dates: Dates
+    :param holidays: (List) holidays
+    :return: Updated predictor matrix
+    """
     if X is None:
         n = len(dates)
     else:
@@ -46,13 +54,29 @@ def define_holiday_regressors(X, dates, holidays=None):
 
 
 def cov2corr(cov):
+    """
+    Transform a covariance matrix into correlation. Useful to understand the state vector correlation (mod.C)
+
+    :param cov: Covariance matrix
+    :return: Correlation matrix
+    """
     D = np.sqrt(cov.diagonal()).reshape(-1, 1)
     return cov / D / D.T
 
 def load_sales_example():
+    """
+    Read data for the first sales forecasting example
+
+    :return: A Pandas data frame
+    """
     data_dir = os.path.dirname(os.path.abspath(__file__)) + '/pkg_data/'
     return pd.read_csv(data_dir + 'sales.csv', index_col=0)
 
 def load_sales_example2():
+    """
+    Read data for the second sales forecasting example
+
+    :return: A Pandas data frame
+    """
     data_dir = os.path.dirname(os.path.abspath(__file__)) + '/pkg_data/'
     return pd.read_pickle(data_dir + 'sim_sales_data')

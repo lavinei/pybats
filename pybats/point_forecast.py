@@ -6,11 +6,27 @@ import numpy as np
 
 
 def mean(samps):
+    """
+    Return the mean point forecasts, given samples from the analysis function.
+
+    This forecast is theoretically optimal for minimizing mean squared error loss.
+
+    :param samps: Forecast samples, returned from the analysis function. Will have 3-dimensions (nsamps * time * forecast horizon)
+    :return: Array of mean forecasts. Will have dimension (time * forecast horizon)
+    """
     return np.mean(samps, axis=0)
 
 
 # Optimal for MAD or absolute deviation
 def median(samps):
+    """
+    Return the median point forecasts, given samples from the analysis function.
+
+    This forecast is theoretically optimal for minimizing mean absolute deviation loss.
+
+    :param samps: Forecast samples, returned from the analysis function. Will have 3-dimensions (nsamps * time * forecast horizon)
+    :return: Array of median forecasts. Will have dimension (time * forecast horizon)
+    """
     return np.median(samps, axis=0)
 
 
@@ -26,6 +42,14 @@ def weighted_quantile(samp, weights, quantile=0.5):
 
 # Optimal for APE. Always less than the median. Returns nan if some samples are 0.
 def m_one_median(samps):
+    """
+    Return the (-1)-median point forecasts, given samples from the analysis function.
+
+    This forecast is theoretically optimal for minimizing absolute percentage error loss.
+
+    :param samps: Forecast samples, returned from the analysis function. Will have 3-dimensions (nsamps * time * forecast horizon)
+    :return: Array of (-1)-median forecasts. Will have dimension (time * forecast horizon)
+    """
     def m_one_median(samp):
         nz = samp.nonzero()[0]
         weights = 1/samp[nz]

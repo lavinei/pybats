@@ -37,7 +37,7 @@ pybats\.plot module
 -------------------
 
 .. automodule:: pybats.plot
-    :members:
+    :members: plot_data_forecast, ax_style
     :undoc-members:
     :show-inheritance:
 
@@ -45,15 +45,7 @@ pybats\.point\_forecast module
 ------------------------------
 
 .. automodule:: pybats.point_forecast
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-pybats\.seasonal module
------------------------
-
-.. automodule:: pybats.seasonal
-    :members:
+    :members: mean, median, m_one_median
     :undoc-members:
     :show-inheritance:
 
@@ -61,23 +53,6 @@ pybats\.shared module
 ---------------------
 
 .. automodule:: pybats.shared
-    :members:
+    :members: cov2corr, define_holiday_regressors, load_sales_example, load_sales_example2
     :undoc-members:
     :show-inheritance:
-
-pybats\.update module
----------------------
-
-.. automodule:: pybats.update
-    :members:
-    :undoc-members:
-    :show-inheritance:
-    
-Module contents
----------------
-
-.. automodule:: pybats
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
