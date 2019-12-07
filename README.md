@@ -2,8 +2,14 @@
 
 PyBATS is a package for Bayesian time series modeling and forecasting. It is designed to be flexible, offering many options to customize the model form, prior, and forecast period. The focus of the package is the class Dynamic Generalized Linear Model ('dglm'). The supported DGLMs are Poisson, Bernoulli, Normal (a DLM), and Binomial. These models are based upon *Bayesian Forecasting and Dynamic Models*, by West and Harrison (1997).
 
-## Installation
-PyBATS is in development, and is currently hosted on [GitHub](https://github.com/lavinei/pybats). You can download and install from there:
+## Installation	
+PyBATS is hosted on _PyPI_ and can be installed with pip:
+
+```
+pip install pybats
+```
+
+The most recent development version is hosted on [GitHub](https://github.com/lavinei/pybats). You can download and install from there:
 
 ```
 $ git clone git@github.com:lavinei/pybats.git pybats
