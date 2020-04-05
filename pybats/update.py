@@ -60,7 +60,7 @@ def update(mod, y = None, X = None):
 def update_bindglm(mod, n=None, y=None, X=None):
 
     # If data is missing then skip discounting and updating, posterior = prior
-    if y is None or np.isnan(y) or n is None or n == 0:
+    if y is None or np.isnan(y) or n is None or np.isnan(n) or n == 0:
         mod.t += 1
         mod.m = mod.a
         mod.C = mod.R

@@ -1,3 +1,9 @@
+"""
+Core class of dynamic generalized linear models (DGLMs).
+
+The module also includes definitions for sub classes for poisson, bernoulli, and binomial DGLMs and standard dynamic linear models (DLMs).
+"""
+
 import numpy as np
 import scipy as sc
 from collections.abc import Iterable
@@ -19,7 +25,8 @@ class dglm:
 
     Children include Poisson, Bernoulli, and Binomial DGLMs, as well as the Normal DLM.
     """
-    
+
+
     def __init__(self,
                  a0=None,
                  R0=None,
@@ -30,6 +37,7 @@ class dglm:
                  seasHarmComponents=[],
                  deltrend=1, delregn=1,
                  delhol=1, delseas=1,
+                 rho=1,
                  interpolate=True,
                  adapt_discount=False,
                  adapt_factor=0.5,
@@ -49,9 +57,10 @@ class dglm:
         :param delhol: Discount factor on holiday components (currently deprecated)
         :param delseas: Discount factor on seasonal components
         :param interpolate: Whether to use interpolation for conjugate parameters (provides a computational speedup)
-        :param adapt_discount: What method of discount adaption. False = None, 'positive-regn' = only discount if regression information is available, 'info' = information based,\
+        :param adapt_discount: What method of discount adaption. False = None, 'positive_regn' = only discount if regression information is available, 'info' = information based,\
         :param adapt_factor: If adapt_discount='info', then a higher value adapt_factor leads to a quicker adaptation (with less discounting) on overly uncertain parameters
         :param discount_forecast: Whether to use discounting when forecasting
+        :return An object of class dglm
         """
 
         # Setting up trend F, G matrices
@@ -72,27 +81,28 @@ class dglm:
             Ftrend = np.array([1, 0]).reshape(-1, 1)
 
         # Setting up regression F, G matrices
+        self.iregn = list(range(i, i + nregn))
         if nregn == 0:
             Fregn = np.empty([0]).reshape(-1, 1)
             Gregn = np.empty([0, 0])
         else:
             Gregn = np.identity(nregn)
             Fregn = np.ones([nregn]).reshape(-1, 1)
-            self.iregn = list(range(i, i + nregn))
             i += nregn
 
         # Setting up holiday F, G matrices (additional regression indicators components)
+        self.ihol = list(range(i, i + nhol))
+        self.iregn.extend(self.ihol)  # Adding on to the self.iregn
         if nhol == 0:
             Fhol = np.empty([0]).reshape(-1, 1)
             Ghol = np.empty([0, 0])
         else:
             Ghol = np.identity(nhol)
             Fhol = np.ones([nhol]).reshape(-1, 1)
-            self.ihol = list(range(i, i + nhol))
-            self.iregn.extend(self.ihol)  # Adding on to the self.iregn
             i += nhol
 
         # Setting up seasonal F, G matrices
+        self.iseas = []
         if len(seasPeriods) == 0:
             Fseas = np.empty([0]).reshape(-1, 1)
             Gseas = np.empty([0, 0])
@@ -106,7 +116,6 @@ class dglm:
             Fseas = np.zeros([nseas]).reshape(-1, 1)
             Gseas = np.zeros([nseas, nseas])
             idx = 0
-            self.iseas = []
             for harmComponents in seasHarmComponents:
                 self.iseas.append(list(range(i, i + 2 * len(harmComponents))))
                 i += 2 * len(harmComponents)
@@ -126,15 +135,22 @@ class dglm:
         self.delhol = delhol
         self.delseas = delseas
 
+        # Random effect to inflate variance (if rho < 1)
+        self.rho = rho
+
         self.ntrend = ntrend
         self.nregn = nregn + nhol  # Adding on nhol
         self.nregn_exhol = nregn
         self.nhol = nhol
         self.nseas = nseas
 
+        self.adapt_discount = adapt_discount
+        self.k = adapt_factor
+
         # Set up discount matrix
         self.discount_forecast = discount_forecast
         Discount = self.build_discount_matrix()
+        self.Discount = Discount
 
         self.param1 = 2  # Random initial guess
         self.param2 = 2  # Random initial guess
@@ -143,13 +159,10 @@ class dglm:
         self.seasHarmComponents = seasHarmComponents
         self.F = F
         self.G = G
-        self.Discount = Discount
         self.a = a0.reshape(-1, 1)
         self.R = R0
         self.t = 0
         self.interpolate = interpolate
-        self.adapt_discount = adapt_discount
-        self.k = adapt_factor
         self.W = self.get_W()
 
     def build_discount_matrix(self, X=None):
@@ -162,7 +175,7 @@ class dglm:
         component_discounts = np.ones([p, p])
         i = 0 # this will be the offset of the current block
         for discount_pair, n in zip([('std', self.deltrend), ('regn', self.delregn),
-                                     ('regn', self.delhol),('std', self.delseas)],
+                                     ('hol', self.delhol),('std', self.delseas)],
                                     [self.ntrend, self.nregn_exhol, self.nhol, self.nseas]):
             discount_type, discount = discount_pair
             if n > 0:
@@ -177,9 +190,15 @@ class dglm:
                     component_discounts[i:(i+n), i:(i+n)] = discount
 
                 # overwrite with ones if doing the positive logic
-                if X is not None and self.adapt_discount == 'positive_regn' and discount_type == 'regn':
-                    # offset of the regression params
-                    regn_i = 0
+                if X is not None and self.adapt_discount == 'positive_regn' and (discount_type == 'regn' or discount_type == 'hol'):
+                    if not isinstance(X, Iterable):
+                        X = [X]
+
+                    if discount_type == 'regn':
+                        # offset of the regression params
+                        regn_i = 0
+                    elif discount_type == 'hol':
+                        regn_i = self.nregn_exhol
                     # look through the regression params and set that slice on the
                     # discount to 1 if 0
                     for j in range(n):
@@ -198,12 +217,14 @@ class dglm:
         """
         Update the DGLM state vector mean and covariance after observing 'y', with covariates 'X'.
 
+        Example usage:
+
         >>> mod.update(y[t], X[t])
 
         Posterior mean and covariance:
 
         >>> [mod.m, mod.C]
-        
+
         You can also access the state vector *prior* mean and variance for the next time step.
         The state vector prior mean will be the same as the posterior mean. The variance will be larger, due to discounting.
 
@@ -215,7 +236,7 @@ class dglm:
         :return: No output; DGLM state vector is updated.
         """
 
-        update(self, y, X, **kwargs)
+        update(self, y, X)
 
     def forecast_marginal(self, k, X=None, nsamps=1, mean_only=False, state_mean_var=False):
         """
@@ -252,7 +273,7 @@ class dglm:
         return forecast_state_mean_and_var(self, k, X)
 
     def get_mean_and_var(self, F, a, R):
-        mean, var = F.T @ a, F.T @ R @ F
+        mean, var = F.T @ a, F.T @ R @ F / self.rho
         return np.ravel(mean)[0], np.ravel(var)[0]
 
     def get_W(self, X=None):
@@ -270,11 +291,6 @@ class dglm:
 
 
 class bern_dglm(dglm):
-
-    def get_mean_and_var(self, F, a, R):
-        ft, qt = F.T @ a, F.T @ R @ F
-        ft, qt = ft.flatten()[0], qt.flatten()[0]
-        return ft, qt
 
     def get_conjugate_params(self, ft, qt, alpha_init, beta_init):
         # Choose conjugate prior, beta, and match mean & variance
@@ -328,13 +344,6 @@ class bern_dglm(dglm):
 
 
 class pois_dglm(dglm):
-
-    def __init__(self, *args, rho=1, **kwargs):
-        self.rho = rho
-        super().__init__(*args, **kwargs)
-
-    def get_mean_and_var(self, F, a, R):
-        return F.T @ a, F.T @ R @ F / self.rho
 
     def get_conjugate_params(self, ft, qt, alpha_init, beta_init):
         # Choose conjugate prior, gamma, and match mean & variance
@@ -406,12 +415,12 @@ class dlm(dglm):
         return mean + np.sqrt(var) * np.random.standard_t(self.n, size=[nsamps])
 
     def simulate_from_sampling_model(self, mean, var, nsamps):
-        return np.random.normal(mean, var, nsamps)
+        return np.random.normal(mean, np.sqrt(var), nsamps)
 
-    def update(self, y=None, X=None):
+    def update(self, y=None, X=None, **kwargs):
         update_dlm(self, y, X)
 
-    def forecast_path(self, k, X=None, nsamps=1):
+    def forecast_path(self, k, X=None, nsamps=1, **kwargs):
         return forecast_path_dlm(self, k, X, nsamps)
 
 class bin_dglm(dglm):

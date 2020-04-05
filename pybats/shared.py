@@ -36,21 +36,28 @@ def define_holiday_regressors(X, dates, holidays=None):
     :param holidays: (List) holidays
     :return: Updated predictor matrix
     """
-    if X is None:
-        n = len(dates)
-    else:
-        n = X.shape[0]
-    for holiday in holidays:
-        cal = AbstractHolidayCalendar()
-        cal.rules = [holiday]
-        x = np.zeros(n)
-        x[dates.isin(cal.holidays())] = 1
-        if X is None:
-            X = x
-        else:
-            X = np.c_[X, x]
+    if holidays is not None:
+        if len(holidays) > 0:
+            if X is None:
+                n = len(dates)
+            else:
+                n = X.shape[0]
 
-    return X
+            for holiday in holidays:
+                cal = AbstractHolidayCalendar()
+                cal.rules = [holiday]
+                x = np.zeros(n)
+                x[dates.isin(cal.holidays())] = 1
+                if X is None:
+                    X = x
+                else:
+                    X = np.c_[X, x]
+
+            return X
+        else:
+            return X
+    else:
+        return X
 
 
 def cov2corr(cov):

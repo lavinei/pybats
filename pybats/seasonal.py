@@ -1,5 +1,4 @@
 import numpy as np
-
 from .forecast import forecast_aR, forecast_R_cov
 
 

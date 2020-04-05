@@ -40,7 +40,7 @@ def weighted_quantile(samp, weights, quantile=0.5):
     return np.round((upper + lower) / 2)
 
 
-# Optimal for APE. Always less than the median. Returns nan if some samples are 0.
+# Optimal for APE. Always less than the median. Ignores samples that are 0.
 def m_one_median(samps):
     """
     Return the (-1)-median point forecasts, given samples from the analysis function.
@@ -55,6 +55,8 @@ def m_one_median(samps):
         weights = 1/samp[nz]
         norm = np.sum(weights)
         weights = weights/norm
+        if len(nz) < 5:
+            print('hello')
         return weighted_quantile(samp[nz], weights)
 
     forecast = np.apply_along_axis(m_one_median, 0, samps)
@@ -63,7 +65,9 @@ def m_one_median(samps):
 
 
 # Here we get the joint one_median, where the rows are forecast samples
-# Assume that the forecast is 'joint' across the last dimension
+# Assume that the forecast is 'joint' across the second dimension
+# This is optimal for the WAPE loss, where the denominator in the WAPE score is the sum over the second dimension
+# If the forecast samples are from a standard analysis function, that will be the sum over all forecast dates
 def joint_m_one_median(samps):
 
     def joint_m_one_median(samp):
@@ -188,3 +192,36 @@ def constrained_joint_m_one_median(samps, F):
                              samps.transpose([1, 0, 2]),
                              F)))[:,0,:]
 
+
+# Optimal for ZAPE. Always less than the (-1)-median.
+def zape_point_estimate(samps):
+    """
+    Return the optimal point forecast for ZAPE loss, given samples from the analysis function.
+
+    This forecast is theoretically optimal for minimizing ZAPE loss, which is defined as:
+
+    .. math:: ZAPE(y, f) = \\frac{1}{n} \sum_{i=1:n} I(y_i = 0) * f_i + I(y_i = 1) * |y_i-f_i| / y_i
+
+    :param samps: Forecast samples, returned from the analysis function. Will have 3-dimensions (nsamps * time * forecast horizon)
+    :return: Array of (-1)-median forecasts. Will have dimension (time * forecast horizon)
+    """
+    def est_c_hat(samp):
+        nz = samp.nonzero()[0]
+        weights = 1/samp[nz]
+        c_hat = 1 / (1/len(nz) * np.sum(weights))
+        return c_hat
+
+    def zape_point_est(samp):
+        nz = samp.nonzero()[0]
+        pi_0 = len(nz) / len(samp) # probability of 0
+        weights = 1 / samp[nz]
+        norm = np.sum(weights)
+        weights = weights / norm
+        c_hat = est_c_hat(samp)
+        quantile = (1 - c_hat*pi_0)/2
+
+        return weighted_quantile(samp[nz], weights, quantile)
+
+    forecast = np.apply_along_axis(m_one_median, 0, samps)
+
+    return forecast

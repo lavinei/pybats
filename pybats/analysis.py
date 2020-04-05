@@ -11,7 +11,8 @@ def analysis(Y, X, k, forecast_start, forecast_end,
              model_prior = None, prior_length=20, ntrend=1,
              dates = None, holidays = [],
              seasPeriods = [], seasHarmComponents = [],
-             ret=['model', 'forecast'], mean_only = False,
+             ret=['model', 'forecast'],
+             mean_only = False, forecast_path = False,
              **kwargs):
     """
     This is a helpful function to run a standard analysis. The function will:
@@ -53,13 +54,12 @@ def analysis(Y, X, k, forecast_start, forecast_end,
     :param mean_only: True/False - return the mean only when forecasting, instead of samples?
     :param kwargs: Further key word arguments to define the model prior. Common arguments include discount factors deltrend, delregn, delseas, and delhol.
 
-    :return: Default is a list with [model, forecast_samples]. forecast_samples will have dimension (nsamps by forecast_length by k), where forecast_length is the number of time steps between forecast_start and forecast_end. The output can be customized with the 'ret' parameter, which is a list of values to return.
+    :return: Default is a list with [model, forecast_samples]. forecast_samples will have dimension (nsamps by forecast_length by k), where forecast_length is the number of time steps between forecast_start and forecast_end. The output can be customized with the 'ret' parameter, which is a list of objects to return.
     """
 
     # Add the holiday indicator variables to the regression matrix
     nhol = len(holidays)
-    if nhol > 0:
-        X = define_holiday_regressors(X, dates, holidays)
+    X = define_holiday_regressors(X, dates, holidays)
 
     if model_prior is None:
         mod = define_dglm(Y, X, family=family, n=n, prior_length=prior_length, ntrend=ntrend, nhol=nhol,
@@ -109,17 +109,20 @@ def analysis(Y, X, k, forecast_start, forecast_end,
                 print('beginning forecasting')
 
             if ret.__contains__('forecast'):
-                if family == "binomial":
-                    forecast[:, t - forecast_start, :] = np.array(list(map(
-                        lambda k, n, x:
-                        mod.forecast_marginal(k=k, n=n, X=x, nsamps=nsamps, mean_only=mean_only),
-                        horizons, n[t + horizons - 1], X[t + horizons - 1, :]))).squeeze().T.reshape(-1, k)  # .reshape(-1, 1)
+                if forecast_path:
+                    forecast[:, t - forecast_start, :] = mod.forecast_path(k=k, X = X[t + horizons - 1, :], nsamps=nsamps)
                 else:
-                    # Get the forecast samples for all the items over the 1:k step ahead marginal forecast distributions
-                    forecast[:, t - forecast_start, :] = np.array(list(map(
-                        lambda k, x:
-                        mod.forecast_marginal(k=k, X=x, nsamps=nsamps, mean_only=mean_only),
-                        horizons, X[t + horizons - 1, :]))).squeeze().T.reshape(-1, k)#.reshape(-1, 1)
+                    if family == "binomial":
+                        forecast[:, t - forecast_start, :] = np.array(list(map(
+                            lambda k, n, x:
+                            mod.forecast_marginal(k=k, n=n, X=x, nsamps=nsamps, mean_only=mean_only),
+                            horizons, n[t + horizons - 1], X[t + horizons - 1, :]))).squeeze().T.reshape(-1, k)  # .reshape(-1, 1)
+                    else:
+                        # Get the forecast samples for all the items over the 1:k step ahead marginal forecast distributions
+                        forecast[:, t - forecast_start, :] = np.array(list(map(
+                            lambda k, x:
+                            mod.forecast_marginal(k=k, X=x, nsamps=nsamps, mean_only=mean_only),
+                            horizons, X[t + horizons - 1, :]))).squeeze().T.reshape(-1, k)#.reshape(-1, 1)
 
 
         # Now observe the true y value, and update:

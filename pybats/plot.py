@@ -30,6 +30,8 @@ def plot_data_forecast(fig, ax, y, f, samples, dates, linewidth=1, linecolor='b'
     lower = np.percentile(samples, [alpha], axis=0).reshape(-1)
     ax.fill_between(dates, upper, lower, alpha=.3, color=linecolor)
 
+    if kwargs.get('xlim') is None:
+        kwargs.update({'xlim':[dates[0], dates[-1]]})
     ax = ax_style(ax, **kwargs)
 
     # If dates are actually dates, then format the dates on the x-axis

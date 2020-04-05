@@ -64,7 +64,6 @@ def MAPE(y, f):
     :param f: Point forecast vector
     :return: Mean absolute percent error (MAPE)
     """
-
     y = np.ravel(y)
     f = np.ravel(f)
     return 100*np.mean(np.abs((y - f)) / y)
@@ -89,6 +88,7 @@ def WAPE(y, f):
     :param f: Point forecast vector
     :return: Weighted absolute percent error (WAPE)
     """
+
     y = np.ravel(y)
     f = np.ravel(f)
     return 100*np.sum(np.abs(y-f)) / np.sum(y)
@@ -112,6 +112,7 @@ def WAFE(y, f):
     :param f: Point forecast vector
     :return: Weighted absolute forecast error (WAFE)
     """
+
     y = np.ravel(y)
     f = np.ravel(f)
     return 100*np.sum(np.abs(y-f)) / ((np.sum(y) + np.sum(f))/2)
@@ -136,6 +137,7 @@ def ZAPE(y, f):
     :param f: Point forecast vector
     :return: The mean Zero-Adjusted absolute percent error (ZAPE)
     """
+
     y = np.ravel(y)
     f = np.ravel(f)
     nonzeros = y.nonzero()[0]
