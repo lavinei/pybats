@@ -5,7 +5,3 @@ __pycache__/*
 *.pyc
 /dist/
 /*.egg-info
-.ipynb_checkpoints/
-*.ipynb_checkpoints
-.cache/
-build/
