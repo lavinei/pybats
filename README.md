@@ -84,10 +84,12 @@ The resulting forecast image is:
 
 **References:**
 
-1. West, M., Harrison, J., 1997. "Bayesian Forecasting and Dynamic Models", 2nd Edition. Springer-Verlag, New York, Inc
-2. Berry, L., and West, M. 2019. "Bayesian forecasting of many count-valued time series". **Journal of Business and Economic Statistics*
+1. West, M., Harrison, J., 1997. "Bayesian Forecasting and Dynamic Models", 2nd Edition. Springer-Verlag, New York, Inc.
+2. Berry, L., and West, M. 2019. "Bayesian forecasting of many count-valued time series". *Journal of Business and Economic Statistics*.
 
 
+
+**Acknowledgements**
 
 PyBATS was developed with support from [84.51](https://www.8451.com).
 
