@@ -7,9 +7,13 @@ The module also includes definitions for sub classes for poisson, bernoulli, and
 import numpy as np
 import scipy as sc
 from collections.abc import Iterable
+
+from .latent_factor_fxns import update_lf_analytic, update_lf_sample, forecast_marginal_lf_analytic, \
+    forecast_marginal_lf_sample, forecast_path_lf_copula, forecast_path_lf_sample, get_mean_and_var_lf, \
+    get_mean_and_var_lf_dlm, update_lf_analytic_dlm
 from .seasonal import seascomp, createFourierToSeasonalL
 from .update import update, update_dlm, update_bindglm
-from .forecast import forecast_marginal, forecast_path,\
+from .forecast import forecast_marginal, forecast_path, forecast_path_copula,\
     forecast_marginal_bindglm, forecast_path_dlm, forecast_state_mean_and_var
 from .conjugates import trigamma, bern_conjugate_params, bin_conjugate_params, pois_conjugate_params
 
@@ -32,10 +36,12 @@ class dglm:
                  R0=None,
                  nregn=0,
                  ntrend=0,
+                 nlf=0,
                  nhol=0,
                  seasPeriods=[],
                  seasHarmComponents=[],
                  deltrend=1, delregn=1,
+                 dellf=1,
                  delhol=1, delseas=1,
                  rho=1,
                  interpolate=True,
@@ -125,15 +131,28 @@ class dglm:
                 Gseas[idx:idx2, idx:idx2] = Gs
                 idx = idx2
 
+        # Setting up the latent factor F, G matrices
+        if nlf == 0:
+            self.latent_factor = False
+            Glf = np.empty([0, 0])
+            Flf = np.zeros([0]).reshape(-1, 1)
+        else:
+            self.latent_factor = True
+            Glf = np.identity(nlf)
+            Flf = np.ones([nlf]).reshape(-1, 1)
+            self.ilf = list(range(i, i + nlf))
+            i += nlf
+
         # Combine the F and G components together
-        F = np.vstack([Ftrend, Fregn, Fhol, Fseas])
-        G = sc.linalg.block_diag(Gtrend, Gregn, Ghol, Gseas)
+        F = np.vstack([Ftrend, Fregn, Fhol, Fseas, Flf])
+        G = sc.linalg.block_diag(Gtrend, Gregn, Ghol, Gseas, Glf)
 
         # store the discount info
         self.deltrend = deltrend
         self.delregn = delregn
         self.delhol = delhol
         self.delseas = delseas
+        self.dellf = dellf
 
         # Random effect to inflate variance (if rho < 1)
         self.rho = rho
@@ -143,6 +162,7 @@ class dglm:
         self.nregn_exhol = nregn
         self.nhol = nhol
         self.nseas = nseas
+        self.nlf = nlf
 
         self.adapt_discount = adapt_discount
         self.k = adapt_factor
@@ -155,6 +175,7 @@ class dglm:
         self.param1 = 2  # Random initial guess
         self.param2 = 2  # Random initial guess
 
+
         self.seasPeriods = seasPeriods
         self.seasHarmComponents = seasHarmComponents
         self.F = F
@@ -165,18 +186,18 @@ class dglm:
         self.interpolate = interpolate
         self.W = self.get_W()
 
-    def build_discount_matrix(self, X=None):
+    def build_discount_matrix(self, X=None, phi_mu=None):
         # build up discount factors while possibly taking special care to not discount when the "regn"
         # type factors are zero
 
         # do this all with matrix slicing which is much faster than the block diag
-        p = np.sum([self.ntrend, self.nregn_exhol, self.nhol, self.nseas])
+        p = np.sum([self.ntrend, self.nregn_exhol, self.nhol, self.nseas, self.nlf])
         # start with no discounting
         component_discounts = np.ones([p, p])
         i = 0 # this will be the offset of the current block
-        for discount_pair, n in zip([('std', self.deltrend), ('regn', self.delregn),
-                                     ('hol', self.delhol),('std', self.delseas)],
-                                    [self.ntrend, self.nregn_exhol, self.nhol, self.nseas]):
+        for discount_pair, n in zip([('std', self.deltrend), ('regn', self.delregn), ('hol', self.delhol),
+                                     ('std', self.delseas), ('lf', self.dellf)],
+                                    [self.ntrend, self.nregn_exhol, self.nhol, self.nseas, self.nlf]):
             discount_type, discount = discount_pair
             if n > 0:
                 if isinstance(discount, Iterable):
@@ -208,12 +229,24 @@ class dglm:
                             component_discounts[:, i + j] = 1.
                         regn_i += 1
 
+                if phi_mu is not None and self.adapt_discount == 'positive_regn' and discount_type == 'lf':
+                    # offset of the latent factor params
+                    lf_i = 0
+                    # look through the latent factor params and set that slice on the
+                    # discount to 1 if 0
+                    for j in range(n):
+                        if phi_mu[lf_i] == 0:
+                            # set all discounts to one (i offsets the block and j offsets the regn param)
+                            component_discounts[i + j, :] = 1.
+                            component_discounts[:, i + j] = 1.
+                        lf_i += 1
+
                 # move on to the next block
                 i += n
 
         return component_discounts
 
-    def update(self, y=None, X=None, **kwargs):
+    def update(self, y=None, X=None, phi_mu = None, phi_sigma = None, analytic=True, phi_samps=None, **kwargs):
         """
         Update the DGLM state vector mean and covariance after observing 'y', with covariates 'X'.
 
@@ -233,12 +266,26 @@ class dglm:
 
         :param y: Observation
         :param X: Regression variables
+        :param phi_mu: latent factor mean (for a latent factor DGLM only), required only if analytic=TRUE
+        :param phi_sigma: latent factor variacne (for a latent factor DGLM only), required only if analytic=TRUE
+        :param analytic: Boolean. Update method, for latent factor DGLM only
+        :param phi_samps: Samples of the latent factor, required only if analytic=FALSE
         :return: No output; DGLM state vector is updated.
         """
 
-        update(self, y, X)
+        if self.latent_factor:
+            if analytic:
+                update_lf_analytic(self, y, X, phi_mu, phi_sigma)
+            else:
+                parallel = kwargs.get('parallel')
+                if parallel is None: parallel = False
+                update_lf_sample(self, y, X, phi_samps, parallel)
+        else:
+            update(self, y, X)
 
-    def forecast_marginal(self, k, X=None, nsamps=1, mean_only=False, state_mean_var=False):
+    def forecast_marginal(self, k, X=None, nsamps=1, mean_only=False,
+                          phi_mu = None, phi_sigma=None, analytic=True, phi_samps=None,
+                          state_mean_var=False, y=None):
         """
         Simulate from the forecast distribution at time *t+k*.
 
@@ -249,13 +296,25 @@ class dglm:
         :param X: Regression variables at time *t+k*
         :param nsamps: Number of samples to simulate from the forecast distribution.
         :param mean_only: Bool. Return the forecast mean only? If True, no simulation is performed.
+        :param phi_mu: latent factor mean (for a latent factor DGLM only), required only if analytic=TRUE
+        :param phi_sigma: latent factor variacne (for a latent factor DGLM only), required only if analytic=TRUE
+        :param analytic: Boolean. Update method, for latent factor DGLM only
+        :param phi_samps: Samples of the latent factor, required only if analytic=FALSE
         :param state_mean_var: Bool. Return the mean and variance of the linear predictor at time *t+k*? If True, no simulation is performed.
         :return: Samples from the forecast distribution at time *t+k*
         """
 
-        return forecast_marginal(self, k, X, nsamps, mean_only, state_mean_var)
+        if self.latent_factor:
+            if analytic:
+                return forecast_marginal_lf_analytic(self, k, X, phi_mu, phi_sigma, nsamps, mean_only, state_mean_var)
+            else:
+                forecast_marginal_lf_sample(self, k, X, phi_samps, mean_only)
+        else:
+            return forecast_marginal(self, k, X, nsamps, mean_only, state_mean_var, y)
 
-    def forecast_path(self, k, X=None, nsamps=1, **kwargs):
+    def forecast_path(self, k, X=None, nsamps=1, copula=True,
+                      phi_mu=None, phi_sigma=None, phi_psi=None, analytic=True, phi_samps=None,
+                      **kwargs):
         """
         Simulate from the path forecast (the joint forecast) distribution from *1* to *k* steps ahead.
 
@@ -265,9 +324,45 @@ class dglm:
         :param k: Forecast horizon (forecast from time *t+1* to *t+k*)
         :param X: Regression matrix shape *k* by *p*. Each row *h* has the regression variables for time *t+h*.
         :param nsamps: Number of samples to simulate from the forecast distribution.
+        :param copula: Boolean. If True, use a copula to sample from the path forecast distribution (much faster).
+        :param phi_mu: latent factor mean (for a latent factor DGLM only), required only if analytic=TRUE
+        :param phi_sigma: latent factor variacne (for a latent factor DGLM only), required only if analytic=TRUE
+        :param analytic: Boolean. Update method, for latent factor DGLM only
+        :param phi_samps: Samples of the latent factor, required only if analytic=FALSE.
         :return: Samples from the path (joint) forecast distribution from time *t+1* through time *t+k*
         """
-        return forecast_path(self, k, X, nsamps)
+        if self.latent_factor:
+            if analytic:
+                return forecast_path_lf_copula(self, k, X, phi_mu, phi_sigma, phi_psi, nsamps, **kwargs)
+            else:
+                return forecast_path_lf_sample(self, k, X, phi_samps)
+        else:
+            if copula:
+                return forecast_path_copula(self, k, X, nsamps, **kwargs)
+            else:
+                return forecast_path(self, k, X, nsamps)
+
+    def forecast_path_copula(self, k, X=None, nsamps=1, **kwargs):
+        return forecast_path_copula(self, k, X, nsamps, **kwargs)
+
+    # Define specific update and forecast functions, which advanced users can access manually
+    def update_lf_sample(self, y=None, X=None, phi_samps=None, parallel=False):
+        update_lf_sample(self, y, X, phi_samps, parallel)
+
+    def update_lf_analytic(self, y=None, X=None, phi_mu=None, phi_sigma=None):
+        update_lf_analytic(self, y, X, phi_mu, phi_sigma)
+
+    def forecast_marginal_lf_analytic(self, k, X=None, phi_mu=None, phi_sigma=None, nsamps=1, mean_only=False, state_mean_var=False):
+        return forecast_marginal_lf_analytic(self, k, X, phi_mu, phi_sigma, nsamps, mean_only, state_mean_var)
+
+    def forecast_marginal_lf_sample(self, k, X=None, phi_samps=None, mean_only=False):
+        return forecast_marginal_lf_sample(self, k, X, phi_samps, mean_only)
+
+    def forecast_path_lf_copula(self, k, X=None, phi_mu=None, phi_sigma=None, phi_psi=None, nsamps=1, **kwargs):
+        return forecast_path_lf_copula(self, k, X, phi_mu, phi_sigma, phi_psi, nsamps, **kwargs)
+
+    def forecast_path_lf_sample(self, k, X=None, phi_samps=None, nsamps=1, **kwargs):
+        return forecast_path_lf_sample(self, k, X, phi_samps)
 
     def forecast_state_mean_and_var(self, k, X = None):
         return forecast_state_mean_and_var(self, k, X)
@@ -275,6 +370,9 @@ class dglm:
     def get_mean_and_var(self, F, a, R):
         mean, var = F.T @ a, F.T @ R @ F / self.rho
         return np.ravel(mean)[0], np.ravel(var)[0]
+
+    def get_mean_and_var_lf(self, F, a, R, phi_mu, phi_sigma, ilf):
+        return get_mean_and_var_lf(self, F, a, R, phi_mu, phi_sigma, ilf)
 
     def get_W(self, X=None):
         if self.adapt_discount == 'info':
@@ -405,6 +503,12 @@ class dlm(dglm):
     def get_mean_and_var(self, F, a, R):
         return F.T @ a, F.T @ R @ F + self.s
 
+    def get_mean_and_var_lf(self, F, a, R, phi_mu, phi_sigma, ilf):
+        ct = self.n / (self.n - 2)
+        ft, qt = get_mean_and_var_lf_dlm(F, a, R, phi_mu, phi_sigma, ilf, ct)
+        qt = qt + self.s
+        return ft, qt
+
     def get_mean(self, ft, qt):
         return np.ravel(ft)[0]
 
@@ -417,11 +521,26 @@ class dlm(dglm):
     def simulate_from_sampling_model(self, mean, var, nsamps):
         return np.random.normal(mean, np.sqrt(var), nsamps)
 
-    def update(self, y=None, X=None, **kwargs):
-        update_dlm(self, y, X)
+    def update(self, y=None, X=None, phi_mu=None, phi_sigma=None, analytic=True, phi_samps=None, **kwargs):
+        if self.latent_factor:
+            if analytic:
+                update_lf_analytic_dlm(self, y, X, phi_mu, phi_sigma)
+            else:
+                print('Sampled-based updating for the Latent Factor DLM is not yet implemented - please use analytic inference')
+        else:
+            update_dlm(self, y, X)
 
     def forecast_path(self, k, X=None, nsamps=1, **kwargs):
-        return forecast_path_dlm(self, k, X, nsamps)
+        if self.latent_factor:
+            print('Path forecasting for latent factor DLMs is not yet implemented')
+        else:
+            return forecast_path_dlm(self, k, X, nsamps)
+
+    def update_lf_analytic(self, y=None, X=None, phi_mu=None, phi_sigma=None):
+        update_lf_analytic_dlm(self, y, X, phi_mu, phi_sigma)
+        
+    def loglik(self, y, mean, var):
+        return stats.t.logpdf(y, df=self.n, loc=mean, scale=np.sqrt(var))
 
 class bin_dglm(dglm):
 

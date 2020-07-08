@@ -3,7 +3,7 @@ import numpy as np
 from scipy import stats
 from scipy.special import gamma
 
-from pybats.update import update_F
+from .update import update_F
 
 
 def forecast_aR(mod, k):
@@ -31,7 +31,7 @@ def forecast_R_cov(mod, k1, k2):
     return Gk @ Rk1
 
 
-def forecast_marginal(mod, k, X = None, nsamps = 1, mean_only = False, state_mean_var = False):
+def forecast_marginal(mod, k, X = None, nsamps = 1, mean_only = False, state_mean_var = False, y=None):
     """
     Forecast function k steps ahead (marginal)
     """
@@ -49,6 +49,9 @@ def forecast_marginal(mod, k, X = None, nsamps = 1, mean_only = False, state_mea
         
     # Choose conjugate prior, match mean and variance
     param1, param2 = mod.get_conjugate_params(ft, qt, mod.param1, mod.param2)
+    
+    if y is not None:
+        return mod.loglik(y, param1, param2)
     
     if mean_only:
         return mod.get_mean(param1, param2)
@@ -110,6 +113,59 @@ def forecast_path(mod, k, X = None, nsamps = 1):
                 R = R + mod.W
 
     return samps
+
+
+def forecast_path_copula(mod, k, X = None, nsamps = 1, t_dist=False, y=None, nu=9, return_cov=False):
+    """
+    Forecast function for the k-step path
+    k: steps ahead to forecast
+    X: array with k rows for the future regression components
+    nsamps: Number of samples to draw from forecast distribution
+    """
+    
+    lambda_mu = np.zeros([k])
+    lambda_cov = np.zeros([k, k])
+    
+    F = np.copy(mod.F)
+                        
+    Flist = [None for x in range(k)]
+    Rlist = [None for x in range(k)]
+    
+    for i in range(k):
+
+        # Evolve to the prior at time t + i + 1
+        a, R = forecast_aR(mod, i+1)
+
+        Rlist[i] = R
+
+        # Plug in the correct F values
+        if mod.nregn > 0:
+            F = update_F(mod, X[i, :], F=F)
+        # if mod.nregn > 0:
+        #     F[mod.iregn] = X[i,:].reshape(mod.nregn,1)
+            
+        Flist[i] = np.copy(F)
+            
+        # Find lambda mean and var
+        ft, qt = mod.get_mean_and_var(F, a, R)
+        lambda_mu[i] = ft
+        lambda_cov[i,i] = qt
+        
+        # Find covariances with previous lambda values
+        for j in range(i):
+            # Covariance matrix between the state vector at times j, i, i > j
+            cov_ij = np.linalg.matrix_power(mod.G, i-j) @ Rlist[j]
+            # Covariance between lambda at times j, i
+            lambda_cov[j,i] = lambda_cov[i,j] = Flist[j].T @ cov_ij @ Flist[i]
+
+    if return_cov:
+        return lambda_cov
+
+    if y is not None:
+        return forecast_path_copula_density_MC(mod, y, lambda_mu, lambda_cov, t_dist, nu, nsamps)
+    else:
+        return forecast_path_copula_sim(mod, k, lambda_mu, lambda_cov, nsamps, t_dist, nu)
+
 
 def forecast_marginal_bindglm(mod, n, k, X=None, nsamps=1, mean_only=False):
     """
@@ -219,6 +275,176 @@ def forecast_path_dlm(mod, k, X=None, nsamps=1, approx=True):
                 thetas = (mod.G @ thetas.T).T
 
         return samps
+
+
+def forecast_path_copula_sim(mod, k, lambda_mu, lambda_cov, nsamps, t_dist = False, nu = 9):
+    """
+    lambda_mu: kx1 Mean vector for forecast mean over t+1:t+k
+    lambda_cov: kxk Covariance matrix for the forecast over t+1:t+k
+    """
+        
+    if t_dist:
+        #nu = 8
+        scale = lambda_cov * ((nu - 2) / nu)
+        joint_samps = multivariate_t(lambda_mu, scale, nu, nsamps).T
+        genlist = list(map(lambda f, q: stats.t(loc = f, scale = np.sqrt(q), df = nu),
+                      lambda_mu, np.diag(scale)))
+    else:
+        # Simulate from a joint multivariate normal with lambda_mu, lambda_cov
+        joint_samps = np.random.multivariate_normal(lambda_mu, lambda_cov, size=nsamps).T
+        genlist = list(map(lambda f, q: stats.norm(f, np.sqrt(q)),
+                      lambda_mu, np.diag(lambda_cov)))
+    
+    # Find the marginal conjugate parameters
+    conj_params = list(map(lambda f, q: mod.get_conjugate_params(f, q, mod.param1, mod.param2),
+                           lambda_mu, np.diag(lambda_cov)))
+    
+    # Use the marginal CDF of the joint distribution to convert our samples into uniform RVs
+    unif_rvs = list(map(lambda gen, samps: gen.cdf(samps),
+              genlist, joint_samps))
+    
+    # Use inverse-CDF along each margin to get implied PRIOR value (e.g. a gamma dist RV for a poisson sampling model)
+    priorlist = list(map(lambda params, unif_rv: mod.prior_inverse_cdf(unif_rv, params[0], params[1]),
+                    conj_params, unif_rvs))
+    
+    # Simulate from the sampling model (e.g. poisson)
+    return np.array(list(map(lambda prior: mod.simulate_from_sampling_model(prior, nsamps),
+            priorlist))).T
+
+
+def forecast_path_copula_density_MC(mod, y, lambda_mu, lambda_cov, t_dist=False, nu = 9, nsamps = 500):
+    """
+    lambda_mu: kx1 Mean vector for forecast mean over t+1:t+k
+    lambda_cov: kxk Covariance matrix for the forecast over t+1:t+k
+    """
+    not_missing = np.logical_not(np.isnan(y))
+    y = y[not_missing]
+    lambda_mu = lambda_mu[not_missing]
+    lambda_cov = lambda_cov[np.ix_(not_missing, not_missing)]
+
+    # Get the marginals of the multivariate distribution
+    if t_dist:
+        scale = lambda_cov * ((nu - 2) / nu)
+        joint_samps = multivariate_t(lambda_mu, scale, nu, nsamps).T
+        genlist = list(map(lambda f, q: stats.t(loc=f, scale=np.sqrt(q), df=nu),
+                           lambda_mu, np.diag(scale)))
+    else:
+        joint_samps = np.random.multivariate_normal(lambda_mu, lambda_cov, size=nsamps).T
+        genlist = list(map(lambda f, q: stats.norm(f, np.sqrt(q)),
+                           lambda_mu, np.diag(lambda_cov)))
+
+    # Find the marginal distribution conjugate parameters
+    conj_params = list(map(lambda f, q: mod.get_conjugate_params(f, q, mod.param1, mod.param2),
+                           lambda_mu, np.diag(lambda_cov)))
+
+    # Use the marginal CDF of the joint distribution to convert our samples into uniform RVs
+    unif_rvs = list(map(lambda gen, samps: gen.cdf(samps),
+                       genlist, joint_samps))
+
+    # Use inverse-CDF along each margin to get implied PRIOR value (e.g. a gamma dist RV for a poisson sampling model)
+    priorlist = list(map(lambda params, cdf: mod.prior_inverse_cdf(cdf, params[0], params[1]),
+                         conj_params, unif_rvs))
+
+    # Get the density of the y values, using Monte Carlo integration (i.e. an average over the samples)
+    density_list = list(map(lambda y, prior: mod.sampling_density(y, prior),
+                            y, priorlist))
+
+    # Get the product of the densities to get the path density (they are independent, conditional upon the prior value at each time t+k)
+    path_density_list = list(map(lambda dens: np.exp(np.sum(np.log(dens))),
+                                 zip(*density_list)))
+
+    # Return their average, on the log scale
+    return np.log(np.mean(path_density_list))
+
+
+def forecast_joint_copula_sim(mod_list, lambda_mu, lambda_cov, nsamps, t_dist=False, nu=9):
+    """
+    lambda_mu: kx1 Mean vector for forecast mean over t+1:t+k
+    lambda_cov: kxk Covariance matrix for the forecast over t+1:t+k
+    """
+
+    if t_dist:
+        # nu = 8
+        scale = lambda_cov * ((nu - 2) / nu)
+        joint_samps = multivariate_t(lambda_mu, scale, nu, nsamps).T
+        genlist = list(map(lambda f, q: stats.t(loc=f, scale=np.sqrt(q), df=nu),
+                           lambda_mu, np.diag(scale)))
+    else:
+        # Simulate from a joint multivariate normal with lambda_mu, lambda_cov
+        joint_samps = np.random.multivariate_normal(lambda_mu, lambda_cov, size=nsamps).T
+        genlist = list(map(lambda f, q: stats.norm(f, np.sqrt(q)),
+                           lambda_mu, np.diag(lambda_cov)))
+
+    # Find the marginal conjugate parameters
+    conj_params = []
+    for i, mod in enumerate(mod_list):
+        conj_params.append(mod.get_conjugate_params(lambda_mu[i], lambda_cov[i, i], mod.param1, mod.param2))
+
+    # Use the marginal CDF of the joint distribution to convert our samples into uniform RVs
+    unif_rvs = list(map(lambda gen, samps: gen.cdf(samps),
+                        genlist, joint_samps))
+
+    # If any are numerically 1 or 0, fix them:
+    def numeric_fix(u):
+        u[u == 1] = 1 - 1E-5
+        u[u == 0] = 1E-5
+        return u
+    unif_rvs = [numeric_fix(u) for u in unif_rvs]
+
+    # Use inverse-CDF along each margin to get implied PRIOR value (e.g. a gamma dist RV for a poisson sampling model)
+    priorlist = list(map(lambda mod, params, unif_rv: mod.prior_inverse_cdf(unif_rv, params[0], params[1]),
+                         mod_list, conj_params, unif_rvs))
+
+    # Simulate from the sampling model (e.g. poisson)
+    return np.array(list(map(lambda mod, prior: mod.simulate_from_sampling_model(prior, nsamps),
+                             mod_list, priorlist))).T
+
+
+def forecast_joint_copula_density_MC(mod_list, y, lambda_mu, lambda_cov, t_dist=False, nu = 9, nsamps = 500):
+    """
+    lambda_mu: kx1 Mean vector for forecast mean over t+1:t+k
+    lambda_cov: kxk Covariance matrix for the forecast over t+1:t+k
+    """
+    not_missing = np.logical_not(np.isnan(y))
+    y = y[not_missing]
+    lambda_mu = lambda_mu[not_missing]
+    lambda_cov = lambda_cov[np.ix_(not_missing, not_missing)]
+
+    # Get the marginals of the multivariate distribution
+    if t_dist:
+        scale = lambda_cov * ((nu - 2) / nu)
+        joint_samps = multivariate_t(lambda_mu, scale, nu, nsamps).T
+        genlist = list(map(lambda f, q: stats.t(loc=f, scale=np.sqrt(q), df=nu),
+                           lambda_mu, np.diag(scale)))
+    else:
+        joint_samps = np.random.multivariate_normal(lambda_mu, lambda_cov, size=nsamps).T
+        genlist = list(map(lambda f, q: stats.norm(f, np.sqrt(q)),
+                           lambda_mu, np.diag(lambda_cov)))
+
+    # Find the marginal distribution conjugate parameters
+    conj_params = []
+    for i, mod in enumerate(mod_list):
+        conj_params.append(mod.get_conjugate_params(lambda_mu[i], lambda_cov[i, i], mod.param1, mod.param2))
+
+    # Use the marginal CDF of the joint distribution to convert our samples into uniform RVs
+    unif_rvs = list(map(lambda gen, samps: gen.cdf(samps),
+                       genlist, joint_samps))
+
+    # Use inverse-CDF along each margin to get implied PRIOR value (e.g. a gamma dist RV for a poisson sampling model)
+    priorlist = list(map(lambda mod, params, cdf: mod.prior_inverse_cdf(cdf, params[0], params[1]),
+                         mod_list, conj_params, unif_rvs))
+
+    # Get the density of the y values, using Monte Carlo integration (i.e. an average over the samples)
+    density_list = list(map(lambda mod, y, prior: mod.sampling_density(y, prior),
+                            mod_list, y, priorlist))
+
+    # Get the product of the densities to get the joint density (they are independent, conditional upon the prior value at each time t+k)
+    joint_density_list = list(map(lambda dens: np.exp(np.sum(np.log(dens))),
+                                 zip(*density_list)))
+
+    # Return their average, on the log scale
+    return np.log(np.mean(joint_density_list))
+
 
 def multivariate_t(mean, scale, nu, nsamps):
     '''

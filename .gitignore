@@ -9,3 +9,5 @@ __pycache__/*
 *.ipynb_checkpoints
 .cache/
 build/
+.pytest_cache/
+.idea/

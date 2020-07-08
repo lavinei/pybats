@@ -56,7 +56,7 @@ def m_one_median(samps):
         norm = np.sum(weights)
         weights = weights/norm
         if len(nz) < 5:
-            print('hello')
+            print('Less than 5 non-zero samples')
         return weighted_quantile(samp[nz], weights)
 
     forecast = np.apply_along_axis(m_one_median, 0, samps)

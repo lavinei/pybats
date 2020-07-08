@@ -3,7 +3,8 @@ import pandas as pd
 import scipy as sc
 import pickle
 from scipy.special import digamma
-from pandas.tseries.holiday import AbstractHolidayCalendar
+from pandas.tseries.holiday import AbstractHolidayCalendar, USMartinLutherKingJr, USMemorialDay, Holiday, USLaborDay, \
+    USThanksgivingDay
 import os
 
 # I need this helper in a module file for pickle reasons ...
@@ -23,8 +24,14 @@ def trigamma(x):
 
 
 def save(obj, filename):
-    file = open(filename, "wb")
-    pickle.dump(obj, file=file)
+    with open(filename, "wb") as file:
+        pickle.dump(obj, file=file)
+
+
+def load(filename):
+    with open(filename, "rb") as file:
+        tmp = pickle.load(file)
+    return tmp
 
 
 def define_holiday_regressors(X, dates, holidays=None):
@@ -87,3 +94,37 @@ def load_sales_example2():
     """
     data_dir = os.path.dirname(os.path.abspath(__file__)) + '/pkg_data/'
     return pd.read_pickle(data_dir + 'sim_sales_data')
+
+def load_dcmm_latent_factor_example():
+    """
+    Read data for the DCMM latent factor example
+
+    :return: A list of data
+    """
+    data_dir = os.path.dirname(os.path.abspath(__file__)) + '/pkg_data/'
+    data = load(data_dir + 'dcmm_latent_factor_data')
+    return data
+
+def load_dbcm_latent_factor_example():
+    """
+    Read data for the DCMM latent factor example
+
+    :return: A list of data
+    """
+    data_dir = os.path.dirname(os.path.abspath(__file__)) + '/pkg_data/'
+    data = load(data_dir + 'dbcm_latent_factor_data')
+    return data
+
+
+def load_standard_holidays():
+    holidays = [USMartinLutherKingJr,
+                USMemorialDay,
+                Holiday('July4', month=7, day=4),
+                USLaborDay,
+                # Holiday('Thanksgiving_1DB', month=11, day=1, offset=pd.DateOffset(weekday=WE(4))),
+                USThanksgivingDay,
+                # Holiday('Christmas_1DB', month=12, day=24),
+                Holiday('Christmas', month=12, day=25),
+                Holiday('New_Years_Eve', month=12, day=31),
+                ]
+    return holidays
