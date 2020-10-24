@@ -300,15 +300,11 @@ def hol_forecast_fxn(date, mod, X, k, horizons, forecast_path=False, **kwargs):
 
         return hol_mean, hol_var
 
-
-
-
 hol_lf = latent_factor(gen_fxn = hol_fxn, gen_forecast_fxn=hol_forecast_fxn)
 
 
 def Y_fxn(date, mod, Y, **kwargs):
     return Y, 0
-
 
 def Y_forecast_fxn(date, mod, X, k, nsamps, horizons, forecast_path = False, **kwargs):
     #
@@ -339,7 +335,6 @@ def Y_forecast_fxn(date, mod, X, k, nsamps, horizons, forecast_path = False, **k
                           horizons))
         Y_var = [f.var() for f in forecast]
         return Y_mean, Y_var
-
 
 Y_lf = latent_factor(gen_fxn = Y_fxn, gen_forecast_fxn = Y_forecast_fxn)
 

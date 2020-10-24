@@ -29,7 +29,6 @@ def beta_approx(x, ft, qt):
     return np.array([digamma(x[0]) - digamma(x[1]) - ft,
                      trigamma(x=x[0]) + trigamma(x=x[1]) - qt]).reshape(-1)
 
-
 def gamma_approx(x, ft, qt):
     x = x ** 2
     return np.array([digamma(x[0]) - np.log(x[1]) - ft, trigamma(x=x[0]) - qt]).reshape(-1)
