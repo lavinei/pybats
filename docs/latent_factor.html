@@ -40,12 +40,12 @@ nb_path: "nbs/13_latent_factor.ipynb"
 </ul>
 <p>Several common types of latent factors have been pre-defined in PyBATS:</p>
 <ol>
-<li><a href="/pybats_nbdev/latent_factor.html#seas_weekly_lf"><code>seas_weekly_lf</code></a>: The weekly seasonal effect latent factor.</li>
-<li><a href="/pybats_nbdev/latent_factor.html#hol_lf"><code>hol_lf</code></a>: The holiday effect latent factor</li>
-<li><a href="/pybats_nbdev/latent_factor.html#Y_lf"><code>Y_lf</code></a>: The observation latent factor. In this case, the forecast is simply the forecast mean and variance from $\mathcal{M}_0$, and the observed $z_t$ is used for updating.</li>
-<li><a href="/pybats_nbdev/latent_factor.html#pois_coef_lf"><code>pois_coef_lf</code></a>, <a href="/pybats_nbdev/latent_factor.html#bern_coef_lf"><code>bern_coef_lf</code></a>, and <a href="/pybats_nbdev/latent_factor.html#dlm_coef_lf"><code>dlm_coef_lf</code></a>: The coefficient (or state vector) latent factors for different types of DGLMs. These latent factors capture specified coefficients from $\mathcal{M}_0$.</li>
+<li><a href="/pybats/latent_factor.html#seas_weekly_lf"><code>seas_weekly_lf</code></a>: The weekly seasonal effect latent factor.</li>
+<li><a href="/pybats/latent_factor.html#hol_lf"><code>hol_lf</code></a>: The holiday effect latent factor</li>
+<li><a href="/pybats/latent_factor.html#Y_lf"><code>Y_lf</code></a>: The observation latent factor. In this case, the forecast is simply the forecast mean and variance from $\mathcal{M}_0$, and the observed $z_t$ is used for updating.</li>
+<li><a href="/pybats/latent_factor.html#pois_coef_lf"><code>pois_coef_lf</code></a>, <a href="/pybats/latent_factor.html#bern_coef_lf"><code>bern_coef_lf</code></a>, and <a href="/pybats/latent_factor.html#dlm_coef_lf"><code>dlm_coef_lf</code></a>: The coefficient (or state vector) latent factors for different types of DGLMs. These latent factors capture specified coefficients from $\mathcal{M}_0$.</li>
 </ol>
-<p>Finally, the class <a href="/pybats_nbdev/latent_factor.html#multi_latent_factor"><code>multi_latent_factor</code></a> concatenates multiple latent factors together when a model is using more than one latent factor as a predictor.</p>
+<p>Finally, the class <a href="/pybats/latent_factor.html#multi_latent_factor"><code>multi_latent_factor</code></a> concatenates multiple latent factors together when a model is using more than one latent factor as a predictor.</p>
 <p>Simple examples of using latent factors are given below, and two more with a DCMM and a DBCM are provided in the <a href="https://github.com/lavinei/pybats_nbdev/tree/master/examples">examples folder</a>.</p>
 
 </div>
@@ -69,7 +69,7 @@ nb_path: "nbs/13_latent_factor.ipynb"
 
 
 <div class="output_markdown rendered_html output_subarea ">
-<h2 id="latent_factor" class="doc_header"><code>class</code> <code>latent_factor</code><a href="https://github.com/lavinei/pybats_nbdev/tree/master/pybats_nbdev/latent_factor.py#L26" class="source_link" style="float:right">[source]</a></h2><blockquote><p><code>latent_factor</code>(<strong><code>mean</code></strong>=<em><code>{}</code></em>, <strong><code>var</code></strong>=<em><code>{}</code></em>, <strong><code>forecast_mean</code></strong>=<em><code>{}</code></em>, <strong><code>forecast_var</code></strong>=<em><code>{}</code></em>, <strong><code>forecast_cov</code></strong>=<em><code>{}</code></em>, <strong><code>dates</code></strong>=<em><code>[]</code></em>, <strong><code>forecast_dates</code></strong>=<em><code>[]</code></em>, <strong><code>gen_fxn</code></strong>=<em><code>None</code></em>, <strong><code>gen_forecast_fxn</code></strong>=<em><code>None</code></em>, <strong><code>forecast_path</code></strong>=<em><code>False</code></em>, <strong><code>p</code></strong>=<em><code>None</code></em>, <strong><code>k</code></strong>=<em><code>None</code></em>)</p>
+<h2 id="latent_factor" class="doc_header"><code>class</code> <code>latent_factor</code><a href="https://github.com/lavinei/pybats/tree/master/pybats/latent_factor.py#L26" class="source_link" style="float:right">[source]</a></h2><blockquote><p><code>latent_factor</code>(<strong><code>mean</code></strong>=<em><code>{}</code></em>, <strong><code>var</code></strong>=<em><code>{}</code></em>, <strong><code>forecast_mean</code></strong>=<em><code>{}</code></em>, <strong><code>forecast_var</code></strong>=<em><code>{}</code></em>, <strong><code>forecast_cov</code></strong>=<em><code>{}</code></em>, <strong><code>dates</code></strong>=<em><code>[]</code></em>, <strong><code>forecast_dates</code></strong>=<em><code>[]</code></em>, <strong><code>gen_fxn</code></strong>=<em><code>None</code></em>, <strong><code>gen_forecast_fxn</code></strong>=<em><code>None</code></em>, <strong><code>forecast_path</code></strong>=<em><code>False</code></em>, <strong><code>p</code></strong>=<em><code>None</code></em>, <strong><code>k</code></strong>=<em><code>None</code></em>)</p>
 </blockquote>
 
 </div>
@@ -100,7 +100,7 @@ nb_path: "nbs/13_latent_factor.ipynb"
 
 
 <div class="output_markdown rendered_html output_subarea ">
-<h2 id="multi_latent_factor" class="doc_header"><code>class</code> <code>multi_latent_factor</code><a href="https://github.com/lavinei/pybats_nbdev/tree/master/pybats_nbdev/latent_factor.py#L127" class="source_link" style="float:right">[source]</a></h2><blockquote><p><code>multi_latent_factor</code>(<strong><code>latent_factors</code></strong>) :: <a href="/pybats_nbdev/latent_factor.html"><code>latent_factor</code></a></p>
+<h2 id="multi_latent_factor" class="doc_header"><code>class</code> <code>multi_latent_factor</code><a href="https://github.com/lavinei/pybats/tree/master/pybats/latent_factor.py#L127" class="source_link" style="float:right">[source]</a></h2><blockquote><p><code>multi_latent_factor</code>(<strong><code>latent_factors</code></strong>) :: <a href="/pybats/latent_factor.html"><code>latent_factor</code></a></p>
 </blockquote>
 
 </div>
@@ -131,13 +131,13 @@ nb_path: "nbs/13_latent_factor.ipynb"
 <div class=" highlight hl-ipython3"><pre><span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
 
-<span class="kn">from</span> <span class="nn">pybats_nbdev.shared</span> <span class="kn">import</span> <span class="n">load_us_inflation_forecasts</span>
-<span class="kn">from</span> <span class="nn">pybats_nbdev.define_models</span> <span class="kn">import</span> <span class="n">define_dglm</span>
-<span class="kn">from</span> <span class="nn">pybats_nbdev.analysis</span> <span class="kn">import</span> <span class="n">analysis</span>
-<span class="kn">from</span> <span class="nn">pybats_nbdev.latent_factor</span> <span class="kn">import</span> <span class="n">dlm_coef_lf</span>
-<span class="kn">from</span> <span class="nn">pybats_nbdev.point_forecast</span> <span class="kn">import</span> <span class="n">mean</span>
-<span class="kn">from</span> <span class="nn">pybats_nbdev.loss_functions</span> <span class="kn">import</span> <span class="n">MAPE</span>
-<span class="kn">from</span> <span class="nn">pybats_nbdev.plot</span> <span class="kn">import</span> <span class="n">plot_corr</span><span class="p">,</span> <span class="n">plot_data_forecast</span>
+<span class="kn">from</span> <span class="nn">pybats.shared</span> <span class="kn">import</span> <span class="n">load_us_inflation_forecasts</span>
+<span class="kn">from</span> <span class="nn">pybats.define_models</span> <span class="kn">import</span> <span class="n">define_dglm</span>
+<span class="kn">from</span> <span class="nn">pybats.analysis</span> <span class="kn">import</span> <span class="n">analysis</span>
+<span class="kn">from</span> <span class="nn">pybats.latent_factor</span> <span class="kn">import</span> <span class="n">dlm_coef_lf</span>
+<span class="kn">from</span> <span class="nn">pybats.point_forecast</span> <span class="kn">import</span> <span class="n">mean</span>
+<span class="kn">from</span> <span class="nn">pybats.loss_functions</span> <span class="kn">import</span> <span class="n">MAPE</span>
+<span class="kn">from</span> <span class="nn">pybats.plot</span> <span class="kn">import</span> <span class="n">plot_corr</span><span class="p">,</span> <span class="n">plot_data_forecast</span>
 </pre></div>
 
     </div>
@@ -470,7 +470,7 @@ nb_path: "nbs/13_latent_factor.ipynb"
 
 
 <div class="output_markdown rendered_html output_subarea ">
-<h4 id="Y_fxn" class="doc_header"><code>Y_fxn</code><a href="https://github.com/lavinei/pybats_nbdev/tree/master/pybats_nbdev/latent_factor.py#L265" class="source_link" style="float:right">[source]</a></h4><blockquote><p><code>Y_fxn</code>(<strong><code>date</code></strong>, <strong><code>mod</code></strong>, <strong><code>Y</code></strong>, <strong>**<code>kwargs</code></strong>)</p>
+<h4 id="Y_fxn" class="doc_header"><code>Y_fxn</code><a href="https://github.com/lavinei/pybats/tree/master/pybats/latent_factor.py#L265" class="source_link" style="float:right">[source]</a></h4><blockquote><p><code>Y_fxn</code>(<strong><code>date</code></strong>, <strong><code>mod</code></strong>, <strong><code>Y</code></strong>, <strong>**<code>kwargs</code></strong>)</p>
 </blockquote>
 
 </div>
@@ -501,7 +501,7 @@ nb_path: "nbs/13_latent_factor.ipynb"
 
 
 <div class="output_markdown rendered_html output_subarea ">
-<h4 id="Y_forecast_fxn" class="doc_header"><code>Y_forecast_fxn</code><a href="https://github.com/lavinei/pybats_nbdev/tree/master/pybats_nbdev/latent_factor.py#L269" class="source_link" style="float:right">[source]</a></h4><blockquote><p><code>Y_forecast_fxn</code>(<strong><code>date</code></strong>, <strong><code>mod</code></strong>, <strong><code>X</code></strong>, <strong><code>k</code></strong>, <strong><code>nsamps</code></strong>, <strong><code>horizons</code></strong>, <strong><code>forecast_path</code></strong>=<em><code>False</code></em>, <strong>**<code>kwargs</code></strong>)</p>
+<h4 id="Y_forecast_fxn" class="doc_header"><code>Y_forecast_fxn</code><a href="https://github.com/lavinei/pybats/tree/master/pybats/latent_factor.py#L269" class="source_link" style="float:right">[source]</a></h4><blockquote><p><code>Y_forecast_fxn</code>(<strong><code>date</code></strong>, <strong><code>mod</code></strong>, <strong><code>X</code></strong>, <strong><code>k</code></strong>, <strong><code>nsamps</code></strong>, <strong><code>horizons</code></strong>, <strong><code>forecast_path</code></strong>=<em><code>False</code></em>, <strong>**<code>kwargs</code></strong>)</p>
 </blockquote>
 
 </div>
@@ -545,7 +545,7 @@ nb_path: "nbs/13_latent_factor.ipynb"
 
 
 <div class="output_markdown rendered_html output_subarea ">
-<h4 id="seas_weekly_fxn" class="doc_header"><code>seas_weekly_fxn</code><a href="https://github.com/lavinei/pybats_nbdev/tree/master/pybats_nbdev/latent_factor.py#L314" class="source_link" style="float:right">[source]</a></h4><blockquote><p><code>seas_weekly_fxn</code>(<strong><code>date</code></strong>, <strong><code>mod</code></strong>, <strong>**<code>kwargs</code></strong>)</p>
+<h4 id="seas_weekly_fxn" class="doc_header"><code>seas_weekly_fxn</code><a href="https://github.com/lavinei/pybats/tree/master/pybats/latent_factor.py#L314" class="source_link" style="float:right">[source]</a></h4><blockquote><p><code>seas_weekly_fxn</code>(<strong><code>date</code></strong>, <strong><code>mod</code></strong>, <strong>**<code>kwargs</code></strong>)</p>
 </blockquote>
 
 </div>
@@ -576,7 +576,7 @@ nb_path: "nbs/13_latent_factor.ipynb"
 
 
 <div class="output_markdown rendered_html output_subarea ">
-<h4 id="seas_weekly_forecast_fxn" class="doc_header"><code>seas_weekly_forecast_fxn</code><a href="https://github.com/lavinei/pybats_nbdev/tree/master/pybats_nbdev/latent_factor.py#L327" class="source_link" style="float:right">[source]</a></h4><blockquote><p><code>seas_weekly_forecast_fxn</code>(<strong><code>date</code></strong>, <strong><code>mod</code></strong>, <strong><code>k</code></strong>, <strong><code>horizons</code></strong>, <strong><code>forecast_path</code></strong>=<em><code>False</code></em>, <strong>**<code>kwargs</code></strong>)</p>
+<h4 id="seas_weekly_forecast_fxn" class="doc_header"><code>seas_weekly_forecast_fxn</code><a href="https://github.com/lavinei/pybats/tree/master/pybats/latent_factor.py#L327" class="source_link" style="float:right">[source]</a></h4><blockquote><p><code>seas_weekly_forecast_fxn</code>(<strong><code>date</code></strong>, <strong><code>mod</code></strong>, <strong><code>k</code></strong>, <strong><code>horizons</code></strong>, <strong><code>forecast_path</code></strong>=<em><code>False</code></em>, <strong>**<code>kwargs</code></strong>)</p>
 </blockquote>
 
 </div>
@@ -620,7 +620,7 @@ nb_path: "nbs/13_latent_factor.ipynb"
 
 
 <div class="output_markdown rendered_html output_subarea ">
-<h4 id="hol_fxn" class="doc_header"><code>hol_fxn</code><a href="https://github.com/lavinei/pybats_nbdev/tree/master/pybats_nbdev/latent_factor.py#L357" class="source_link" style="float:right">[source]</a></h4><blockquote><p><code>hol_fxn</code>(<strong><code>date</code></strong>, <strong><code>mod</code></strong>, <strong><code>X</code></strong>, <strong>**<code>kwargs</code></strong>)</p>
+<h4 id="hol_fxn" class="doc_header"><code>hol_fxn</code><a href="https://github.com/lavinei/pybats/tree/master/pybats/latent_factor.py#L357" class="source_link" style="float:right">[source]</a></h4><blockquote><p><code>hol_fxn</code>(<strong><code>date</code></strong>, <strong><code>mod</code></strong>, <strong><code>X</code></strong>, <strong>**<code>kwargs</code></strong>)</p>
 </blockquote>
 
 </div>
@@ -651,7 +651,7 @@ nb_path: "nbs/13_latent_factor.ipynb"
 
 
 <div class="output_markdown rendered_html output_subarea ">
-<h4 id="hol_forecast_fxn" class="doc_header"><code>hol_forecast_fxn</code><a href="https://github.com/lavinei/pybats_nbdev/tree/master/pybats_nbdev/latent_factor.py#L369" class="source_link" style="float:right">[source]</a></h4><blockquote><p><code>hol_forecast_fxn</code>(<strong><code>date</code></strong>, <strong><code>mod</code></strong>, <strong><code>X</code></strong>, <strong><code>k</code></strong>, <strong><code>horizons</code></strong>, <strong><code>forecast_path</code></strong>=<em><code>False</code></em>, <strong>**<code>kwargs</code></strong>)</p>
+<h4 id="hol_forecast_fxn" class="doc_header"><code>hol_forecast_fxn</code><a href="https://github.com/lavinei/pybats/tree/master/pybats/latent_factor.py#L369" class="source_link" style="float:right">[source]</a></h4><blockquote><p><code>hol_forecast_fxn</code>(<strong><code>date</code></strong>, <strong><code>mod</code></strong>, <strong><code>X</code></strong>, <strong><code>k</code></strong>, <strong><code>horizons</code></strong>, <strong><code>forecast_path</code></strong>=<em><code>False</code></em>, <strong>**<code>kwargs</code></strong>)</p>
 </blockquote>
 
 </div>
@@ -688,12 +688,12 @@ nb_path: "nbs/13_latent_factor.ipynb"
     <div class="input_area">
 <div class=" highlight hl-ipython3"><pre><span></span><span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
 
-<span class="kn">from</span> <span class="nn">pybats_nbdev.plot</span> <span class="kn">import</span> <span class="n">plot_data_forecast</span>
-<span class="kn">from</span> <span class="nn">pybats_nbdev.latent_factor</span> <span class="kn">import</span> <span class="n">Y_lf</span><span class="p">,</span> <span class="n">seas_weekly_lf</span><span class="p">,</span> <span class="n">hol_lf</span><span class="p">,</span> <span class="n">multi_latent_factor</span>
-<span class="kn">from</span> <span class="nn">pybats_nbdev.shared</span> <span class="kn">import</span> <span class="n">load_dcmm_latent_factor_example</span>
-<span class="kn">from</span> <span class="nn">pybats_nbdev.analysis</span> <span class="kn">import</span> <span class="n">analysis</span>
+<span class="kn">from</span> <span class="nn">pybats.plot</span> <span class="kn">import</span> <span class="n">plot_data_forecast</span>
+<span class="kn">from</span> <span class="nn">pybats.latent_factor</span> <span class="kn">import</span> <span class="n">Y_lf</span><span class="p">,</span> <span class="n">seas_weekly_lf</span><span class="p">,</span> <span class="n">hol_lf</span><span class="p">,</span> <span class="n">multi_latent_factor</span>
+<span class="kn">from</span> <span class="nn">pybats.shared</span> <span class="kn">import</span> <span class="n">load_dcmm_latent_factor_example</span>
+<span class="kn">from</span> <span class="nn">pybats.analysis</span> <span class="kn">import</span> <span class="n">analysis</span>
 <span class="kn">from</span> <span class="nn">pandas.tseries.holiday</span> <span class="kn">import</span> <span class="n">USFederalHolidayCalendar</span>
-<span class="kn">from</span> <span class="nn">pybats_nbdev.point_forecast</span> <span class="kn">import</span> <span class="n">median</span>
+<span class="kn">from</span> <span class="nn">pybats.point_forecast</span> <span class="kn">import</span> <span class="n">median</span>
 
 <span class="n">data</span> <span class="o">=</span> <span class="n">load_dcmm_latent_factor_example</span><span class="p">()</span>
 <span class="n">totaldata</span><span class="p">,</span> <span class="n">data</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">values</span><span class="p">()</span>
@@ -873,7 +873,7 @@ nb_path: "nbs/13_latent_factor.ipynb"
 
 <div class="cell border-box-sizing text_cell rendered"><div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<p>The first latent factor is <a href="/pybats_nbdev/latent_factor.html#Y_lf"><code>Y_lf</code></a>, which stores both the actual total sales and the forecast total sales. The second is <a href="/pybats_nbdev/latent_factor.html#seas_weekly_lf"><code>seas_weekly_lf</code></a>, which is a $7-$dimensional vector. Each day, the element for today is populated with the estimated seasonal effect, while the other $6$ values are set to $0$. Finally, we defined $10$ holidays. This latent factor is only populated on the holidays themselves, so it is mostly just $0$.</p>
+<p>The first latent factor is <a href="/pybats/latent_factor.html#Y_lf"><code>Y_lf</code></a>, which stores both the actual total sales and the forecast total sales. The second is <a href="/pybats/latent_factor.html#seas_weekly_lf"><code>seas_weekly_lf</code></a>, which is a $7-$dimensional vector. Each day, the element for today is populated with the estimated seasonal effect, while the other $6$ values are set to $0$. Finally, we defined $10$ holidays. This latent factor is only populated on the holidays themselves, so it is mostly just $0$.</p>
 <p>We can get the update mean for each latent factor at any given date:</p>
 
 </div>
@@ -1008,7 +1008,7 @@ Holiday mean: [0. 0. 0. 0. 0. 0. 0. 0. 0. 0.]
 <div class="cell border-box-sizing text_cell rendered"><div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
 <p>The same output can be created for the holiday latent factor, but it will be all $0$'s except when there is a holiday in the next $14$ days.</p>
-<p>Now let's combine these latent factors into a single <a href="/pybats_nbdev/latent_factor.html#multi_latent_factor"><code>multi_latent_factor</code></a>, and put them to use in an analysis of the individual item sales. First we create the multi latent factor:</p>
+<p>Now let's combine these latent factors into a single <a href="/pybats/latent_factor.html#multi_latent_factor"><code>multi_latent_factor</code></a>, and put them to use in an analysis of the individual item sales. First we create the multi latent factor:</p>
 
 </div>
 </div>
@@ -1221,7 +1221,7 @@ Holiday mean: [0. 0. 0. 0. 0. 0. 0. 0. 0. 0.]
 
 
 <div class="output_markdown rendered_html output_subarea ">
-<h4 id="pois_coef_fxn" class="doc_header"><code>pois_coef_fxn</code><a href="https://github.com/lavinei/pybats_nbdev/tree/master/pybats_nbdev/latent_factor.py#L407" class="source_link" style="float:right">[source]</a></h4><blockquote><p><code>pois_coef_fxn</code>(<strong><code>date</code></strong>, <strong><code>mod</code></strong>, <strong><code>idx</code></strong>=<em><code>None</code></em>, <strong>**<code>kwargs</code></strong>)</p>
+<h4 id="pois_coef_fxn" class="doc_header"><code>pois_coef_fxn</code><a href="https://github.com/lavinei/pybats/tree/master/pybats/latent_factor.py#L407" class="source_link" style="float:right">[source]</a></h4><blockquote><p><code>pois_coef_fxn</code>(<strong><code>date</code></strong>, <strong><code>mod</code></strong>, <strong><code>idx</code></strong>=<em><code>None</code></em>, <strong>**<code>kwargs</code></strong>)</p>
 </blockquote>
 
 </div>
@@ -1252,76 +1252,7 @@ Holiday mean: [0. 0. 0. 0. 0. 0. 0. 0. 0. 0.]
 
 
 <div class="output_markdown rendered_html output_subarea ">
-<h4 id="pois_coef_forecast_fxn" class="doc_header"><code>pois_coef_forecast_fxn</code><a href="https://github.com/lavinei/pybats_nbdev/tree/master/pybats_nbdev/latent_factor.py#L420" class="source_link" style="float:right">[source]</a></h4><blockquote><p><code>pois_coef_forecast_fxn</code>(<strong><code>date</code></strong>, <strong><code>mod</code></strong>, <strong><code>k</code></strong>, <strong><code>idx</code></strong>=<em><code>None</code></em>, <strong>**<code>kwargs</code></strong>)</p>
-</blockquote>
-
-</div>
-
-</div>
-
-</div>
-</div>
-
-</div>
-    {% endraw %}
-
-    {% raw %}
-    
-<div class="cell border-box-sizing code_cell rendered">
-
-</div>
-    {% endraw %}
-
-    {% raw %}
-    
-<div class="cell border-box-sizing code_cell rendered">
-
-</div>
-    {% endraw %}
-
-    {% raw %}
-    
-<div class="cell border-box-sizing code_cell rendered">
-
-<div class="output_wrapper">
-<div class="output">
-
-<div class="output_area">
-
-
-<div class="output_markdown rendered_html output_subarea ">
-<h4 id="bern_coef_fxn" class="doc_header"><code>bern_coef_fxn</code><a href="https://github.com/lavinei/pybats_nbdev/tree/master/pybats_nbdev/latent_factor.py#L448" class="source_link" style="float:right">[source]</a></h4><blockquote><p><code>bern_coef_fxn</code>(<strong><code>date</code></strong>, <strong><code>mod</code></strong>, <strong><code>idx</code></strong>=<em><code>None</code></em>, <strong>**<code>kwargs</code></strong>)</p>
-</blockquote>
-
-</div>
-
-</div>
-
-</div>
-</div>
-
-</div>
-    {% endraw %}
-
-    {% raw %}
-    
-<div class="cell border-box-sizing code_cell rendered">
-
-</div>
-    {% endraw %}
-
-    {% raw %}
-    
-<div class="cell border-box-sizing code_cell rendered">
-
-<div class="output_wrapper">
-<div class="output">
-
-<div class="output_area">
-
-
-<div class="output_markdown rendered_html output_subarea ">
-<h4 id="bern_coef_forecast_fxn" class="doc_header"><code>bern_coef_forecast_fxn</code><a href="https://github.com/lavinei/pybats_nbdev/tree/master/pybats_nbdev/latent_factor.py#L461" class="source_link" style="float:right">[source]</a></h4><blockquote><p><code>bern_coef_forecast_fxn</code>(<strong><code>date</code></strong>, <strong><code>mod</code></strong>, <strong><code>k</code></strong>, <strong><code>idx</code></strong>=<em><code>None</code></em>, <strong>**<code>kwargs</code></strong>)</p>
+<h4 id="pois_coef_forecast_fxn" class="doc_header"><code>pois_coef_forecast_fxn</code><a href="https://github.com/lavinei/pybats/tree/master/pybats/latent_factor.py#L420" class="source_link" style="float:right">[source]</a></h4><blockquote><p><code>pois_coef_forecast_fxn</code>(<strong><code>date</code></strong>, <strong><code>mod</code></strong>, <strong><code>k</code></strong>, <strong><code>idx</code></strong>=<em><code>None</code></em>, <strong>**<code>kwargs</code></strong>)</p>
 </blockquote>
 
 </div>
@@ -1359,7 +1290,7 @@ Holiday mean: [0. 0. 0. 0. 0. 0. 0. 0. 0. 0.]
 
 
 <div class="output_markdown rendered_html output_subarea ">
-<h4 id="dlm_coef_fxn" class="doc_header"><code>dlm_coef_fxn</code><a href="https://github.com/lavinei/pybats_nbdev/tree/master/pybats_nbdev/latent_factor.py#L490" class="source_link" style="float:right">[source]</a></h4><blockquote><p><code>dlm_coef_fxn</code>(<strong><code>date</code></strong>, <strong><code>mod</code></strong>, <strong><code>idx</code></strong>=<em><code>None</code></em>, <strong>**<code>kwargs</code></strong>)</p>
+<h4 id="bern_coef_fxn" class="doc_header"><code>bern_coef_fxn</code><a href="https://github.com/lavinei/pybats/tree/master/pybats/latent_factor.py#L448" class="source_link" style="float:right">[source]</a></h4><blockquote><p><code>bern_coef_fxn</code>(<strong><code>date</code></strong>, <strong><code>mod</code></strong>, <strong><code>idx</code></strong>=<em><code>None</code></em>, <strong>**<code>kwargs</code></strong>)</p>
 </blockquote>
 
 </div>
@@ -1390,7 +1321,76 @@ Holiday mean: [0. 0. 0. 0. 0. 0. 0. 0. 0. 0.]
 
 
 <div class="output_markdown rendered_html output_subarea ">
-<h4 id="dlm_coef_forecast_fxn" class="doc_header"><code>dlm_coef_forecast_fxn</code><a href="https://github.com/lavinei/pybats_nbdev/tree/master/pybats_nbdev/latent_factor.py#L497" class="source_link" style="float:right">[source]</a></h4><blockquote><p><code>dlm_coef_forecast_fxn</code>(<strong><code>date</code></strong>, <strong><code>mod</code></strong>, <strong><code>k</code></strong>, <strong><code>idx</code></strong>=<em><code>None</code></em>, <strong><code>forecast_path</code></strong>=<em><code>False</code></em>, <strong>**<code>kwargs</code></strong>)</p>
+<h4 id="bern_coef_forecast_fxn" class="doc_header"><code>bern_coef_forecast_fxn</code><a href="https://github.com/lavinei/pybats/tree/master/pybats/latent_factor.py#L461" class="source_link" style="float:right">[source]</a></h4><blockquote><p><code>bern_coef_forecast_fxn</code>(<strong><code>date</code></strong>, <strong><code>mod</code></strong>, <strong><code>k</code></strong>, <strong><code>idx</code></strong>=<em><code>None</code></em>, <strong>**<code>kwargs</code></strong>)</p>
+</blockquote>
+
+</div>
+
+</div>
+
+</div>
+</div>
+
+</div>
+    {% endraw %}
+
+    {% raw %}
+    
+<div class="cell border-box-sizing code_cell rendered">
+
+</div>
+    {% endraw %}
+
+    {% raw %}
+    
+<div class="cell border-box-sizing code_cell rendered">
+
+</div>
+    {% endraw %}
+
+    {% raw %}
+    
+<div class="cell border-box-sizing code_cell rendered">
+
+<div class="output_wrapper">
+<div class="output">
+
+<div class="output_area">
+
+
+<div class="output_markdown rendered_html output_subarea ">
+<h4 id="dlm_coef_fxn" class="doc_header"><code>dlm_coef_fxn</code><a href="https://github.com/lavinei/pybats/tree/master/pybats/latent_factor.py#L490" class="source_link" style="float:right">[source]</a></h4><blockquote><p><code>dlm_coef_fxn</code>(<strong><code>date</code></strong>, <strong><code>mod</code></strong>, <strong><code>idx</code></strong>=<em><code>None</code></em>, <strong>**<code>kwargs</code></strong>)</p>
+</blockquote>
+
+</div>
+
+</div>
+
+</div>
+</div>
+
+</div>
+    {% endraw %}
+
+    {% raw %}
+    
+<div class="cell border-box-sizing code_cell rendered">
+
+</div>
+    {% endraw %}
+
+    {% raw %}
+    
+<div class="cell border-box-sizing code_cell rendered">
+
+<div class="output_wrapper">
+<div class="output">
+
+<div class="output_area">
+
+
+<div class="output_markdown rendered_html output_subarea ">
+<h4 id="dlm_coef_forecast_fxn" class="doc_header"><code>dlm_coef_forecast_fxn</code><a href="https://github.com/lavinei/pybats/tree/master/pybats/latent_factor.py#L497" class="source_link" style="float:right">[source]</a></h4><blockquote><p><code>dlm_coef_forecast_fxn</code>(<strong><code>date</code></strong>, <strong><code>mod</code></strong>, <strong><code>k</code></strong>, <strong><code>idx</code></strong>=<em><code>None</code></em>, <strong><code>forecast_path</code></strong>=<em><code>False</code></em>, <strong>**<code>kwargs</code></strong>)</p>
 </blockquote>
 
 </div>
@@ -1412,7 +1412,7 @@ Holiday mean: [0. 0. 0. 0. 0. 0. 0. 0. 0. 0.]
 
 <div class="cell border-box-sizing text_cell rendered"><div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<p>The model coefficient latent factors are easy to understand. They store the state vector means and variances over time. If we simply wanted to plot the trajectory of a coefficient after an analysis, we don't need to use a latent factor. This is available in <a href="/pybats_nbdev/analysis.html"><code>analysis</code></a> by including <code>'model_coef'</code> in the list of items to return.</p>
+<p>The model coefficient latent factors are easy to understand. They store the state vector means and variances over time. If we simply wanted to plot the trajectory of a coefficient after an analysis, we don't need to use a latent factor. This is available in <a href="/pybats/analysis.html"><code>analysis</code></a> by including <code>'model_coef'</code> in the list of items to return.</p>
 <p>However, the latent factor can be useful for forecasting in two related models. For example, if there are two time series with very related predictors, then the coefficient from one model, multiplied by the predictor, may be a strong latent factor in another model.</p>
 
 </div>
@@ -1449,7 +1449,7 @@ Holiday mean: [0. 0. 0. 0. 0. 0. 0. 0. 0. 0.]
 
 
 <div class="output_markdown rendered_html output_subarea ">
-<h4 id="merge_fxn" class="doc_header"><code>merge_fxn</code><a href="https://github.com/lavinei/pybats_nbdev/tree/master/pybats_nbdev/latent_factor.py#L553" class="source_link" style="float:right">[source]</a></h4><blockquote><p><code>merge_fxn</code>(<strong><code>date</code></strong>, <strong><code>latent_factors</code></strong>, <strong>**<code>kwargs</code></strong>)</p>
+<h4 id="merge_fxn" class="doc_header"><code>merge_fxn</code><a href="https://github.com/lavinei/pybats/tree/master/pybats/latent_factor.py#L553" class="source_link" style="float:right">[source]</a></h4><blockquote><p><code>merge_fxn</code>(<strong><code>date</code></strong>, <strong><code>latent_factors</code></strong>, <strong>**<code>kwargs</code></strong>)</p>
 </blockquote>
 
 </div>
@@ -1480,7 +1480,7 @@ Holiday mean: [0. 0. 0. 0. 0. 0. 0. 0. 0. 0.]
 
 
 <div class="output_markdown rendered_html output_subarea ">
-<h4 id="merge_forecast_fxn" class="doc_header"><code>merge_forecast_fxn</code><a href="https://github.com/lavinei/pybats_nbdev/tree/master/pybats_nbdev/latent_factor.py#L569" class="source_link" style="float:right">[source]</a></h4><blockquote><p><code>merge_forecast_fxn</code>(<strong><code>date</code></strong>, <strong><code>latent_factors</code></strong>, <strong>**<code>kwargs</code></strong>)</p>
+<h4 id="merge_forecast_fxn" class="doc_header"><code>merge_forecast_fxn</code><a href="https://github.com/lavinei/pybats/tree/master/pybats/latent_factor.py#L569" class="source_link" style="float:right">[source]</a></h4><blockquote><p><code>merge_forecast_fxn</code>(<strong><code>date</code></strong>, <strong><code>latent_factors</code></strong>, <strong>**<code>kwargs</code></strong>)</p>
 </blockquote>
 
 </div>
@@ -1511,7 +1511,7 @@ Holiday mean: [0. 0. 0. 0. 0. 0. 0. 0. 0. 0.]
 
 
 <div class="output_markdown rendered_html output_subarea ">
-<h4 id="merge_latent_factors" class="doc_header"><code>merge_latent_factors</code><a href="https://github.com/lavinei/pybats_nbdev/tree/master/pybats_nbdev/latent_factor.py#L594" class="source_link" style="float:right">[source]</a></h4><blockquote><p><code>merge_latent_factors</code>(<strong><code>latent_factors</code></strong>)</p>
+<h4 id="merge_latent_factors" class="doc_header"><code>merge_latent_factors</code><a href="https://github.com/lavinei/pybats/tree/master/pybats/latent_factor.py#L594" class="source_link" style="float:right">[source]</a></h4><blockquote><p><code>merge_latent_factors</code>(<strong><code>latent_factors</code></strong>)</p>
 </blockquote>
 
 </div>
@@ -1526,7 +1526,7 @@ Holiday mean: [0. 0. 0. 0. 0. 0. 0. 0. 0. 0.]
 
 <div class="cell border-box-sizing text_cell rendered"><div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<p><a href="/pybats_nbdev/latent_factor.html#merge_latent_factors"><code>merge_latent_factors</code></a> is used to average together a set of latent factors. An example usage: There are a set of models, all with the same regression predictor. The coefficient latent factor is saved from an analysis. This function will produce a new latent factor which is the precision-weighted average effect from that coefficient.</p>
+<p><a href="/pybats/latent_factor.html#merge_latent_factors"><code>merge_latent_factors</code></a> is used to average together a set of latent factors. An example usage: There are a set of models, all with the same regression predictor. The coefficient latent factor is saved from an analysis. This function will produce a new latent factor which is the precision-weighted average effect from that coefficient.</p>
 
 </div>
 </div>
@@ -1549,7 +1549,7 @@ Holiday mean: [0. 0. 0. 0. 0. 0. 0. 0. 0. 0.]
 
 
 <div class="output_markdown rendered_html output_subarea ">
-<h4 id="merge_lf_with_predictor" class="doc_header"><code>merge_lf_with_predictor</code><a href="https://github.com/lavinei/pybats_nbdev/tree/master/pybats_nbdev/latent_factor.py#L622" class="source_link" style="float:right">[source]</a></h4><blockquote><p><code>merge_lf_with_predictor</code>(<strong><code>latent_factor</code></strong>, <strong><code>X</code></strong>, <strong><code>X_dates</code></strong>)</p>
+<h4 id="merge_lf_with_predictor" class="doc_header"><code>merge_lf_with_predictor</code><a href="https://github.com/lavinei/pybats/tree/master/pybats/latent_factor.py#L622" class="source_link" style="float:right">[source]</a></h4><blockquote><p><code>merge_lf_with_predictor</code>(<strong><code>latent_factor</code></strong>, <strong><code>X</code></strong>, <strong><code>X_dates</code></strong>)</p>
 </blockquote>
 
 </div>
@@ -1564,7 +1564,7 @@ Holiday mean: [0. 0. 0. 0. 0. 0. 0. 0. 0. 0.]
 
 <div class="cell border-box-sizing text_cell rendered"><div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<p>The function <a href="/pybats_nbdev/latent_factor.html#merge_lf_with_predictor"><code>merge_lf_with_predictor</code></a> multiplies a latent factor by a known predictor. This is useful in combination with the coefficient latent factors. To save a regression effect, the coefficient latent factor can store the dynamic coefficient from an analysis. Then, that latent factor can be multiplied by the predictor, to produce the full regression effect.</p>
+<p>The function <a href="/pybats/latent_factor.html#merge_lf_with_predictor"><code>merge_lf_with_predictor</code></a> multiplies a latent factor by a known predictor. This is useful in combination with the coefficient latent factors. To save a regression effect, the coefficient latent factor can store the dynamic coefficient from an analysis. Then, that latent factor can be multiplied by the predictor, to produce the full regression effect.</p>
 
 </div>
 </div>

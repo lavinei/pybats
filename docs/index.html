@@ -6,8 +6,8 @@ title: PyBATS
 keywords: fastai
 sidebar: home_sidebar
 
-summary: "PyBATS is a package for Bayesian time series modeling and forecasting. It is designed to enable both quick analyses and flexible options to customize the model form, prior, and forecast period. The core of the package is the class Dynamic Generalized Linear Model (`dglm`). The supported DGLMs are Poisson, Bernoulli, Normal (a DLM), and Binomial. These models are primarily based on <a href='http://www2.stat.duke.edu/~mw/West&HarrisonBook/'>Bayesian Forecasting and Dynamic Models</a>."
-description: "PyBATS is a package for Bayesian time series modeling and forecasting. It is designed to enable both quick analyses and flexible options to customize the model form, prior, and forecast period. The core of the package is the class Dynamic Generalized Linear Model (`dglm`). The supported DGLMs are Poisson, Bernoulli, Normal (a DLM), and Binomial. These models are primarily based on <a href='http://www2.stat.duke.edu/~mw/West&HarrisonBook/'>Bayesian Forecasting and Dynamic Models</a>."
+summary: "PyBATS is a package for Bayesian time series modeling and forecasting. It is designed to enable both quick analyses and flexible options to customize the model form, prior, and forecast period. The core of the package is the class Dynamic Generalized Linear Model (dglm). The supported DGLMs are Poisson, Bernoulli, Normal (a DLM), and Binomial. These models are primarily based on <a href='http://www2.stat.duke.edu/~mw/West&HarrisonBook/'>Bayesian Forecasting and Dynamic Models</a>."
+description: "PyBATS is a package for Bayesian time series modeling and forecasting. It is designed to enable both quick analyses and flexible options to customize the model form, prior, and forecast period. The core of the package is the class Dynamic Generalized Linear Model (dglm). The supported DGLMs are Poisson, Bernoulli, Normal (a DLM), and Binomial. These models are primarily based on <a href='http://www2.stat.duke.edu/~mw/West&HarrisonBook/'>Bayesian Forecasting and Dynamic Models</a>."
 nb_path: "nbs/index.ipynb"
 ---
 <!--
@@ -90,10 +90,10 @@ $ sudo python setup.py install</code></pre>
 <div class=" highlight hl-ipython3"><pre><span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
 
-<span class="kn">from</span> <span class="nn">pybats_nbdev.shared</span> <span class="kn">import</span> <span class="n">load_sales_example</span>
-<span class="kn">from</span> <span class="nn">pybats_nbdev.analysis</span> <span class="kn">import</span> <span class="o">*</span>
-<span class="kn">from</span> <span class="nn">pybats_nbdev.point_forecast</span> <span class="kn">import</span> <span class="o">*</span>
-<span class="kn">from</span> <span class="nn">pybats_nbdev.plot</span> <span class="kn">import</span> <span class="o">*</span>
+<span class="kn">from</span> <span class="nn">pybats.shared</span> <span class="kn">import</span> <span class="n">load_sales_example</span>
+<span class="kn">from</span> <span class="nn">pybats.analysis</span> <span class="kn">import</span> <span class="o">*</span>
+<span class="kn">from</span> <span class="nn">pybats.point_forecast</span> <span class="kn">import</span> <span class="o">*</span>
+<span class="kn">from</span> <span class="nn">pybats.plot</span> <span class="kn">import</span> <span class="o">*</span>
 
 <span class="c1"># Load example sales and advertising data. Source: Abraham &amp; Ledolter (1983)</span>
 <span class="n">data</span> <span class="o">=</span> <span class="n">load_sales_example</span><span class="p">()</span>             
@@ -164,7 +164,7 @@ $ sudo python setup.py install</code></pre>
 
 <div class="cell border-box-sizing text_cell rendered"><div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<p>The sales are integer valued counts, which we model with a Poisson Dynamic Generalized Linear Model (DGLM). Second, we extract the outcome (<em>Y</em>) and covariates (<em>X</em>) from this dataset. We'll set the forecast horizon <em>k=1</em> for this example. We could look at multiple forecast horizons by setting k to a larger value. <a href="/pybats_nbdev/analysis.html"><code>analysis</code></a>, a core PyBATS function, will automatically:</p>
+<p>The sales are integer valued counts, which we model with a Poisson Dynamic Generalized Linear Model (DGLM). Second, we extract the outcome (<em>Y</em>) and covariates (<em>X</em>) from this dataset. We'll set the forecast horizon <em>k=1</em> for this example. We could look at multiple forecast horizons by setting k to a larger value. <a href="/pybats/analysis.html"><code>analysis</code></a>, a core PyBATS function, will automatically:</p>
 <ul>
 <li>Define the model (a Poisson DGLM)</li>
 <li>Sequentially update the model coefficients with each new observation $y_t$ (also known as forward filtering)</li>
@@ -205,7 +205,7 @@ $ sudo python setup.py install</code></pre>
 
 <div class="cell border-box-sizing text_cell rendered"><div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<p>By default, <a href="/pybats_nbdev/analysis.html"><code>analysis</code></a> will return samples from the forecast distribution as well as the model after the final observation.</p>
+<p>By default, <a href="/pybats/analysis.html"><code>analysis</code></a> will return samples from the forecast distribution as well as the model after the final observation.</p>
 
 </div>
 </div>
@@ -395,12 +395,12 @@ $ sudo python setup.py install</code></pre>
 </div>
 <div class="cell border-box-sizing text_cell rendered"><div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<p>The correct model type depends upon your time series, $y_t$. The most common type of observations are continuous real numbers, which can often be modeled using a normal Dynamic Linear Model (<a href="/pybats_nbdev/dglm.html#dlm"><code>dlm</code></a>).</p>
+<p>The correct model type depends upon your time series, $y_t$. The most common type of observations are continuous real numbers, which can often be modeled using a normal Dynamic Linear Model (<a href="/pybats/dglm.html#dlm"><code>dlm</code></a>).</p>
 <p>PyBATS is unique in the current Python ecosystem because it provides dynamic models for non-normally distribution observations:</p>
 <ul>
-<li>Poisson DGLMs (<a href="/pybats_nbdev/dglm.html#pois_dglm"><code>pois_dglm</code></a>) model positive integers, as in the example above with counts of daily item sales.</li>
-<li>Bernoulli DGLMs (<a href="/pybats_nbdev/dglm.html#bern_dglm"><code>bern_dglm</code></a>) model data that can be encoded as $0-1$, or success-failure. An example is a time series of changes in stock price, where positive changes are coded as $1$, and negative changes are coded as $0$.</li>
-<li>Binomial DGLMs (<a href="/pybats_nbdev/dglm.html#bin_dglm"><code>bin_dglm</code></a>) model the sum of Bernoulli $0-1$ outcomes. An example is the daily count of responses to a survey, in which $n_t$ people are contacted each day, and $y_t$ people choose to respond.</li>
+<li>Poisson DGLMs (<a href="/pybats/dglm.html#pois_dglm"><code>pois_dglm</code></a>) model positive integers, as in the example above with counts of daily item sales.</li>
+<li>Bernoulli DGLMs (<a href="/pybats/dglm.html#bern_dglm"><code>bern_dglm</code></a>) model data that can be encoded as $0-1$, or success-failure. An example is a time series of changes in stock price, where positive changes are coded as $1$, and negative changes are coded as $0$.</li>
+<li>Binomial DGLMs (<a href="/pybats/dglm.html#bin_dglm"><code>bin_dglm</code></a>) model the sum of Bernoulli $0-1$ outcomes. An example is the daily count of responses to a survey, in which $n_t$ people are contacted each day, and $y_t$ people choose to respond.</li>
 </ul>
 
 </div>
@@ -767,7 +767,7 @@ $$\lambda_t = F_t^{'} \theta_t$$
 
 <div class="cell border-box-sizing text_cell rendered"><div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<p>The <a href="/pybats_nbdev/analysis.html"><code>analysis</code></a> function automatically detected that $X$ only had $1$ column, and so it defined the model to have the correct number of regression components.</p>
+<p>The <a href="/pybats/analysis.html"><code>analysis</code></a> function automatically detected that $X$ only had $1$ column, and so it defined the model to have the correct number of regression components.</p>
 
 </div>
 </div>
@@ -916,7 +916,7 @@ $$\lambda_t = F_t^{'} \theta_t$$
 
 <div class="cell border-box-sizing text_cell rendered"><div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<p>The coefficient mean is $0.01$, with a very small standard deviation. Because the mean of the coefficient is positive, we interpret this coefficient as saying that an increase in advertising will increase our forecast of sales. Good, that makes sense! To precisely interpret the size of the effect, you need to know the link function for a Poisson DGLM, provided at <a href="/pybats_nbdev/dglm.html#pois_dglm"><code>pois_dglm</code></a>, in the <a href="/pybats_nbdev/dglm.html"><code>dglm</code></a> module.</p>
+<p>The coefficient mean is $0.01$, with a very small standard deviation. Because the mean of the coefficient is positive, we interpret this coefficient as saying that an increase in advertising will increase our forecast of sales. Good, that makes sense! To precisely interpret the size of the effect, you need to know the link function for a Poisson DGLM, provided at <a href="/pybats/dglm.html#pois_dglm"><code>pois_dglm</code></a>, in the <a href="/pybats/dglm.html"><code>dglm</code></a> module.</p>
 <p>To quantify the uncertainty of the parameter, many people like to use the standard deviation (or standard error) of the coefficient, which is simply the square root of the variance. A good rule of thumb to get a pseudo-confidence interval is to add $\pm$ 2*sd(coefficient).</p>
 
 </div>
@@ -980,7 +980,7 @@ $$\lambda_t = F_t^{'} \theta_t$$
 
 <div class="inner_cell">
     <div class="input_area">
-<div class=" highlight hl-ipython3"><pre><span></span><span class="kn">from</span> <span class="nn">pybats_nbdev.shared</span> <span class="kn">import</span> <span class="n">load_sales_example2</span>
+<div class=" highlight hl-ipython3"><pre><span></span><span class="kn">from</span> <span class="nn">pybats.shared</span> <span class="kn">import</span> <span class="n">load_sales_example2</span>
 <span class="n">data</span> <span class="o">=</span> <span class="n">load_sales_example2</span><span class="p">()</span>
 <span class="n">data</span><span class="o">.</span><span class="n">head</span><span class="p">()</span>
 </pre></div>
@@ -1228,7 +1228,7 @@ $$\lambda_t = F_t^{'} \theta_t$$
 </div>
 <div class="cell border-box-sizing text_cell rendered"><div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<p>PyBATS provides a method to specify known holidays, special events, and other outliers in the data. <a href="/pybats_nbdev/analysis.html"><code>analysis</code></a> will automatically add in an indicator (dummy) variable to the regression component for each occurance of the holiday.</p>
+<p>PyBATS provides a method to specify known holidays, special events, and other outliers in the data. <a href="/pybats/analysis.html"><code>analysis</code></a> will automatically add in an indicator (dummy) variable to the regression component for each occurance of the holiday.</p>
 <p>There are two reasons this can be useful. First, adding in a known and repeated special event can improve forecast accuracy. Second, the indicator variable will help protect the other coefficients in the model from overreacting to these outliers in the data.</p>
 
 </div>
@@ -1508,8 +1508,8 @@ $$\lambda_t = F_t^{'} \theta_t$$
 <div class="cell border-box-sizing text_cell rendered"><div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
 <h2 id="Combinations-of-DGLMs">Combinations of DGLMs<a class="anchor-link" href="#Combinations-of-DGLMs"> </a></h2><p>PyBATS has built in more several combinations of DGLMs, which allow for more flexible forecast distributions.</p>
-<p>The Dynamic Count Mixture Model (<a href="/pybats_nbdev/dcmm.html"><code>dcmm</code></a>) is the combination of a Bernoulli and a Poisson DGLM, developed in <a href="https://arxiv.org/pdf/1805.05232.pdf">Berry and West (2019)</a>.</p>
-<p>The Dynamic Binary Cascade Model (<a href="/pybats_nbdev/dbcm.html"><code>dbcm</code></a>) is the combination of a DCMM and a binary cascade, developed in <a href="https://arxiv.org/pdf/1808.04698.pdf">Berry, Helman, and West (2020)</a>.</p>
+<p>The Dynamic Count Mixture Model (<a href="/pybats/dcmm.html"><code>dcmm</code></a>) is the combination of a Bernoulli and a Poisson DGLM, developed in <a href="https://arxiv.org/pdf/1805.05232.pdf">Berry and West (2019)</a>.</p>
+<p>The Dynamic Binary Cascade Model (<a href="/pybats/dbcm.html"><code>dbcm</code></a>) is the combination of a DCMM and a binary cascade, developed in <a href="https://arxiv.org/pdf/1808.04698.pdf">Berry, Helman, and West (2020)</a>.</p>
 
 </div>
 </div>
@@ -1517,8 +1517,8 @@ $$\lambda_t = F_t^{'} \theta_t$$
 <div class="cell border-box-sizing text_cell rendered"><div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
 <h2 id="Latent-Factors">Latent Factors<a class="anchor-link" href="#Latent-Factors"> </a></h2><p>PyBATS also allows for the use of latent factors, which are random variables serving as regression predictors.</p>
-<p>In the class <a href="/pybats_nbdev/latent_factor.html"><code>latent_factor</code></a>, the random predictors are described by a mean and a variance, developed in <a href="https://arxiv.org/pdf/2007.04956.pdf">Lavine, Cron, and West (2020)</a>.</p>
-<p>They can also be integrated into a model through simulation, which is a more precise but slower process, as in <a href="https://arxiv.org/pdf/1805.05232.pdf">Berry and West (2019)</a>. The necessary functions are found on the <a href="/pybats_nbdev/latent_factor_fxns.html"><code>latent_factor_fxns</code></a> page.</p>
+<p>In the class <a href="/pybats/latent_factor.html"><code>latent_factor</code></a>, the random predictors are described by a mean and a variance, developed in <a href="https://arxiv.org/pdf/2007.04956.pdf">Lavine, Cron, and West (2020)</a>.</p>
+<p>They can also be integrated into a model through simulation, which is a more precise but slower process, as in <a href="https://arxiv.org/pdf/1805.05232.pdf">Berry and West (2019)</a>. The necessary functions are found on the <a href="/pybats/latent_factor_fxns.html"><code>latent_factor_fxns</code></a> page.</p>
 
 </div>
 </div>
@@ -1538,14 +1538,14 @@ $$\lambda_t = F_t^{'} \theta_t$$
 </div>
 <div class="cell border-box-sizing text_cell rendered"><div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<h3 id="DCMM-Example-with-Latent-Factors"><a href="https://github.com/lavinei/pybats_nbdev/blob/master/examples/DCMM%20Latent%20Factor%20Example.ipynb">DCMM Example with Latent Factors</a><a class="anchor-link" href="#DCMM-Example-with-Latent-Factors"> </a></h3><p>This example demonstrates how to use a <a href="/pybats_nbdev/dcmm.html"><code>dcmm</code></a> for modeling retail sales. A latent factor is derived from aggregate sales, and used to enhance forecasts for an individual item.</p>
+<h3 id="DCMM-Example-with-Latent-Factors"><a href="https://github.com/lavinei/pybats_nbdev/blob/master/examples/DCMM%20Latent%20Factor%20Example.ipynb">DCMM Example with Latent Factors</a><a class="anchor-link" href="#DCMM-Example-with-Latent-Factors"> </a></h3><p>This example demonstrates how to use a <a href="/pybats/dcmm.html"><code>dcmm</code></a> for modeling retail sales. A latent factor is derived from aggregate sales, and used to enhance forecasts for an individual item.</p>
 
 </div>
 </div>
 </div>
 <div class="cell border-box-sizing text_cell rendered"><div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<h3 id="DBCM-Example-with-Latent-Factors"><a href="https://github.com/lavinei/pybats_nbdev/blob/master/examples/DBCM%20Latent%20Factor%20Example.ipynb">DBCM Example with Latent Factors</a><a class="anchor-link" href="#DBCM-Example-with-Latent-Factors"> </a></h3><p>This example demonstrates how to use a <a href="/pybats_nbdev/dbcm.html"><code>dbcm</code></a> for modeling retail sales. A latent factor is derived from aggregate sales, and used to enhance forecasts for an individual item.</p>
+<h3 id="DBCM-Example-with-Latent-Factors"><a href="https://github.com/lavinei/pybats_nbdev/blob/master/examples/DBCM%20Latent%20Factor%20Example.ipynb">DBCM Example with Latent Factors</a><a class="anchor-link" href="#DBCM-Example-with-Latent-Factors"> </a></h3><p>This example demonstrates how to use a <a href="/pybats/dbcm.html"><code>dbcm</code></a> for modeling retail sales. A latent factor is derived from aggregate sales, and used to enhance forecasts for an individual item.</p>
 
 </div>
 </div>

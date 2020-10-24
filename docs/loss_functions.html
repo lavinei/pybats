@@ -33,8 +33,8 @@ nb_path: "nbs/08_loss_functions.ipynb"
 <div class="text_cell_render border-box-sizing rendered_html">
 <p>The loss functions in this module are commonly used to complete a time series analysis, with the following steps:</p>
 <ol>
-<li>Run an <a href="/pybats_nbdev/analysis.html"><code>analysis</code></a>, returning an array of forecast samples</li>
-<li>Use a function from <a href="/pybats_nbdev/point_forecast.html"><code>point_forecast</code></a> to find the forecast mean, median, or $(-1)-$median</li>
+<li>Run an <a href="/pybats/analysis.html"><code>analysis</code></a>, returning an array of forecast samples</li>
+<li>Use a function from <a href="/pybats/point_forecast.html"><code>point_forecast</code></a> to find the forecast mean, median, or $(-1)-$median</li>
 <li>Evaluate the point forecast error using a loss function from this module</li>
 </ol>
 
@@ -59,7 +59,7 @@ nb_path: "nbs/08_loss_functions.ipynb"
 
 
 <div class="output_markdown rendered_html output_subarea ">
-<h4 id="MSE" class="doc_header"><code>MSE</code><a href="https://github.com/lavinei/pybats_nbdev/tree/master/pybats_nbdev/loss_functions.py#L10" class="source_link" style="float:right">[source]</a></h4><blockquote><p><code>MSE</code>(<strong><code>y</code></strong>, <strong><code>f</code></strong>)</p>
+<h4 id="MSE" class="doc_header"><code>MSE</code><a href="https://github.com/lavinei/pybats/tree/master/pybats/loss_functions.py#L10" class="source_link" style="float:right">[source]</a></h4><blockquote><p><code>MSE</code>(<strong><code>y</code></strong>, <strong><code>f</code></strong>)</p>
 </blockquote>
 <p>Mean squared error (MSE).</p>
 
@@ -91,9 +91,9 @@ $$L = \frac{1}{n} \sum_{i=1:n} (y_i - f_i)^2$$
 
 <div class="inner_cell">
     <div class="input_area">
-<div class=" highlight hl-ipython3"><pre><span></span><span class="kn">from</span> <span class="nn">pybats_nbdev.shared</span> <span class="kn">import</span> <span class="n">load_us_inflation</span>
-<span class="kn">from</span> <span class="nn">pybats_nbdev.analysis</span> <span class="kn">import</span> <span class="n">analysis</span>
-<span class="kn">from</span> <span class="nn">pybats_nbdev.point_forecast</span> <span class="kn">import</span> <span class="n">mean</span><span class="p">,</span> <span class="n">median</span><span class="p">,</span> <span class="n">m_one_median</span>
+<div class=" highlight hl-ipython3"><pre><span></span><span class="kn">from</span> <span class="nn">pybats.shared</span> <span class="kn">import</span> <span class="n">load_us_inflation</span>
+<span class="kn">from</span> <span class="nn">pybats.analysis</span> <span class="kn">import</span> <span class="n">analysis</span>
+<span class="kn">from</span> <span class="nn">pybats.point_forecast</span> <span class="kn">import</span> <span class="n">mean</span><span class="p">,</span> <span class="n">median</span><span class="p">,</span> <span class="n">m_one_median</span>
 <span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
 
 <span class="n">data</span> <span class="o">=</span> <span class="n">load_us_inflation</span><span class="p">()</span>
@@ -162,7 +162,7 @@ $$L = \frac{1}{n} \sum_{i=1:n} (y_i - f_i)^2$$
 
 
 <div class="output_markdown rendered_html output_subarea ">
-<h4 id="MAD" class="doc_header"><code>MAD</code><a href="https://github.com/lavinei/pybats_nbdev/tree/master/pybats_nbdev/loss_functions.py#L20" class="source_link" style="float:right">[source]</a></h4><blockquote><p><code>MAD</code>(<strong><code>y</code></strong>, <strong><code>f</code></strong>)</p>
+<h4 id="MAD" class="doc_header"><code>MAD</code><a href="https://github.com/lavinei/pybats/tree/master/pybats/loss_functions.py#L20" class="source_link" style="float:right">[source]</a></h4><blockquote><p><code>MAD</code>(<strong><code>y</code></strong>, <strong><code>f</code></strong>)</p>
 </blockquote>
 <p>Mean absolute deviation (MAD).</p>
 
@@ -245,7 +245,7 @@ $$L = \frac{1}{n} \sum_{i=1:n} |y_i - f_i|$$
 
 
 <div class="output_markdown rendered_html output_subarea ">
-<h4 id="MAPE" class="doc_header"><code>MAPE</code><a href="https://github.com/lavinei/pybats_nbdev/tree/master/pybats_nbdev/loss_functions.py#L30" class="source_link" style="float:right">[source]</a></h4><blockquote><p><code>MAPE</code>(<strong><code>y</code></strong>, <strong><code>f</code></strong>)</p>
+<h4 id="MAPE" class="doc_header"><code>MAPE</code><a href="https://github.com/lavinei/pybats/tree/master/pybats/loss_functions.py#L30" class="source_link" style="float:right">[source]</a></h4><blockquote><p><code>MAPE</code>(<strong><code>y</code></strong>, <strong><code>f</code></strong>)</p>
 </blockquote>
 <p>Mean absolute percent error (MAPE).</p>
 

@@ -1,5 +1,5 @@
 # PyBATS
-> PyBATS is a package for Bayesian time series modeling and forecasting. It is designed to enable both quick analyses and flexible options to customize the model form, prior, and forecast period. The core of the package is the class Dynamic Generalized Linear Model (`dglm`). The supported DGLMs are Poisson, Bernoulli, Normal (a DLM), and Binomial. These models are primarily based on <a href='http://www2.stat.duke.edu/~mw/West&HarrisonBook/'>Bayesian Forecasting and Dynamic Models</a>.
+> PyBATS is a package for Bayesian time series modeling and forecasting. It is designed to enable both quick analyses and flexible options to customize the model form, prior, and forecast period. The core of the package is the class Dynamic Generalized Linear Model (dglm). The supported DGLMs are Poisson, Bernoulli, Normal (a DLM), and Binomial. These models are primarily based on <a href='http://www2.stat.duke.edu/~mw/West&HarrisonBook/'>Bayesian Forecasting and Dynamic Models</a>.
 
 
 ## Install
@@ -24,10 +24,10 @@ This is the most basic example of Bayesian time series analysis using PyBATS. We
 import numpy as np
 import pandas as pd
 
-from pybats_nbdev.shared import load_sales_example
-from pybats_nbdev.analysis import *
-from pybats_nbdev.point_forecast import *
-from pybats_nbdev.plot import *
+from pybats.shared import load_sales_example
+from pybats.analysis import *
+from pybats.point_forecast import *
+from pybats.plot import *
 
 # Load example sales and advertising data. Source: Abraham & Ledolter (1983)
 data = load_sales_example()             
@@ -453,7 +453,7 @@ For more details, refer to Chapter 8.6 in [Bayesian Forecasting and Dynamic Mode
 To see this in action, we'll load in some simulated daily sales data:
 
 ```python
-from pybats_nbdev.shared import load_sales_example2
+from pybats.shared import load_sales_example2
 data = load_sales_example2()
 data.head()
 ```

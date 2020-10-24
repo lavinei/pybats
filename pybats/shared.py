@@ -22,7 +22,7 @@ import zlib
 def load_interpolators():
 
     pkg_data_dir = os.path.dirname(os.path.abspath(__file__)) + '/pkg_data'
-    #pkg_data_dir = os.getcwd().split('pybats_nbdev')[0] + 'pybats_nbdev/pybats_nbdev/pkg_data'
+    #pkg_data_dir = os.getcwd().split('pybats')[0] + 'pybats/pybats/pkg_data'
     #pkg_data_dir = globals()['_dh'][0] + '/pkg_data'
 
     try:

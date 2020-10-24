@@ -55,6 +55,6 @@ entries:
       title: Latent Factor Functions
       url: latent_factor_fxns.html
     output: web
-    title: pybats_nbdev
+    title: pybats
   output: web
   title: Sidebar

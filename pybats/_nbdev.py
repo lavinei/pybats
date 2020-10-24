@@ -159,8 +159,8 @@ modules = ["dglm.py",
            "latent_factor.py",
            "latent_factor_fxns.py"]
 
-doc_url = "https://lavinei.github.io/pybats_nbdev/"
+doc_url = "https://lavinei.github.io/pybats/"
 
-git_url = "https://github.com/lavinei/pybats_nbdev/tree/master/"
+git_url = "https://github.com/lavinei/pybats/tree/master/"
 
 def custom_doc_links(name): return None
