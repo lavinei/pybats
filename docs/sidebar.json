@@ -1,0 +1,20 @@
+{
+  "pybats_nbdev": {
+    "Overview": "/",
+    "DGLM": "dglm.html",
+    "Update": "update.html",
+    "Forecast": "forecast.html",
+    "Define Models": "define_models.html",
+    "Seasonal Components": "seasonal.html",
+    "Analysis": "analysis.html",
+    "Conjugates": "conjugates.html",
+    "Point Forecasts": "point_forecast.html",
+    "Loss Functions": "loss_functions.html",
+    "Plot": "plot.html",
+    "Shared Functions": "shared.html",
+    "DCMM": "dcmm.html",
+    "DBCM": "dbcm.html",
+    "Latent Factors": "latent_factor.html",
+    "Latent Factor Functions": "latent_factor_fxns.html"
+  }
+}
