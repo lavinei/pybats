@@ -1,7 +1,7 @@
-repository: lavinei/pybats_nbdev
+repository: lavinei/pybats
 output: web
-topnav_title: pybats_nbdev
-site_title: pybats_nbdev
+topnav_title: pybats
+site_title: pybats
 company_name: Isaac Lavine
 description: Pybats is a python library for Bayesian time series analysis.
 # Set to false to disable KaTeX math
