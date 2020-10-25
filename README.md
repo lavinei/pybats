@@ -20,7 +20,7 @@ $ sudo python setup.py install
 
 This is the most basic example of Bayesian time series analysis using PyBATS. We'll use a public dataset of the sales of a dietary weight control product, along with the advertising spend. First we load in the data, and take a quick look at the first couples of entries:
 
-```
+```python
 import numpy as np
 import pandas as pd
 
@@ -31,54 +31,15 @@ from pybats.plot import *
 
 # Load example sales and advertising data. Source: Abraham & Ledolter (1983)
 data = load_sales_example()             
-data.head(3)
+print(data.head())
 ```
 
-
-
-
-<div>
-<style scoped>
-    .dataframe tbody tr th:only-of-type {
-        vertical-align: middle;
-    }
-
-    .dataframe tbody tr th {
-        vertical-align: top;
-    }
-
-    .dataframe thead th {
-        text-align: right;
-    }
-</style>
-<table border="1" class="dataframe">
-  <thead>
-    <tr style="text-align: right;">
-      <th></th>
-      <th>Sales</th>
-      <th>Advertising</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <th>1</th>
-      <td>15</td>
-      <td>12.0</td>
-    </tr>
-    <tr>
-      <th>2</th>
-      <td>16</td>
-      <td>20.5</td>
-    </tr>
-    <tr>
-      <th>3</th>
-      <td>18</td>
-      <td>21.0</td>
-    </tr>
-  </tbody>
-</table>
-</div>
-
+       Sales  Advertising
+    1     15         12.0
+    2     16         20.5
+    3     18         21.0
+    4     27         15.5
+    5     21         15.3
 
 
 The sales are integer valued counts, which we model with a Poisson Dynamic Generalized Linear Model (DGLM). Second, we extract the outcome (_Y_) and covariates (_X_) from this dataset. We'll set the forecast horizon _k=1_ for this example. We could look at multiple forecast horizons by setting k to a larger value. `analysis`, a core PyBATS function, will automatically:
@@ -88,7 +49,7 @@ The sales are integer valued counts, which we model with a Poisson Dynamic Gener
 
 The main parameters that we need to specify are the dates during which the model will forecast. In this case we specify the start and end date with integers, because there are no actual dates associated with this dataset.
 
-```
+```python
 Y = data['Sales'].values
 X = data['Advertising'].values.reshape(-1,1)
 
@@ -99,7 +60,7 @@ forecast_end = 35                                   # End forecast at time step 
 
 By default, `analysis` will return samples from the forecast distribution as well as the model after the final observation.
 
-```
+```python
 mod, samples = analysis(Y, X, family="poisson",
 forecast_start=forecast_start,      # First time step to forecast on
 forecast_end=forecast_end,          # Final time step to forecast on
@@ -116,55 +77,18 @@ delregn=0.95                        # Discount factor on the regression componen
 
 The model has the posterior mean and variance of the coefficients (also known as the state vector) stored as `mod.a` and `mod.C` respectively. We can view them in a nicer format with the method `mod.get_coef`.
 
+```python
+print(mod.get_coef())
 ```
-mod.get_coef()
-```
 
-
-
-
-<div>
-<style scoped>
-    .dataframe tbody tr th:only-of-type {
-        vertical-align: middle;
-    }
-
-    .dataframe tbody tr th {
-        vertical-align: top;
-    }
-
-    .dataframe thead th {
-        text-align: right;
-    }
-</style>
-<table border="1" class="dataframe">
-  <thead>
-    <tr style="text-align: right;">
-      <th></th>
-      <th>Mean</th>
-      <th>Standard Deviation</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <th>Intercept</th>
-      <td>0.63</td>
-      <td>0.36</td>
-    </tr>
-    <tr>
-      <th>Regn 1</th>
-      <td>0.08</td>
-      <td>0.01</td>
-    </tr>
-  </tbody>
-</table>
-</div>
-
+               Mean  Standard Deviation
+    Intercept  0.63                0.36
+    Regn 1     0.08                0.01
 
 
 Finally, we turn our attention to the forecasts. At each time step within the forecast window, $15 \leq t \leq 35$, the model drew samples from the forecast distribution $k=1$ steps into the future. We will plot the sales, median forecast, and $95\%$ credible interval using these samples.
 
-```
+```python
 import matplotlib.pyplot as plt
 
 # Take the median as the point forecast
@@ -220,7 +144,7 @@ PyBATS supports $0$, $1$, and $2$ trend coefficients in a DGLM. $1$ trend term i
 
 The default setting is to have only an intercept term, which we can see from the model defined in the example above:
 
-```
+```python
 mod.ntrend
 ```
 
@@ -233,7 +157,7 @@ mod.ntrend
 
 We can access the mean $E\left[ \theta_t \right]$ and variance $V\left[ \theta_t \right]$ of the state vector by the attribute names **a** and **R**. We use the trend indices, given by `mod.itrend`, to view the trend component of the state vector.
 
-```
+```python
 mod.a[mod.itrend].round(2), mod.R.diagonal()[mod.itrend].round(2)
 ```
 
@@ -246,52 +170,19 @@ mod.a[mod.itrend].round(2), mod.R.diagonal()[mod.itrend].round(2)
 
 We can also access this information using `get_coef`, while specifying the component we want. Note that `get_coef` provides the coefficient standard deviations, rather than the variances.
 
+```python
+print(mod.get_coef('trend'))
 ```
-mod.get_coef('trend')
-```
 
-
-
-
-<div>
-<style scoped>
-    .dataframe tbody tr th:only-of-type {
-        vertical-align: middle;
-    }
-
-    .dataframe tbody tr th {
-        vertical-align: top;
-    }
-
-    .dataframe thead th {
-        text-align: right;
-    }
-</style>
-<table border="1" class="dataframe">
-  <thead>
-    <tr style="text-align: right;">
-      <th></th>
-      <th>Mean</th>
-      <th>Standard Deviation</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <th>Intercept</th>
-      <td>0.63</td>
-      <td>0.36</td>
-    </tr>
-  </tbody>
-</table>
-</div>
-
+               Mean  Standard Deviation
+    Intercept  0.63                0.36
 
 
 This means that the intercept term has a mean of $0.63$ and a standard deviation of $0.36$ at time T, the end of the analysis. The analysis is over either at time `forecast_end`, or when we hit the final observation in `Y`, whichever comes first.
 
 To add in a local slope, we can re-run the analysis from above while specifying that `ntrend=2`.
 
-```
+```python
 mod, samples = analysis(Y, X, family="poisson",
 ntrend=2,                           # Use an intercept and local slope
 forecast_start=forecast_start,      # First time step to forecast on
@@ -307,7 +198,7 @@ delregn=0.95                        # Discount factor on the regression componen
     beginning forecasting
 
 
-```
+```python
 mod.ntrend
 ```
 
@@ -320,7 +211,7 @@ mod.ntrend
 
 We can plot the forecasts with this new model, and see that the results are quite similar!
 
-```
+```python
 # Take the median as the point forecast
 forecast = median(samples)                                  
 
@@ -340,7 +231,7 @@ ax = ax_style(ax, ylabel='Sales', xlabel='Time', xlim=[forecast_start, forecast_
 
 The regression component contains all known predictors. In this example, the advertising budget is our only predictor, which is stored in the $X$ array. When there are multiple predictors, each column of $X$ is a separate predictor. We can look at the first 5 elements of $X$:
 
-```
+```python
 X[:5]
 ```
 
@@ -357,7 +248,7 @@ X[:5]
 
 The `analysis` function automatically detected that $X$ only had $1$ column, and so it defined the model to have the correct number of regression components.
 
-```
+```python
 mod.nregn
 ```
 
@@ -370,7 +261,7 @@ mod.nregn
 
 To understand the impact of advertising on sales, we can look at the regression coefficients at the final time step. Similar to the trend component, the indices for the regression component are stored in `mod.iregn`.
 
-```
+```python
 mod.a[mod.iregn].round(4), mod.R.diagonal()[mod.iregn].round(4)
 ```
 
@@ -383,52 +274,19 @@ mod.a[mod.iregn].round(4), mod.R.diagonal()[mod.iregn].round(4)
 
 And just as before, we can also view this information using `get_coef`, with `component='regn'`.
 
+```python
+print(mod.get_coef('regn'))
 ```
-mod.get_coef('regn')
-```
 
-
-
-
-<div>
-<style scoped>
-    .dataframe tbody tr th:only-of-type {
-        vertical-align: middle;
-    }
-
-    .dataframe tbody tr th {
-        vertical-align: top;
-    }
-
-    .dataframe thead th {
-        text-align: right;
-    }
-</style>
-<table border="1" class="dataframe">
-  <thead>
-    <tr style="text-align: right;">
-      <th></th>
-      <th>Mean</th>
-      <th>Standard Deviation</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <th>Regn 1</th>
-      <td>0.1</td>
-      <td>0.02</td>
-    </tr>
-  </tbody>
-</table>
-</div>
-
+            Mean  Standard Deviation
+    Regn 1   0.1                0.02
 
 
 The coefficient mean is $0.01$, with a very small standard deviation. Because the mean of the coefficient is positive, we interpret this coefficient as saying that an increase in advertising will increase our forecast of sales. Good, that makes sense! To precisely interpret the size of the effect, you need to know the link function for a Poisson DGLM, provided at `pois_dglm`, in the `dglm` module.
 
 To quantify the uncertainty of the parameter, many people like to use the standard deviation (or standard error) of the coefficient, which is simply the square root of the variance. A good rule of thumb to get a pseudo-confidence interval is to add $\pm$ 2*sd(coefficient).
 
-```
+```python
 mean, sd = mod.get_coef('regn').values[0]
 np.round(mean + 2 * sd, 2), np.round(mean - 2 * sd, 2)
 ```
@@ -452,79 +310,19 @@ For more details, refer to Chapter 8.6 in [Bayesian Forecasting and Dynamic Mode
 
 To see this in action, we'll load in some simulated daily sales data:
 
-```
+```python
 from pybats.shared import load_sales_example2
 data = load_sales_example2()
-data.head()
+print(data.head())
 ```
 
-
-
-
-<div>
-<style scoped>
-    .dataframe tbody tr th:only-of-type {
-        vertical-align: middle;
-    }
-
-    .dataframe tbody tr th {
-        vertical-align: top;
-    }
-
-    .dataframe thead th {
-        text-align: right;
-    }
-</style>
-<table border="1" class="dataframe">
-  <thead>
-    <tr style="text-align: right;">
-      <th></th>
-      <th>Sales</th>
-      <th>Price</th>
-      <th>Promotion</th>
-    </tr>
-    <tr>
-      <th>Date</th>
-      <th></th>
-      <th></th>
-      <th></th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <th>2014-06-01</th>
-      <td>15.0</td>
-      <td>1.11</td>
-      <td>0.0</td>
-    </tr>
-    <tr>
-      <th>2014-06-02</th>
-      <td>13.0</td>
-      <td>2.19</td>
-      <td>0.0</td>
-    </tr>
-    <tr>
-      <th>2014-06-03</th>
-      <td>6.0</td>
-      <td>0.23</td>
-      <td>0.0</td>
-    </tr>
-    <tr>
-      <th>2014-06-04</th>
-      <td>2.0</td>
-      <td>-0.05</td>
-      <td>1.0</td>
-    </tr>
-    <tr>
-      <th>2014-06-05</th>
-      <td>6.0</td>
-      <td>-0.14</td>
-      <td>0.0</td>
-    </tr>
-  </tbody>
-</table>
-</div>
-
+                Sales  Price  Promotion
+    Date                               
+    2014-06-01   15.0   1.11        0.0
+    2014-06-02   13.0   2.19        0.0
+    2014-06-03    6.0   0.23        0.0
+    2014-06-04    2.0  -0.05        1.0
+    2014-06-05    6.0  -0.14        0.0
 
 
 The simulated dataset contains daily sales of an item from June 1, 2014 to June 1, 2018. 
@@ -534,7 +332,7 @@ The simulated dataset contains daily sales of an item from June 1, 2014 to June 
 
 Before we run an analysis, we again need to specify a few arguments
 
-```
+```python
 prior_length = 21   # Number of days of data used to set prior
 k = 1               # Forecast horizon
 rho = 0.5           # Random effect discount factor to increase variance of forecast distribution
@@ -547,12 +345,10 @@ X = data[['Price', 'Promotion']].values
 
 And most importantly, we need to specify that the retail sales will have a seasonality component with a $7-$day period:
 
-```
+```python
 seasPeriods=[7]
 seasHarmComponents = [[1,2,3]]
-```
 
-```
 mod, samples = analysis(Y, X,
                         k, forecast_start, forecast_end, nsamps=forecast_samps,
                         family='poisson',
@@ -569,7 +365,7 @@ mod, samples = analysis(Y, X,
 
 We can visualize the forecasts, and instantly see the pattern in the forecasts coming from the weekly seasonality:
 
-```
+```python
 plot_length = 30
 data_1step = data.loc[forecast_end-pd.DateOffset(30):forecast_end]
 samples_1step = samples[:,-31:,0]
@@ -583,7 +379,7 @@ ax = plot_data_forecast(fig, ax,
 ```
 
 
-![png](docs/images/output_54_0.png)
+![png](docs/images/output_53_0.png)
 
 
 ### Holidays and Special Events
@@ -594,7 +390,7 @@ There are two reasons this can be useful. First, adding in a known and repeated 
 
 To demonstrate, let's repeat the analysis of simulated retail sales from above, while including a holiday effect:
 
-```
+```python
 holidays = USFederalHolidayCalendar.rules
 
 mod, samples = analysis(Y, X,
@@ -612,29 +408,29 @@ mod, samples = analysis(Y, X,
 
 We've just used the standard holidays in the US Federal Calendar, but you can specify your own list of holidays using [pandas.tseries.holiday](https://pandas.pydata.org/pandas-docs/stable/user_guide/timeseries.html#holidays-holiday-calendars).
 
-```
+```python
 holidays
 ```
 
 
 
 
-    [Holiday: New Years Day (month=1, day=1, observance=<function nearest_workday at 0x7fe8fd5cb3b0>),
+    [Holiday: New Years Day (month=1, day=1, observance=<function nearest_workday at 0x7fd3aded3290>),
      Holiday: Martin Luther King Jr. Day (month=1, day=1, offset=<DateOffset: weekday=MO(+3)>),
      Holiday: Presidents Day (month=2, day=1, offset=<DateOffset: weekday=MO(+3)>),
      Holiday: Memorial Day (month=5, day=31, offset=<DateOffset: weekday=MO(-1)>),
-     Holiday: July 4th (month=7, day=4, observance=<function nearest_workday at 0x7fe8fd5cb3b0>),
+     Holiday: July 4th (month=7, day=4, observance=<function nearest_workday at 0x7fd3aded3290>),
      Holiday: Labor Day (month=9, day=1, offset=<DateOffset: weekday=MO(+1)>),
      Holiday: Columbus Day (month=10, day=1, offset=<DateOffset: weekday=MO(+2)>),
-     Holiday: Veterans Day (month=11, day=11, observance=<function nearest_workday at 0x7fe8fd5cb3b0>),
+     Holiday: Veterans Day (month=11, day=11, observance=<function nearest_workday at 0x7fd3aded3290>),
      Holiday: Thanksgiving (month=11, day=1, offset=<DateOffset: weekday=TH(+4)>),
-     Holiday: Christmas (month=12, day=25, observance=<function nearest_workday at 0x7fe8fd5cb3b0>)]
+     Holiday: Christmas (month=12, day=25, observance=<function nearest_workday at 0x7fd3aded3290>)]
 
 
 
 Look again at the plot of forecasts above. A number of the observations fall outside of the $95\%$ credible intervals. One of those is on May 28, 2018 - Memorial Day. How does it look now?
 
-```
+```python
 plot_length = 30
 data_1step = data.loc[forecast_end-pd.DateOffset(30):forecast_end]
 samples_1step = samples[:,-31:,0]
@@ -648,7 +444,7 @@ ax = plot_data_forecast(fig, ax,
 ```
 
 
-![png](docs/images/output_62_0.png)
+![png](docs/images/output_61_0.png)
 
 
 The point forecast (dark blue line) is higher for Memorial Day, and the $95\%$ confidence interval (light blue shaded region) is much wider. The higher point forecast reflects what the model has learned from Memorial Day in previous years, and the presence of the Memorial Day coefficient also increases the forecast uncertainty.
@@ -663,7 +459,7 @@ PyBATS has built-in safety measures that prevent the variance from growing too l
 
 PyBATS allows discount factors to be set separately for each component, and even for each individual coefficient if desired.
 
-```
+```python
 deltrend = 0.98 # Discount factor on the trend component
 delregn = 0.98 # Discount factor on the regression component
 delseas = 0.98 # Discount factor on the seasonal component
@@ -691,7 +487,7 @@ The default discount factors in PyBATS are fairly high, so in this example we've
 
 We also changed the parameter $\rho=0.3$. This is a special discount factor which increases the *forecast* uncertainty, rather than discounting information on a coefficient. The smaller $\rho$ is, the wider the forecast interval. It typically lies within $0 < \rho < 1$, because most dataset have more uncertainty than expected from a standard Poisson distribution. However, $\rho$ can go higher than $1$ if the goal is to shrink the forecast intervals.
 
-```
+```python
 plot_length = 30
 data_1step = data.loc[forecast_end-pd.DateOffset(30):forecast_end]
 samples_1step = samples[:,-31:,0]
@@ -706,7 +502,7 @@ ax.set_ylim([0, 25]);
 ```
 
 
-![png](docs/images/output_68_0.png)
+![png](docs/images/output_67_0.png)
 
 
 ## Combinations of DGLMs
@@ -740,3 +536,9 @@ This example demonstrates how to use a `dcmm` for modeling retail sales. A laten
 ### [DBCM Example with Latent Factors](https://github.com/lavinei/pybats_nbdev/blob/master/examples/DBCM%20Latent%20Factor%20Example.ipynb)
 
 This example demonstrates how to use a `dbcm` for modeling retail sales. A latent factor is derived from aggregate sales, and used to enhance forecasts for an individual item.
+
+## Contact Me
+
+PyBATS was developed by [Isaac Lavine](https://www.linkedin.com/in/isaac-lavine-70495929/) while working as a PhD student at Duke Statistics.
+
+Please feel free to contact me with any questions or comments. You can report any issues through the [GitHub page](https://github.com/lavinei/pybats), or reach me directly via email at lavine.isaac@gmail.com.
