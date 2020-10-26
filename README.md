@@ -369,7 +369,7 @@ We can visualize the forecasts, and instantly see the pattern in the forecasts c
 plot_length = 30
 data_1step = data.loc[forecast_end-pd.DateOffset(30):forecast_end]
 samples_1step = samples[:,-31:,0]
-fig, ax = plt.subplots(1,1)
+fig, ax = plt.subplots(1,1, figsize=(8, 6))
 ax = plot_data_forecast(fig, ax,
                         data_1step.Sales,
                         median(samples_1step),
@@ -415,16 +415,16 @@ holidays
 
 
 
-    [Holiday: New Years Day (month=1, day=1, observance=<function nearest_workday at 0x7fd3aded3290>),
+    [Holiday: New Years Day (month=1, day=1, observance=<function nearest_workday at 0x7fdc45eda290>),
      Holiday: Martin Luther King Jr. Day (month=1, day=1, offset=<DateOffset: weekday=MO(+3)>),
      Holiday: Presidents Day (month=2, day=1, offset=<DateOffset: weekday=MO(+3)>),
      Holiday: Memorial Day (month=5, day=31, offset=<DateOffset: weekday=MO(-1)>),
-     Holiday: July 4th (month=7, day=4, observance=<function nearest_workday at 0x7fd3aded3290>),
+     Holiday: July 4th (month=7, day=4, observance=<function nearest_workday at 0x7fdc45eda290>),
      Holiday: Labor Day (month=9, day=1, offset=<DateOffset: weekday=MO(+1)>),
      Holiday: Columbus Day (month=10, day=1, offset=<DateOffset: weekday=MO(+2)>),
-     Holiday: Veterans Day (month=11, day=11, observance=<function nearest_workday at 0x7fd3aded3290>),
+     Holiday: Veterans Day (month=11, day=11, observance=<function nearest_workday at 0x7fdc45eda290>),
      Holiday: Thanksgiving (month=11, day=1, offset=<DateOffset: weekday=TH(+4)>),
-     Holiday: Christmas (month=12, day=25, observance=<function nearest_workday at 0x7fd3aded3290>)]
+     Holiday: Christmas (month=12, day=25, observance=<function nearest_workday at 0x7fdc45eda290>)]
 
 
 
@@ -434,7 +434,7 @@ Look again at the plot of forecasts above. A number of the observations fall out
 plot_length = 30
 data_1step = data.loc[forecast_end-pd.DateOffset(30):forecast_end]
 samples_1step = samples[:,-31:,0]
-fig, ax = plt.subplots(1,1)
+fig, ax = plt.subplots(1,1, figsize=(8, 6))
 ax = plot_data_forecast(fig, ax,
                         data_1step.Sales,
                         median(samples_1step),
@@ -491,7 +491,7 @@ We also changed the parameter $\rho=0.3$. This is a special discount factor whic
 plot_length = 30
 data_1step = data.loc[forecast_end-pd.DateOffset(30):forecast_end]
 samples_1step = samples[:,-31:,0]
-fig, ax = plt.subplots(1,1)
+fig, ax = plt.subplots(1,1, figsize=(8, 6))
 ax = plot_data_forecast(fig, ax,
                         data_1step.Sales,
                         median(samples_1step),
