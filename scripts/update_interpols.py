@@ -4,8 +4,8 @@ import sys
 
 sys.path.insert(0, '.')
 
-from pybats_nbdev.conjugates import bern_conjugate_params, pois_conjugate_params, pois_alpha_param
-from pybats_nbdev.shared import transformer, trigamma, gamma_transformer
+from pybats.conjugates import bern_conjugate_params, pois_conjugate_params, pois_alpha_param
+from pybats.shared import transformer, trigamma, gamma_transformer
 from scipy import interpolate
 from scipy import optimize as opt
 from scipy.special import digamma
