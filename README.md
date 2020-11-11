@@ -539,7 +539,7 @@ This example demonstrates how to use a `dbcm` for modeling retail sales. A laten
 
 ## Contact Me
 
-PyBATS was developed by [Isaac Lavine](https://www.linkedin.com/in/isaac-lavine-70495929/) while working as a PhD student at Duke Statistics, with support from [84.51](https://www.8451.com/).
+PyBATS was developed by [Isaac Lavine](https://www.linkedin.com/in/isaac-lavine-70495929/) while working as a PhD student at Duke Statistics, advised by [Mike West](http://www2.stat.duke.edu/~mw/index.html), and with support from [84.51](https://www.8451.com/).
 
 Please feel free to contact me with any questions or comments. You can report any issues through the [GitHub page](https://github.com/lavinei/pybats), or reach me directly via email at lavine.isaac@gmail.com.
 
