@@ -57,7 +57,7 @@ def analysis(Y, X=None, k=1, forecast_start=0, forecast_end=0,
             forecast_end = np.where(dates == forecast_end)[0][0]
 
     # Define the run length
-    T = len(Y) + 1 #np.min([len(Y), forecast_end]) + 1
+    T = len(Y) + 1
 
     if ret.__contains__('model_coef'):
         m = np.zeros([T-1, mod.a.shape[0]])
