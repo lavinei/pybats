@@ -143,7 +143,7 @@ def update_lf_analytic_dlm(mod, y=None, X=None, phi_mu = None, phi_sigma = None)
 def get_mean_and_var_lf(self, F, a, R, phi_mu, phi_sigma, ilf):
     p = len(ilf)
     if p == 1:
-        extra_var = a[ilf] ** 2 * phi_sigma + a[ilf] * R[np.ix_(ilf, ilf)] * phi_sigma
+        extra_var = a[ilf] ** 2 * phi_sigma + R[np.ix_(ilf, ilf)] * phi_sigma
     else:
         extra_var = a[ilf].T @ phi_sigma @ a[ilf] + np.trace(R[np.ix_(ilf, ilf)] @ phi_sigma)
 
@@ -153,7 +153,7 @@ def get_mean_and_var_lf(self, F, a, R, phi_mu, phi_sigma, ilf):
 def get_mean_and_var_lf_dlm(F, a, R, phi_mu, phi_sigma, ilf, ct):
     p = len(ilf)
     if p == 1:
-        extra_var = a[ilf] ** 2 * phi_sigma + a[ilf]/ct * R[np.ix_(ilf, ilf)] * phi_sigma
+        extra_var = a[ilf] ** 2 * phi_sigma/ct * R[np.ix_(ilf, ilf)] * phi_sigma
     else:
         extra_var = a[ilf].T @ phi_sigma @ a[ilf]/ct + np.trace(R[np.ix_(ilf, ilf)] @ phi_sigma)
 
@@ -428,7 +428,7 @@ def forecast_joint_marginal_lf_copula(mod_list, k, X_list=None, phi_mu = None, p
         Flist[i] = F
 
         # Find lambda mean and var
-        ft, qt = mod.get_mean_and_var(F, a, R)
+        ft, qt = mod.get_mean_and_var_lf(F, a, R, phi_mu, phi_sigma, mod.ilf)
         lambda_mu[i] = ft
         lambda_cov[i, i] = qt
 

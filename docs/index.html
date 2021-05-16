@@ -325,9 +325,9 @@ Regn 1     0.08                0.01
 </div>
 <div class="cell border-box-sizing text_cell rendered"><div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<p>The correct model type depends upon your time series, $y_t$. The most common type of observations are continuous real numbers, which can often be modeled using a normal Dynamic Linear Model (<a href="/pybats/dglm.html#dlm"><code>dlm</code></a>).</p>
-<p>PyBATS is unique in the current Python ecosystem because it provides dynamic models for non-normally distribution observations:</p>
+<p>The correct model type depends upon your time series, $y_t$. The most common type of observations are continuous real numbers, which can often be modeled using a normal Dynamic Linear Model (<a href="/pybats/dglm.html#dlm"><code>dlm</code></a>). PyBATS is unique in the current Python ecosystem because it provides dynamic models for non-normally distribution observations. The base models supported by PyBATS are:</p>
 <ul>
+<li>Normal DLMs (<a href="/pybats/dglm.html#dlm"><code>dlm</code></a>) model continuous real numbers with normally distributed observation errors.</li>
 <li>Poisson DGLMs (<a href="/pybats/dglm.html#pois_dglm"><code>pois_dglm</code></a>) model positive integers, as in the example above with counts of daily item sales.</li>
 <li>Bernoulli DGLMs (<a href="/pybats/dglm.html#bern_dglm"><code>bern_dglm</code></a>) model data that can be encoded as $0-1$, or success-failure. An example is a time series of changes in stock price, where positive changes are coded as $1$, and negative changes are coded as $0$.</li>
 <li>Binomial DGLMs (<a href="/pybats/dglm.html#bin_dglm"><code>bin_dglm</code></a>) model the sum of Bernoulli $0-1$ outcomes. An example is the daily count of responses to a survey, in which $n_t$ people are contacted each day, and $y_t$ people choose to respond.</li>
@@ -1253,7 +1253,7 @@ Date
 <div class="cell border-box-sizing text_cell rendered"><div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
 <p>The default discount factors in PyBATS are fairly high, so in this example we've set them to $\delta=0.98$ for the trend, regression, and seasonal components. This will allow those coefficient to adapt more rapidly. The holiday component is left at $\delta=1$.</p>
-<p>We also changed the parameter $\rho=0.3$. This is a special discount factor which increases the <em>forecast</em> uncertainty, rather than discounting information on a coefficient. The smaller $\rho$ is, the wider the forecast interval. It typically lies within $0 &lt; \rho &lt; 1$, because most dataset have more uncertainty than expected from a standard Poisson distribution. However, $\rho$ can go higher than $1$ if the goal is to shrink the forecast intervals.</p>
+<p>We also changed the parameter $\rho=0.3$. This is a special discount factor which increases the <em>forecast</em> uncertainty, rather than discounting information on a coefficient. The smaller $\rho$ is, the wider the forecast interval. It lies within $0 \lt \rho \leq 1$, and allows the model to handle higher uncertainty than expected from a standard Poisson distribution.</p>
 
 </div>
 </div>

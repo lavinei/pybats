@@ -114,10 +114,9 @@ All models in PyBATS are based on DGLMs, which are well described by their name:
 2. **Generalized**: We can choose the distribution of the observations (Normal, Poisson, Bernoulli, or Binomial)
 3. **Linear**: Forecasts are made by a standard linear combination of coefficients multiplied by predictors
 
-The correct model type depends upon your time series, $y_t$. The most common type of observations are continuous real numbers, which can often be modeled using a normal Dynamic Linear Model (`dlm`).
+The correct model type depends upon your time series, $y_t$. The most common type of observations are continuous real numbers, which can often be modeled using a normal Dynamic Linear Model (`dlm`). PyBATS is unique in the current Python ecosystem because it provides dynamic models for non-normally distribution observations. The base models supported by PyBATS are:
 
-PyBATS is unique in the current Python ecosystem because it provides dynamic models for non-normally distribution observations:
-
+- Normal DLMs (`dlm`) model continuous real numbers with normally distributed observation errors.
 - Poisson DGLMs (`pois_dglm`) model positive integers, as in the example above with counts of daily item sales.
 - Bernoulli DGLMs (`bern_dglm`) model data that can be encoded as $0-1$, or success-failure. An example is a time series of changes in stock price, where positive changes are coded as $1$, and negative changes are coded as $0$.
 - Binomial DGLMs (`bin_dglm`) model the sum of Bernoulli $0-1$ outcomes. An example is the daily count of responses to a survey, in which $n_t$ people are contacted each day, and $y_t$ people choose to respond.
@@ -485,7 +484,7 @@ mod, samples = analysis(Y, X,
 
 The default discount factors in PyBATS are fairly high, so in this example we've set them to $\delta=0.98$ for the trend, regression, and seasonal components. This will allow those coefficient to adapt more rapidly. The holiday component is left at $\delta=1$.
 
-We also changed the parameter $\rho=0.3$. This is a special discount factor which increases the *forecast* uncertainty, rather than discounting information on a coefficient. The smaller $\rho$ is, the wider the forecast interval. It typically lies within $0 < \rho < 1$, because most dataset have more uncertainty than expected from a standard Poisson distribution. However, $\rho$ can go higher than $1$ if the goal is to shrink the forecast intervals.
+We also changed the parameter $\rho=0.3$. This is a special discount factor which increases the *forecast* uncertainty, rather than discounting information on a coefficient. The smaller $\rho$ is, the wider the forecast interval. It lies within $0 \lt \rho \leq 1$, and allows the model to handle higher uncertainty than expected from a standard Poisson distribution.
 
 ```python
 plot_length = 30
