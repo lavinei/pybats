@@ -62,13 +62,6 @@ nb_path: "nbs/05_analysis.ipynb"
     
 <div class="cell border-box-sizing code_cell rendered">
 
-</div>
-    {% endraw %}
-
-    {% raw %}
-    
-<div class="cell border-box-sizing code_cell rendered">
-
 <div class="output_wrapper">
 <div class="output">
 
@@ -91,6 +84,13 @@ nb_path: "nbs/05_analysis.ipynb"
 
 </div>
 </div>
+
+</div>
+    {% endraw %}
+
+    {% raw %}
+    
+<div class="cell border-box-sizing code_cell rendered">
 
 </div>
     {% endraw %}
@@ -485,13 +485,6 @@ nb_path: "nbs/05_analysis.ipynb"
     
 <div class="cell border-box-sizing code_cell rendered">
 
-</div>
-    {% endraw %}
-
-    {% raw %}
-    
-<div class="cell border-box-sizing code_cell rendered">
-
 <div class="output_wrapper">
 <div class="output">
 
@@ -513,6 +506,13 @@ nb_path: "nbs/05_analysis.ipynb"
 </div>
     {% endraw %}
 
+    {% raw %}
+    
+<div class="cell border-box-sizing code_cell rendered">
+
+</div>
+    {% endraw %}
+
 <div class="cell border-box-sizing text_cell rendered"><div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
 <p><a href="/pybats/analysis.html#analysis_dcmm"><code>analysis_dcmm</code></a> works identically to the standard <a href="/pybats/analysis.html"><code>analysis</code></a>, but is specialized for a DCMM.</p>
@@ -528,13 +528,6 @@ nb_path: "nbs/05_analysis.ipynb"
 </div>
 </div>
 </div>
-    {% raw %}
-    
-<div class="cell border-box-sizing code_cell rendered">
-
-</div>
-    {% endraw %}
-
     {% raw %}
     
 <div class="cell border-box-sizing code_cell rendered">
@@ -560,11 +553,65 @@ nb_path: "nbs/05_analysis.ipynb"
 </div>
     {% endraw %}
 
+    {% raw %}
+    
+<div class="cell border-box-sizing code_cell rendered">
+
+</div>
+    {% endraw %}
+
 <div class="cell border-box-sizing text_cell rendered"><div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
 <p><a href="/pybats/analysis.html#analysis_dbcm"><code>analysis_dbcm</code></a> works identically to the standard <a href="/pybats/analysis.html"><code>analysis</code></a>, but is specialized for a DBCM.</p>
 <p>Separate data must be specified for the DCMM on transactions, <code>y_transaction</code> and <code>X_transaction</code>, the binomial cascade,<code>y_cascade</code>, <code>X_cascade</code>, and any excess counts, <code>excess</code>.</p>
 <p>Note that by default, all simulated forecasts made with <a href="/pybats/analysis.html#analysis_dbcm"><code>analysis_dbcm</code></a> are <em>path</em> forecasts, meaning that they account for the dependence across forecast horizons.</p>
+
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing text_cell rendered"><div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<h2 id="Analysis-for-a-DLMM">Analysis for a DLMM<a class="anchor-link" href="#Analysis-for-a-DLMM"> </a></h2>
+</div>
+</div>
+</div>
+    {% raw %}
+    
+<div class="cell border-box-sizing code_cell rendered">
+
+<div class="output_wrapper">
+<div class="output">
+
+<div class="output_area">
+
+
+<div class="output_markdown rendered_html output_subarea ">
+<h4 id="analysis_dlmm" class="doc_header"><code>analysis_dlmm</code><a href="https://github.com/lavinei/pybats/tree/master/pybats/analysis.py#L500" class="source_link" style="float:right">[source]</a></h4><blockquote><p><code>analysis_dlmm</code>(<strong><code>Y</code></strong>, <strong><code>X</code></strong>, <strong><code>prior_length</code></strong>, <strong><code>k</code></strong>, <strong><code>forecast_start</code></strong>, <strong><code>forecast_end</code></strong>, <strong><code>nsamps</code></strong>=<em><code>500</code></em>, <strong><code>rho</code></strong>=<em><code>0.6</code></em>, <strong><code>mean_only</code></strong>=<em><code>False</code></em>, <strong><code>dates</code></strong>=<em><code>None</code></em>, <strong><code>holidays</code></strong>=<em><code>[]</code></em>, <strong><code>seasPeriods</code></strong>=<em><code>[]</code></em>, <strong><code>seasHarmComponents</code></strong>=<em><code>[]</code></em>, <strong><code>ret</code></strong>=<em><code>['model', 'forecast']</code></em>, <strong>**<code>kwargs</code></strong>)</p>
+</blockquote>
+<p>This is a helpful function to run a standard analysis using a DLMM.</p>
+
+</div>
+
+</div>
+
+</div>
+</div>
+
+</div>
+    {% endraw %}
+
+    {% raw %}
+    
+<div class="cell border-box-sizing code_cell rendered">
+
+</div>
+    {% endraw %}
+
+<div class="cell border-box-sizing text_cell rendered"><div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<p><a href="/pybats/analysis.html#analysis_dlmm"><code>analysis_dlmm</code></a> works identically to the standard <a href="/pybats/analysis.html"><code>analysis</code></a>, but is specialized for a DLMM.</p>
+<p>The observations are continuous and are modeled as a combination of a Bernoulli DGLM and a Normal DLMM.</p>
+<p>Note that by default, all simulated forecasts made with <a href="/pybats/analysis.html#analysis_dlmm"><code>analysis_dlmm</code></a> are <em>path</em> forecasts, meaning that they account for the dependence across forecast horizons.</p>
 
 </div>
 </div>

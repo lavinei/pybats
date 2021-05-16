@@ -15,6 +15,7 @@
     "DCMM": "dcmm.html",
     "DBCM": "dbcm.html",
     "Latent Factors": "latent_factor.html",
-    "Latent Factor Functions": "latent_factor_fxns.html"
+    "Latent Factor Functions": "latent_factor_fxns.html",
+    "DLMM": "dlmm.html"
   }
 }

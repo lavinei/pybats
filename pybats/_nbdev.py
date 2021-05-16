@@ -35,6 +35,7 @@ index = {"dglm": "00_dglm.ipynb",
          "fill_diag": "03_define_models.ipynb",
          "define_dcmm": "03_define_models.ipynb",
          "define_dbcm": "03_define_models.ipynb",
+         "define_dlmm": "03_define_models.ipynb",
          "seascomp": "04_seasonal.ipynb",
          "createFourierToSeasonalL": "04_seasonal.ipynb",
          "fourierToSeasonal": "04_seasonal.ipynb",
@@ -46,6 +47,7 @@ index = {"dglm": "00_dglm.ipynb",
          "analysis": "05_analysis.ipynb",
          "analysis_dcmm": "05_analysis.ipynb",
          "analysis_dbcm": "05_analysis.ipynb",
+         "analysis_dlmm": "05_analysis.ipynb",
          "beta_approx": "06_conjugates.ipynb",
          "gamma_approx": "06_conjugates.ipynb",
          "gamma_alpha_approx": "06_conjugates.ipynb",
@@ -141,7 +143,8 @@ index = {"dglm": "00_dglm.ipynb",
          "forecast_joint_marginal_lf_copula": "14_latent_factor_fxns.ipynb",
          "forecast_joint_marginal_lf_copula_dcmm": "14_latent_factor_fxns.ipynb",
          "forecast_marginal_lf_dcmm": "14_latent_factor_fxns.ipynb",
-         "forecast_path_lf_dcmm": "14_latent_factor_fxns.ipynb"}
+         "forecast_path_lf_dcmm": "14_latent_factor_fxns.ipynb",
+         "dlmm": "15_dlmm.ipynb"}
 
 modules = ["dglm.py",
            "update.py",
@@ -157,7 +160,8 @@ modules = ["dglm.py",
            "dcmm.py",
            "dbcm.py",
            "latent_factor.py",
-           "latent_factor_fxns.py"]
+           "latent_factor_fxns.py",
+           "dlmm.py"]
 
 doc_url = "https://lavinei.github.io/pybats/"
 

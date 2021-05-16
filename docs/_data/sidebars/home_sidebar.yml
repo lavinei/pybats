@@ -54,6 +54,9 @@ entries:
     - output: web,pdf
       title: Latent Factor Functions
       url: latent_factor_fxns.html
+    - output: web,pdf
+      title: DLMM
+      url: dlmm.html
     output: web
     title: pybats
   output: web

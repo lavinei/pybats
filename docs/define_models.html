@@ -39,13 +39,6 @@ nb_path: "nbs/03_define_models.ipynb"
     
 <div class="cell border-box-sizing code_cell rendered">
 
-</div>
-    {% endraw %}
-
-    {% raw %}
-    
-<div class="cell border-box-sizing code_cell rendered">
-
 <div class="output_wrapper">
 <div class="output">
 
@@ -53,7 +46,7 @@ nb_path: "nbs/03_define_models.ipynb"
 
 
 <div class="output_markdown rendered_html output_subarea ">
-<h4 id="define_dglm" class="doc_header"><code>define_dglm</code><a href="https://github.com/lavinei/pybats/tree/master/pybats/define_models.py#L17" class="source_link" style="float:right">[source]</a></h4><blockquote><p><code>define_dglm</code>(<strong><code>Y</code></strong>, <strong><code>X</code></strong>, <strong><code>family</code></strong>=<em><code>'normal'</code></em>, <strong><code>n</code></strong>=<em><code>None</code></em>, <strong><code>ntrend</code></strong>=<em><code>1</code></em>, <strong><code>nlf</code></strong>=<em><code>0</code></em>, <strong><code>nhol</code></strong>=<em><code>0</code></em>, <strong><code>seasPeriods</code></strong>=<em><code>[7]</code></em>, <strong><code>seasHarmComponents</code></strong>=<em><code>[[1, 2, 3]]</code></em>, <strong><code>deltrend</code></strong>=<em><code>0.995</code></em>, <strong><code>delregn</code></strong>=<em><code>0.995</code></em>, <strong><code>delseas</code></strong>=<em><code>0.999</code></em>, <strong><code>dellf</code></strong>=<em><code>0.999</code></em>, <strong><code>delVar</code></strong>=<em><code>0.999</code></em>, <strong><code>delhol</code></strong>=<em><code>1</code></em>, <strong><code>n0</code></strong>=<em><code>1</code></em>, <strong><code>s0</code></strong>=<em><code>1</code></em>, <strong><code>a0</code></strong>=<em><code>None</code></em>, <strong><code>R0</code></strong>=<em><code>None</code></em>, <strong><code>adapt_discount</code></strong>=<em><code>'info'</code></em>, <strong><code>discount_forecast</code></strong>=<em><code>False</code></em>, <strong><code>prior_length</code></strong>=<em><code>None</code></em>, <strong><code>return_aR</code></strong>=<em><code>False</code></em>, <strong>**<code>kwargs</code></strong>)</p>
+<h4 id="define_dglm" class="doc_header"><code>define_dglm</code><a href="https://github.com/lavinei/pybats/tree/master/pybats/define_models.py#L18" class="source_link" style="float:right">[source]</a></h4><blockquote><p><code>define_dglm</code>(<strong><code>Y</code></strong>, <strong><code>X</code></strong>, <strong><code>family</code></strong>=<em><code>'normal'</code></em>, <strong><code>n</code></strong>=<em><code>None</code></em>, <strong><code>ntrend</code></strong>=<em><code>1</code></em>, <strong><code>nlf</code></strong>=<em><code>0</code></em>, <strong><code>nhol</code></strong>=<em><code>0</code></em>, <strong><code>seasPeriods</code></strong>=<em><code>[7]</code></em>, <strong><code>seasHarmComponents</code></strong>=<em><code>[[1, 2, 3]]</code></em>, <strong><code>deltrend</code></strong>=<em><code>0.995</code></em>, <strong><code>delregn</code></strong>=<em><code>0.995</code></em>, <strong><code>delseas</code></strong>=<em><code>0.999</code></em>, <strong><code>dellf</code></strong>=<em><code>0.999</code></em>, <strong><code>delVar</code></strong>=<em><code>0.999</code></em>, <strong><code>delhol</code></strong>=<em><code>1</code></em>, <strong><code>n0</code></strong>=<em><code>1</code></em>, <strong><code>s0</code></strong>=<em><code>1</code></em>, <strong><code>a0</code></strong>=<em><code>None</code></em>, <strong><code>R0</code></strong>=<em><code>None</code></em>, <strong><code>adapt_discount</code></strong>=<em><code>'info'</code></em>, <strong><code>discount_forecast</code></strong>=<em><code>False</code></em>, <strong><code>prior_length</code></strong>=<em><code>None</code></em>, <strong><code>return_aR</code></strong>=<em><code>False</code></em>, <strong>**<code>kwargs</code></strong>)</p>
 </blockquote>
 <p>A helper function to define a DGLM.</p>
 <p>This function is especially useful if you do not know how to specifify a prior mean and variance (a0, R0) for the state vector.</p>
@@ -64,6 +57,13 @@ nb_path: "nbs/03_define_models.ipynb"
 
 </div>
 </div>
+
+</div>
+    {% endraw %}
+
+    {% raw %}
+    
+<div class="cell border-box-sizing code_cell rendered">
 
 </div>
     {% endraw %}
@@ -201,13 +201,6 @@ nb_path: "nbs/03_define_models.ipynb"
     
 <div class="cell border-box-sizing code_cell rendered">
 
-</div>
-    {% endraw %}
-
-    {% raw %}
-    
-<div class="cell border-box-sizing code_cell rendered">
-
 <div class="output_wrapper">
 <div class="output">
 
@@ -215,7 +208,7 @@ nb_path: "nbs/03_define_models.ipynb"
 
 
 <div class="output_markdown rendered_html output_subarea ">
-<h4 id="define_dlm_params" class="doc_header"><code>define_dlm_params</code><a href="https://github.com/lavinei/pybats/tree/master/pybats/define_models.py#L162" class="source_link" style="float:right">[source]</a></h4><blockquote><p><code>define_dlm_params</code>(<strong><code>Y</code></strong>, <strong><code>X</code></strong>=<em><code>None</code></em>)</p>
+<h4 id="define_dlm_params" class="doc_header"><code>define_dlm_params</code><a href="https://github.com/lavinei/pybats/tree/master/pybats/define_models.py#L163" class="source_link" style="float:right">[source]</a></h4><blockquote><p><code>define_dlm_params</code>(<strong><code>Y</code></strong>, <strong><code>X</code></strong>=<em><code>None</code></em>)</p>
 </blockquote>
 
 </div>
@@ -246,7 +239,7 @@ nb_path: "nbs/03_define_models.ipynb"
 
 
 <div class="output_markdown rendered_html output_subarea ">
-<h4 id="define_bern_params" class="doc_header"><code>define_bern_params</code><a href="https://github.com/lavinei/pybats/tree/master/pybats/define_models.py#L175" class="source_link" style="float:right">[source]</a></h4><blockquote><p><code>define_bern_params</code>(<strong><code>Y</code></strong>, <strong><code>X</code></strong>=<em><code>None</code></em>)</p>
+<h4 id="define_bern_params" class="doc_header"><code>define_bern_params</code><a href="https://github.com/lavinei/pybats/tree/master/pybats/define_models.py#L176" class="source_link" style="float:right">[source]</a></h4><blockquote><p><code>define_bern_params</code>(<strong><code>Y</code></strong>, <strong><code>X</code></strong>=<em><code>None</code></em>)</p>
 </blockquote>
 
 </div>
@@ -277,7 +270,7 @@ nb_path: "nbs/03_define_models.ipynb"
 
 
 <div class="output_markdown rendered_html output_subarea ">
-<h4 id="define_bin_params" class="doc_header"><code>define_bin_params</code><a href="https://github.com/lavinei/pybats/tree/master/pybats/define_models.py#L202" class="source_link" style="float:right">[source]</a></h4><blockquote><p><code>define_bin_params</code>(<strong><code>Y</code></strong>, <strong><code>n</code></strong>, <strong><code>X</code></strong>=<em><code>None</code></em>)</p>
+<h4 id="define_bin_params" class="doc_header"><code>define_bin_params</code><a href="https://github.com/lavinei/pybats/tree/master/pybats/define_models.py#L203" class="source_link" style="float:right">[source]</a></h4><blockquote><p><code>define_bin_params</code>(<strong><code>Y</code></strong>, <strong><code>n</code></strong>, <strong><code>X</code></strong>=<em><code>None</code></em>)</p>
 </blockquote>
 
 </div>
@@ -308,7 +301,7 @@ nb_path: "nbs/03_define_models.ipynb"
 
 
 <div class="output_markdown rendered_html output_subarea ">
-<h4 id="define_pois_params" class="doc_header"><code>define_pois_params</code><a href="https://github.com/lavinei/pybats/tree/master/pybats/define_models.py#L225" class="source_link" style="float:right">[source]</a></h4><blockquote><p><code>define_pois_params</code>(<strong><code>Y</code></strong>, <strong><code>X</code></strong>=<em><code>None</code></em>)</p>
+<h4 id="define_pois_params" class="doc_header"><code>define_pois_params</code><a href="https://github.com/lavinei/pybats/tree/master/pybats/define_models.py#L226" class="source_link" style="float:right">[source]</a></h4><blockquote><p><code>define_pois_params</code>(<strong><code>Y</code></strong>, <strong><code>X</code></strong>=<em><code>None</code></em>)</p>
 </blockquote>
 
 </div>
@@ -317,6 +310,13 @@ nb_path: "nbs/03_define_models.ipynb"
 
 </div>
 </div>
+
+</div>
+    {% endraw %}
+
+    {% raw %}
+    
+<div class="cell border-box-sizing code_cell rendered">
 
 </div>
     {% endraw %}
@@ -338,13 +338,6 @@ nb_path: "nbs/03_define_models.ipynb"
     
 <div class="cell border-box-sizing code_cell rendered">
 
-</div>
-    {% endraw %}
-
-    {% raw %}
-    
-<div class="cell border-box-sizing code_cell rendered">
-
 <div class="output_wrapper">
 <div class="output">
 
@@ -352,7 +345,7 @@ nb_path: "nbs/03_define_models.ipynb"
 
 
 <div class="output_markdown rendered_html output_subarea ">
-<h4 id="define_dcmm" class="doc_header"><code>define_dcmm</code><a href="https://github.com/lavinei/pybats/tree/master/pybats/define_models.py#L258" class="source_link" style="float:right">[source]</a></h4><blockquote><p><code>define_dcmm</code>(<strong><code>Y</code></strong>, <strong><code>X</code></strong>, <strong><code>ntrend</code></strong>=<em><code>1</code></em>, <strong><code>nlf</code></strong>=<em><code>0</code></em>, <strong><code>nhol</code></strong>=<em><code>0</code></em>, <strong><code>rho</code></strong>=<em><code>1</code></em>, <strong><code>seasPeriods</code></strong>=<em><code>[7]</code></em>, <strong><code>seasHarmComponents</code></strong>=<em><code>[[1, 2, 3]]</code></em>, <strong><code>deltrend_bern</code></strong>=<em><code>0.995</code></em>, <strong><code>delregn_bern</code></strong>=<em><code>0.995</code></em>, <strong><code>delseas_bern</code></strong>=<em><code>0.995</code></em>, <strong><code>dellf_bern</code></strong>=<em><code>0.999</code></em>, <strong><code>delhol_bern</code></strong>=<em><code>1</code></em>, <strong><code>deltrend_pois</code></strong>=<em><code>0.998</code></em>, <strong><code>delregn_pois</code></strong>=<em><code>0.995</code></em>, <strong><code>delseas_pois</code></strong>=<em><code>0.995</code></em>, <strong><code>dellf_pois</code></strong>=<em><code>0.999</code></em>, <strong><code>delhol_pois</code></strong>=<em><code>1</code></em>, <strong><code>a0_bern</code></strong>=<em><code>None</code></em>, <strong><code>R0_bern</code></strong>=<em><code>None</code></em>, <strong><code>a0_pois</code></strong>=<em><code>None</code></em>, <strong><code>R0_pois</code></strong>=<em><code>None</code></em>, <strong><code>interpolate</code></strong>=<em><code>True</code></em>, <strong><code>adapt_discount</code></strong>=<em><code>False</code></em>, <strong><code>prior_length</code></strong>=<em><code>None</code></em>, <strong>**<code>kwargs</code></strong>)</p>
+<h4 id="define_dcmm" class="doc_header"><code>define_dcmm</code><a href="https://github.com/lavinei/pybats/tree/master/pybats/define_models.py#L259" class="source_link" style="float:right">[source]</a></h4><blockquote><p><code>define_dcmm</code>(<strong><code>Y</code></strong>, <strong><code>X</code></strong>, <strong><code>ntrend</code></strong>=<em><code>1</code></em>, <strong><code>nlf</code></strong>=<em><code>0</code></em>, <strong><code>nhol</code></strong>=<em><code>0</code></em>, <strong><code>rho</code></strong>=<em><code>1</code></em>, <strong><code>seasPeriods</code></strong>=<em><code>[7]</code></em>, <strong><code>seasHarmComponents</code></strong>=<em><code>[[1, 2, 3]]</code></em>, <strong><code>deltrend_bern</code></strong>=<em><code>0.995</code></em>, <strong><code>delregn_bern</code></strong>=<em><code>0.995</code></em>, <strong><code>delseas_bern</code></strong>=<em><code>0.995</code></em>, <strong><code>dellf_bern</code></strong>=<em><code>0.999</code></em>, <strong><code>delhol_bern</code></strong>=<em><code>1</code></em>, <strong><code>deltrend_pois</code></strong>=<em><code>0.998</code></em>, <strong><code>delregn_pois</code></strong>=<em><code>0.995</code></em>, <strong><code>delseas_pois</code></strong>=<em><code>0.995</code></em>, <strong><code>dellf_pois</code></strong>=<em><code>0.999</code></em>, <strong><code>delhol_pois</code></strong>=<em><code>1</code></em>, <strong><code>a0_bern</code></strong>=<em><code>None</code></em>, <strong><code>R0_bern</code></strong>=<em><code>None</code></em>, <strong><code>a0_pois</code></strong>=<em><code>None</code></em>, <strong><code>R0_pois</code></strong>=<em><code>None</code></em>, <strong><code>interpolate</code></strong>=<em><code>True</code></em>, <strong><code>adapt_discount</code></strong>=<em><code>False</code></em>, <strong><code>prior_length</code></strong>=<em><code>None</code></em>, <strong>**<code>kwargs</code></strong>)</p>
 </blockquote>
 <p>A helper function to define a DCMM.</p>
 
@@ -362,6 +355,13 @@ nb_path: "nbs/03_define_models.ipynb"
 
 </div>
 </div>
+
+</div>
+    {% endraw %}
+
+    {% raw %}
+    
+<div class="cell border-box-sizing code_cell rendered">
 
 </div>
     {% endraw %}
@@ -377,13 +377,6 @@ nb_path: "nbs/03_define_models.ipynb"
     
 <div class="cell border-box-sizing code_cell rendered">
 
-</div>
-    {% endraw %}
-
-    {% raw %}
-    
-<div class="cell border-box-sizing code_cell rendered">
-
 <div class="output_wrapper">
 <div class="output">
 
@@ -391,7 +384,7 @@ nb_path: "nbs/03_define_models.ipynb"
 
 
 <div class="output_markdown rendered_html output_subarea ">
-<h4 id="define_dbcm" class="doc_header"><code>define_dbcm</code><a href="https://github.com/lavinei/pybats/tree/master/pybats/define_models.py#L311" class="source_link" style="float:right">[source]</a></h4><blockquote><p><code>define_dbcm</code>(<strong><code>Y_transaction</code></strong>, <strong><code>X_transaction</code></strong>=<em><code>None</code></em>, <strong><code>Y_cascade</code></strong>=<em><code>None</code></em>, <strong><code>X_cascade</code></strong>=<em><code>None</code></em>, <strong><code>excess_baskets</code></strong>=<em><code>[]</code></em>, <strong><code>excess_values</code></strong>=<em><code>[]</code></em>, <strong><code>ntrend</code></strong>=<em><code>1</code></em>, <strong><code>nlf</code></strong>=<em><code>0</code></em>, <strong><code>nhol</code></strong>=<em><code>0</code></em>, <strong><code>rho</code></strong>=<em><code>1</code></em>, <strong><code>seasPeriods</code></strong>=<em><code>[7]</code></em>, <strong><code>seasHarmComponents</code></strong>=<em><code>[[1, 2, 3]]</code></em>, <strong><code>deltrend_bern</code></strong>=<em><code>0.995</code></em>, <strong><code>delregn_bern</code></strong>=<em><code>0.995</code></em>, <strong><code>delseas_bern</code></strong>=<em><code>0.995</code></em>, <strong><code>dellf_bern</code></strong>=<em><code>0.999</code></em>, <strong><code>delhol_bern</code></strong>=<em><code>1</code></em>, <strong><code>deltrend_pois</code></strong>=<em><code>0.998</code></em>, <strong><code>delregn_pois</code></strong>=<em><code>0.995</code></em>, <strong><code>delseas_pois</code></strong>=<em><code>0.995</code></em>, <strong><code>dellf_pois</code></strong>=<em><code>0.999</code></em>, <strong><code>delhol_pois</code></strong>=<em><code>1</code></em>, <strong><code>deltrend_cascade</code></strong>=<em><code>0.999</code></em>, <strong><code>delregn_cascade</code></strong>=<em><code>1.0</code></em>, <strong><code>delseas_cascade</code></strong>=<em><code>0.999</code></em>, <strong><code>dellf_cascade</code></strong>=<em><code>0.999</code></em>, <strong><code>delhol_cascade</code></strong>=<em><code>1.0</code></em>, <strong><code>a0_bern</code></strong>=<em><code>None</code></em>, <strong><code>R0_bern</code></strong>=<em><code>None</code></em>, <strong><code>a0_pois</code></strong>=<em><code>None</code></em>, <strong><code>R0_pois</code></strong>=<em><code>None</code></em>, <strong><code>a0_cascade</code></strong>=<em><code>None</code></em>, <strong><code>R0_cascade</code></strong>=<em><code>None</code></em>, <strong><code>interpolate</code></strong>=<em><code>True</code></em>, <strong><code>adapt_discount</code></strong>=<em><code>False</code></em>, <strong><code>prior_length</code></strong>=<em><code>None</code></em>, <strong>**<code>kwargs</code></strong>)</p>
+<h4 id="define_dbcm" class="doc_header"><code>define_dbcm</code><a href="https://github.com/lavinei/pybats/tree/master/pybats/define_models.py#L312" class="source_link" style="float:right">[source]</a></h4><blockquote><p><code>define_dbcm</code>(<strong><code>Y_transaction</code></strong>, <strong><code>X_transaction</code></strong>=<em><code>None</code></em>, <strong><code>Y_cascade</code></strong>=<em><code>None</code></em>, <strong><code>X_cascade</code></strong>=<em><code>None</code></em>, <strong><code>excess_baskets</code></strong>=<em><code>[]</code></em>, <strong><code>excess_values</code></strong>=<em><code>[]</code></em>, <strong><code>ntrend</code></strong>=<em><code>1</code></em>, <strong><code>nlf</code></strong>=<em><code>0</code></em>, <strong><code>nhol</code></strong>=<em><code>0</code></em>, <strong><code>rho</code></strong>=<em><code>1</code></em>, <strong><code>seasPeriods</code></strong>=<em><code>[7]</code></em>, <strong><code>seasHarmComponents</code></strong>=<em><code>[[1, 2, 3]]</code></em>, <strong><code>deltrend_bern</code></strong>=<em><code>0.995</code></em>, <strong><code>delregn_bern</code></strong>=<em><code>0.995</code></em>, <strong><code>delseas_bern</code></strong>=<em><code>0.995</code></em>, <strong><code>dellf_bern</code></strong>=<em><code>0.999</code></em>, <strong><code>delhol_bern</code></strong>=<em><code>1</code></em>, <strong><code>deltrend_pois</code></strong>=<em><code>0.998</code></em>, <strong><code>delregn_pois</code></strong>=<em><code>0.995</code></em>, <strong><code>delseas_pois</code></strong>=<em><code>0.995</code></em>, <strong><code>dellf_pois</code></strong>=<em><code>0.999</code></em>, <strong><code>delhol_pois</code></strong>=<em><code>1</code></em>, <strong><code>deltrend_cascade</code></strong>=<em><code>0.999</code></em>, <strong><code>delregn_cascade</code></strong>=<em><code>1.0</code></em>, <strong><code>delseas_cascade</code></strong>=<em><code>0.999</code></em>, <strong><code>dellf_cascade</code></strong>=<em><code>0.999</code></em>, <strong><code>delhol_cascade</code></strong>=<em><code>1.0</code></em>, <strong><code>a0_bern</code></strong>=<em><code>None</code></em>, <strong><code>R0_bern</code></strong>=<em><code>None</code></em>, <strong><code>a0_pois</code></strong>=<em><code>None</code></em>, <strong><code>R0_pois</code></strong>=<em><code>None</code></em>, <strong><code>a0_cascade</code></strong>=<em><code>None</code></em>, <strong><code>R0_cascade</code></strong>=<em><code>None</code></em>, <strong><code>interpolate</code></strong>=<em><code>True</code></em>, <strong><code>adapt_discount</code></strong>=<em><code>False</code></em>, <strong><code>prior_length</code></strong>=<em><code>None</code></em>, <strong>**<code>kwargs</code></strong>)</p>
 </blockquote>
 <p>A helper function to define a DBCM.</p>
 
@@ -405,9 +398,55 @@ nb_path: "nbs/03_define_models.ipynb"
 </div>
     {% endraw %}
 
+    {% raw %}
+    
+<div class="cell border-box-sizing code_cell rendered">
+
+</div>
+    {% endraw %}
+
 <div class="cell border-box-sizing text_cell rendered"><div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
 <p>Dynamic Binary Cascade Models are the combination of a DCMM and a cascade of binomial DGLMs. <a href="/pybats/define_models.html#define_dbcm"><code>define_dbcm</code></a> is a convenient wrapper to help initialize all of the components of a <a href="/pybats/dbcm.html"><code>dbcm</code></a> together, and is called automatically by <a href="/pybats/analysis.html#analysis_dbcm"><code>analysis_dbcm</code></a>.</p>
+
+</div>
+</div>
+</div>
+    {% raw %}
+    
+<div class="cell border-box-sizing code_cell rendered">
+
+<div class="output_wrapper">
+<div class="output">
+
+<div class="output_area">
+
+
+<div class="output_markdown rendered_html output_subarea ">
+<h4 id="define_dlmm" class="doc_header"><code>define_dlmm</code><a href="https://github.com/lavinei/pybats/tree/master/pybats/define_models.py#L424" class="source_link" style="float:right">[source]</a></h4><blockquote><p><code>define_dlmm</code>(<strong><code>Y</code></strong>, <strong><code>X</code></strong>, <strong><code>ntrend</code></strong>=<em><code>1</code></em>, <strong><code>nlf</code></strong>=<em><code>0</code></em>, <strong><code>nhol</code></strong>=<em><code>0</code></em>, <strong><code>rho</code></strong>=<em><code>1</code></em>, <strong><code>seasPeriods</code></strong>=<em><code>[7]</code></em>, <strong><code>seasHarmComponents</code></strong>=<em><code>[[1, 2, 3]]</code></em>, <strong><code>deltrend_bern</code></strong>=<em><code>0.995</code></em>, <strong><code>delregn_bern</code></strong>=<em><code>0.995</code></em>, <strong><code>delseas_bern</code></strong>=<em><code>0.995</code></em>, <strong><code>dellf_bern</code></strong>=<em><code>0.999</code></em>, <strong><code>delhol_bern</code></strong>=<em><code>1</code></em>, <strong><code>deltrend_dlm</code></strong>=<em><code>0.998</code></em>, <strong><code>delregn_dlm</code></strong>=<em><code>0.995</code></em>, <strong><code>delseas_dlm</code></strong>=<em><code>0.995</code></em>, <strong><code>dellf_dlm</code></strong>=<em><code>0.999</code></em>, <strong><code>delhol_dlm</code></strong>=<em><code>1</code></em>, <strong><code>a0_bern</code></strong>=<em><code>None</code></em>, <strong><code>R0_bern</code></strong>=<em><code>None</code></em>, <strong><code>a0_dlm</code></strong>=<em><code>None</code></em>, <strong><code>R0_dlm</code></strong>=<em><code>None</code></em>, <strong><code>interpolate</code></strong>=<em><code>True</code></em>, <strong><code>adapt_discount</code></strong>=<em><code>False</code></em>, <strong><code>prior_length</code></strong>=<em><code>None</code></em>, <strong>**<code>kwargs</code></strong>)</p>
+</blockquote>
+<p>A helper function to define a DLMM.</p>
+
+</div>
+
+</div>
+
+</div>
+</div>
+
+</div>
+    {% endraw %}
+
+    {% raw %}
+    
+<div class="cell border-box-sizing code_cell rendered">
+
+</div>
+    {% endraw %}
+
+<div class="cell border-box-sizing text_cell rendered"><div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<p>Dynamic Linear Mixture Models are the combination of a Bernoulli DGLM and a Normal DLM. <a href="/pybats/define_models.html#define_dlmm"><code>define_dlmm</code></a> is a convenient wrapper to help initialize both components of the <a href="/pybats/dlmm.html#dlmm"><code>dlmm</code></a> together, and is called automatically by <a href="/pybats/analysis.html#analysis_dlmm"><code>analysis_dlmm</code></a>.</p>
 
 </div>
 </div>
