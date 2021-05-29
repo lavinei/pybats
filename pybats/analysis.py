@@ -526,15 +526,8 @@ def analysis_dlmm(Y, X, prior_length, k, forecast_start, forecast_end,
 
     # Initialize the DLMM
     if not kwargs.__contains__('model_prior'):
-#         a0_dlm = np.zeros(X.shape[1] + 1)
-#         R0_dlm = np.eye(X.shape[1] + 1)
-#         a0_bern = np.zeros(X.shape[1] + 1)
-#         R0_bern = np.eye(X.shape[1] + 1)
-#         mod = define_dlmm(Y, X, a0_dlm = a0_dlm, R0_dlm = R0_dlm, a0_bern = a0_bern, R0_bern = R0_bern,
-#                           seasPeriods = seasPeriods, seasHarmComponents = seasHarmComponents,
-#                           nlf = nlf, rho = rho, nhol = nhol, **kwargs)
         mod = define_dlmm(Y, X, prior_length = prior_length, seasPeriods = seasPeriods, seasHarmComponents = seasHarmComponents,
-                          nlf = nlf, rho = rho, nhol = nhol, **kwargs)
+                          rho = rho, nhol = nhol, **kwargs)
     else:
         mod = kwargs.get('model_prior')
 

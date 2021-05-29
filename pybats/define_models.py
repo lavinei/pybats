@@ -9,8 +9,8 @@ import numpy as np
 
 from .dbcm import dbcm
 from .dcmm import dcmm
-from .dglm import dlm, pois_dglm, bern_dglm, bin_dglm
 from .dlmm import dlmm
+from .dglm import dlm, pois_dglm, bern_dglm, bin_dglm
 
 import statsmodels.api as sm
 
@@ -422,10 +422,10 @@ def define_dbcm(Y_transaction, X_transaction=None, Y_cascade=None, X_cascade=Non
 
 # Cell
 def define_dlmm(Y, X,
-                ntrend=1, nlf=0, nhol = 0, rho=1,
+                ntrend=1, nhol = 0, rho=1,
                 seasPeriods = [7], seasHarmComponents = [[1,2,3]],
-                deltrend_bern=.995, delregn_bern=.995, delseas_bern=.995, dellf_bern=.999, delhol_bern=1,
-                deltrend_dlm=.998, delregn_dlm=.995, delseas_dlm=.995, dellf_dlm=.999, delhol_dlm=1,
+                deltrend_bern=.995, delregn_bern=.995, delseas_bern=.995, delhol_bern=1,
+                deltrend_dlm=.998, delregn_dlm=.995, delseas_dlm=.995, delhol_dlm=1,
                 a0_bern = None, R0_bern = None, a0_dlm = None, R0_dlm = None,
                 interpolate=True, adapt_discount=False, prior_length = None,
                 **kwargs):
@@ -436,10 +436,10 @@ def define_dlmm(Y, X,
 
     nonzeros = Y.nonzero()[0]
 
-    dlm_mod = define_dglm(Y[nonzeros], X[nonzeros], family="normal", ntrend=ntrend, nlf=nlf, nhol=nhol,
+    dlm_mod = define_dglm(Y[nonzeros], X[nonzeros], family="normal", ntrend=ntrend, nlf=0, nhol=nhol,
                               seasPeriods=seasPeriods, seasHarmComponents=seasHarmComponents,
                               a0=a0_dlm, R0=R0_dlm, prior_length=prior_length)
-    bern_mod = define_dglm(Y, X, family="bernoulli", ntrend=ntrend, nlf=nlf, nhol=nhol,
+    bern_mod = define_dglm(Y, X, family="bernoulli", ntrend=ntrend, nlf=0, nhol=nhol,
                               seasPeriods=seasPeriods, seasHarmComponents=seasHarmComponents,
                               a0=a0_bern, R0=R0_bern, prior_length=prior_length)
 
@@ -448,13 +448,11 @@ def define_dlmm(Y, X,
     mod = dlmm(a0_bern = bern_mod.a, R0_bern = bern_mod.R,
                nregn_bern = bern_mod.nregn_exhol,
                ntrend_bern = bern_mod.ntrend,
-               nlf_bern= bern_mod.nlf,
                nhol_bern=bern_mod.nhol,
                seasPeriods_bern = bern_mod.seasPeriods,
                seasHarmComponents_bern = bern_mod.seasHarmComponents,
                deltrend_bern = deltrend_bern, delregn_bern = delregn_bern,
                delseas_bern = delseas_bern,
-               dellf_bern=dellf_bern,
                delhol_bern = delhol_bern,
                a0_dlm = dlm_mod.a, R0_dlm = dlm_mod.R,
                nregn_dlm = dlm_mod.nregn_exhol,
@@ -464,7 +462,6 @@ def define_dlmm(Y, X,
                seasHarmComponents_dlm = dlm_mod.seasHarmComponents,
                deltrend_dlm = deltrend_dlm, delregn_dlm = delregn_dlm,
                delseas_dlm = delseas_dlm,
-               dellf_dlm=dellf_dlm,
                delhol_dlm = delhol_dlm,
                rho = rho,
                interpolate=interpolate,
