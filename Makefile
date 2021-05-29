@@ -1,10 +1,10 @@
 SRC = $(wildcard ./*.ipynb)
 
-all: pybats_nbdev docs
+all: pybats docs
 
-pybats_nbdev: $(SRC)
+pybats: $(SRC)
 	nbdev_build_lib
-	touch pybats_nbdev
+	touch pybats
 
 docs_serve: docs
 	cd docs && bundle exec jekyll serve
