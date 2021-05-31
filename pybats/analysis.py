@@ -550,8 +550,6 @@ def analysis_dlmm(Y, X, prior_length, k, forecast_start, forecast_end,
         n = np.zeros(T)
         s = np.zeros(T)
 
-
-
     # Run updating + forecasting
     for t in range(prior_length, T):
         if ret.__contains__('forecast'):
