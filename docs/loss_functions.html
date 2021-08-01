@@ -45,6 +45,13 @@ nb_path: "nbs/08_loss_functions.ipynb"
     
 <div class="cell border-box-sizing code_cell rendered">
 
+</div>
+    {% endraw %}
+
+    {% raw %}
+    
+<div class="cell border-box-sizing code_cell rendered">
+
 <div class="output_wrapper">
 <div class="output">
 
@@ -62,13 +69,6 @@ nb_path: "nbs/08_loss_functions.ipynb"
 
 </div>
 </div>
-
-</div>
-    {% endraw %}
-
-    {% raw %}
-    
-<div class="cell border-box-sizing code_cell rendered">
 
 </div>
     {% endraw %}
@@ -116,7 +116,7 @@ $$L = \frac{1}{n} \sum_{i=1:n} (y_i - f_i)^2$$
     <span class="n">start</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="n">data</span><span class="o">.</span><span class="n">Date</span> <span class="o">==</span> <span class="n">forecast_start</span><span class="p">]</span><span class="o">.</span><span class="n">index</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="n">h</span>
     <span class="n">end</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="n">data</span><span class="o">.</span><span class="n">Date</span> <span class="o">==</span> <span class="n">forecast_end</span><span class="p">]</span><span class="o">.</span><span class="n">index</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="n">h</span> <span class="o">+</span> <span class="mi">1</span>
 
-    <span class="nb">print</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">h</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;-Step Ahead MSE: &#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">MSE</span><span class="p">(</span><span class="n">Y</span><span class="p">[</span><span class="n">start</span><span class="p">:</span><span class="n">end</span><span class="p">],</span> <span class="n">forecast</span><span class="p">[:,</span><span class="n">h</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="mi">2</span><span class="p">)))</span>
+    <span class="nb">print</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">h</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;-Step Ahead MSE: &#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">MSE</span><span class="p">(</span><span class="n">Y</span><span class="p">[</span><span class="n">start</span><span class="p">:</span><span class="n">end</span><span class="p">],</span> <span class="n">forecast</span><span class="p">[:,</span><span class="n">h</span><span class="p">])</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="mi">2</span><span class="p">)))</span>
 </pre></div>
 
     </div>
@@ -130,16 +130,23 @@ $$L = \frac{1}{n} \sum_{i=1:n} (y_i - f_i)^2$$
 
 <div class="output_subarea output_stream output_stdout output_text">
 <pre>beginning forecasting
-1-Step Ahead MSE: 1.08
-2-Step Ahead MSE: 1.01
-3-Step Ahead MSE: 1.08
-4-Step Ahead MSE: 1.13
+1-Step Ahead MSE: 0.95
+2-Step Ahead MSE: 1.03
+3-Step Ahead MSE: 1.09
+4-Step Ahead MSE: 1.14
 </pre>
 </div>
 </div>
 
 </div>
 </div>
+
+</div>
+    {% endraw %}
+
+    {% raw %}
+    
+<div class="cell border-box-sizing code_cell rendered">
 
 </div>
     {% endraw %}
@@ -169,13 +176,6 @@ $$L = \frac{1}{n} \sum_{i=1:n} (y_i - f_i)^2$$
 </div>
     {% endraw %}
 
-    {% raw %}
-    
-<div class="cell border-box-sizing code_cell rendered">
-
-</div>
-    {% endraw %}
-
 <div class="cell border-box-sizing text_cell rendered"><div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
 <p>The mean absolute deviation is:</p>
@@ -200,7 +200,7 @@ $$L = \frac{1}{n} \sum_{i=1:n} |y_i - f_i|$$
     <span class="n">start</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="n">data</span><span class="o">.</span><span class="n">Date</span> <span class="o">==</span> <span class="n">forecast_start</span><span class="p">]</span><span class="o">.</span><span class="n">index</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="n">h</span>
     <span class="n">end</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="n">data</span><span class="o">.</span><span class="n">Date</span> <span class="o">==</span> <span class="n">forecast_end</span><span class="p">]</span><span class="o">.</span><span class="n">index</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="n">h</span> <span class="o">+</span> <span class="mi">1</span>
 
-    <span class="nb">print</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">h</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;-Step Ahead MAD: &#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">MAD</span><span class="p">(</span><span class="n">Y</span><span class="p">[</span><span class="n">start</span><span class="p">:</span><span class="n">end</span><span class="p">],</span> <span class="n">forecast</span><span class="p">[:,</span><span class="n">h</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="mi">2</span><span class="p">)))</span>
+    <span class="nb">print</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">h</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;-Step Ahead MAD: &#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">MAD</span><span class="p">(</span><span class="n">Y</span><span class="p">[</span><span class="n">start</span><span class="p">:</span><span class="n">end</span><span class="p">],</span> <span class="n">forecast</span><span class="p">[:,</span><span class="n">h</span><span class="p">])</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="mi">2</span><span class="p">)))</span>
 </pre></div>
 
     </div>
@@ -213,9 +213,9 @@ $$L = \frac{1}{n} \sum_{i=1:n} |y_i - f_i|$$
 <div class="output_area">
 
 <div class="output_subarea output_stream output_stdout output_text">
-<pre>1-Step Ahead MAD: 0.85
-2-Step Ahead MAD: 0.8
-3-Step Ahead MAD: 0.82
+<pre>1-Step Ahead MAD: 0.79
+2-Step Ahead MAD: 0.81
+3-Step Ahead MAD: 0.83
 4-Step Ahead MAD: 0.84
 </pre>
 </div>
@@ -223,6 +223,13 @@ $$L = \frac{1}{n} \sum_{i=1:n} |y_i - f_i|$$
 
 </div>
 </div>
+
+</div>
+    {% endraw %}
+
+    {% raw %}
+    
+<div class="cell border-box-sizing code_cell rendered">
 
 </div>
     {% endraw %}
@@ -252,13 +259,6 @@ $$L = \frac{1}{n} \sum_{i=1:n} |y_i - f_i|$$
 </div>
     {% endraw %}
 
-    {% raw %}
-    
-<div class="cell border-box-sizing code_cell rendered">
-
-</div>
-    {% endraw %}
-
 <div class="cell border-box-sizing text_cell rendered"><div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
 <p>The mean absolute percent error is:</p>
@@ -283,7 +283,7 @@ $$L = \frac{1}{n} \sum_{i=1:n} \frac{|y_i - f_i|}{y_i}$$
     <span class="n">start</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="n">data</span><span class="o">.</span><span class="n">Date</span> <span class="o">==</span> <span class="n">forecast_start</span><span class="p">]</span><span class="o">.</span><span class="n">index</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="n">h</span>
     <span class="n">end</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="n">data</span><span class="o">.</span><span class="n">Date</span> <span class="o">==</span> <span class="n">forecast_end</span><span class="p">]</span><span class="o">.</span><span class="n">index</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="n">h</span> <span class="o">+</span> <span class="mi">1</span>
 
-    <span class="nb">print</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">h</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;-Step Ahead MAPE: &#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">MAPE</span><span class="p">(</span><span class="n">Y</span><span class="p">[</span><span class="n">start</span><span class="p">:</span><span class="n">end</span><span class="p">],</span> <span class="n">forecast</span><span class="p">[:,</span><span class="n">h</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="mi">2</span><span class="p">))</span> <span class="o">+</span> <span class="s2">&quot;%&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">h</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;-Step Ahead MAPE: &#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">MAPE</span><span class="p">(</span><span class="n">Y</span><span class="p">[</span><span class="n">start</span><span class="p">:</span><span class="n">end</span><span class="p">],</span> <span class="n">forecast</span><span class="p">[:,</span><span class="n">h</span><span class="p">])</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="mi">2</span><span class="p">))</span> <span class="o">+</span> <span class="s2">&quot;%&quot;</span><span class="p">)</span>
 </pre></div>
 
     </div>
@@ -296,10 +296,10 @@ $$L = \frac{1}{n} \sum_{i=1:n} \frac{|y_i - f_i|}{y_i}$$
 <div class="output_area">
 
 <div class="output_subarea output_stream output_stdout output_text">
-<pre>1-Step Ahead MAPE: 73.37%
-2-Step Ahead MAPE: 90.54%
-3-Step Ahead MAPE: 66.98%
-4-Step Ahead MAPE: 80.82%
+<pre>1-Step Ahead MAPE: 81.84%
+2-Step Ahead MAPE: 71.41%
+3-Step Ahead MAPE: 84.82%
+4-Step Ahead MAPE: 82.29%
 </pre>
 </div>
 </div>
