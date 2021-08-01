@@ -128,7 +128,7 @@ $ sudo python setup.py install</code></pre>
 
 <div class="cell border-box-sizing text_cell rendered"><div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<p>The sales are integer valued counts, which we model with a Poisson Dynamic Generalized Linear Model (DGLM). Second, we extract the outcome (<em>Y</em>) and covariates (<em>X</em>) from this dataset. We'll set the forecast horizon <em>k=1</em> for this example. We could look at multiple forecast horizons by setting k to a larger value. <a href="/pybats/analysis.html#analysis"><code>analysis</code></a>, a core PyBATS function, will automatically:</p>
+<p>The sales are integer valued counts, which we model with a Poisson Dynamic Generalized Linear Model (DGLM). Second, we extract the outcome (<em>Y</em>) and covariates (<em>X</em>) from this dataset. We'll set the forecast horizon <em>k=1</em> for this example. We could look at multiple forecast horizons by setting k to a larger value. <a href="/pybats/analysis.html"><code>analysis</code></a>, a core PyBATS function, will automatically:</p>
 <ul>
 <li>Define the model (a Poisson DGLM)</li>
 <li>Sequentially update the model coefficients with each new observation $y_t$ (also known as forward filtering)</li>
@@ -169,7 +169,7 @@ $ sudo python setup.py install</code></pre>
 
 <div class="cell border-box-sizing text_cell rendered"><div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<p>By default, <a href="/pybats/analysis.html#analysis"><code>analysis</code></a> will return samples from the forecast distribution as well as the model after the final observation.</p>
+<p>By default, <a href="/pybats/analysis.html"><code>analysis</code></a> will return samples from the forecast distribution as well as the model after the final observation.</p>
 
 </div>
 </div>
@@ -667,7 +667,7 @@ Intercept  0.63                0.36
 
 <div class="cell border-box-sizing text_cell rendered"><div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<p>The <a href="/pybats/analysis.html#analysis"><code>analysis</code></a> function automatically detected that $X$ only had $1$ column, and so it defined the model to have the correct number of regression components.</p>
+<p>The <a href="/pybats/analysis.html"><code>analysis</code></a> function automatically detected that $X$ only had $1$ column, and so it defined the model to have the correct number of regression components.</p>
 
 </div>
 </div>
@@ -1026,7 +1026,7 @@ Date
 </div>
 <div class="cell border-box-sizing text_cell rendered"><div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<p>PyBATS provides a method to specify known holidays, special events, and other outliers in the data. <a href="/pybats/analysis.html#analysis"><code>analysis</code></a> will automatically add in an indicator (dummy) variable to the regression component for each occurance of the holiday.</p>
+<p>PyBATS provides a method to specify known holidays, special events, and other outliers in the data. <a href="/pybats/analysis.html"><code>analysis</code></a> will automatically add in an indicator (dummy) variable to the regression component for each occurance of the holiday.</p>
 <p>There are two reasons this can be useful. First, adding in a known and repeated special event can improve forecast accuracy. Second, the indicator variable will help protect the other coefficients in the model from overreacting to these outliers in the data.</p>
 
 </div>
