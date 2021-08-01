@@ -263,7 +263,7 @@ def fill_diag(cov):
     return cov
 
 # Cell
-def define_dcmm(Y, X,
+def define_dcmm(Y, X=None,
                 ntrend=1, nlf=0, nhol = 0, rho=1,
                 seasPeriods = [7], seasHarmComponents = [[1,2,3]],
                 deltrend_bern=.995, delregn_bern=.995, delseas_bern=.995, dellf_bern=.999, delhol_bern=1,
@@ -277,7 +277,13 @@ def define_dcmm(Y, X,
     """
 
     nonzeros = Y.nonzero()[0]
-    pois_mod = define_dglm(Y[nonzeros] - 1, X[nonzeros], family="poisson", ntrend=ntrend, nlf=nlf, nhol=nhol,
+
+    if X is None:
+        X_pois = None
+    else:
+        X_pois = X[nonzeros]
+
+    pois_mod = define_dglm(Y[nonzeros] - 1, X_pois, family="poisson", ntrend=ntrend, nlf=nlf, nhol=nhol,
                               seasPeriods=seasPeriods, seasHarmComponents=seasHarmComponents,
                               a0=a0_pois, R0=R0_pois, prior_length=prior_length)
     bern_mod = define_dglm(Y, X, family="bernoulli", ntrend=ntrend, nlf=nlf, nhol=nhol,

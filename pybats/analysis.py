@@ -183,7 +183,7 @@ def analysis(Y, X=None, k=1, forecast_start=0, forecast_end=0,
         return out
 
 # Cell
-def analysis_dcmm(Y, X, k=1, forecast_start=0, forecast_end=0,
+def analysis_dcmm(Y, X=None, k=1, forecast_start=0, forecast_end=0,
                   nsamps=500, rho=.6,
                   model_prior=None, prior_length=20, ntrend=1,
                   dates=None, holidays=[],
@@ -237,6 +237,15 @@ def analysis_dcmm(Y, X, k=1, forecast_start=0, forecast_end=0,
             tmp.append(sig.copy())
         new_latent_factors = tmp
 
+    T = len(Y) + 1 # np.min([len(Y), forecast_end]) + 1
+    nu = 9
+
+    if X is None:
+        X = np.array([None]*(T+k)).reshape(-1,1)
+    else:
+        if len(X.shape) == 1:
+            X = X.reshape(-1,1)
+
     # Initialize updating + forecasting
     horizons = np.arange(1,k+1)
 
@@ -244,9 +253,6 @@ def analysis_dcmm(Y, X, k=1, forecast_start=0, forecast_end=0,
         forecast = np.zeros([1, forecast_end - forecast_start + 1, k])
     else:
         forecast = np.zeros([nsamps, forecast_end - forecast_start + 1, k])
-
-    T = len(Y) + 1 # np.min([len(Y), forecast_end]) + 1
-    nu = 9
 
     # Run updating + forecasting
     for t in range(prior_length, T):
