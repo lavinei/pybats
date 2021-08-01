@@ -17,23 +17,27 @@ class dlmm:
                  nregn_bern = 0,
                  ntrend_bern = 0,
                  nhol_bern = 0,
+                 nlf_bern = 0,
                  seasPeriods_bern = [],
                  seasHarmComponents_bern = [],
                  deltrend_bern = 1, delregn_bern = 1,
                  delhol_bern = 1,
-                 delseas_bern = 1,
+                 delseas_bern = 1, dellf_bern = 1,
                  rho = 1,
                  a0_dlm = None,
                  R0_dlm = None,
+                 n0_dlm = 1,
+                 s0_dlm = 1,
                  nregn_dlm = 0,
                  ntrend_dlm = 0,
                  nhol_dlm = 0,
+                 nlf_dlm = 0,
                  seasPeriods_dlm = [],
                  seasHarmComponents_dlm = [],
                  deltrend_dlm = 1, delregn_dlm = 1,
                  delhol_dlm = 1,
                  delseas_dlm = 1,
-                 delVar_dlm = 1,
+                 delVar_dlm = 1, dellf_dlm = 1,
                  interpolate=True,
                  adapt_discount=False):
         """
@@ -50,6 +54,8 @@ class dlmm:
         :param rho: random effect discount factor for bernoulli DGLM (smaller rho increases variance)
         :param a0_dlm: Prior mean vector for normal DLM
         :param R0_dlm: Prior covariance matrix for normal DLM
+        :param n0_dlm: Prior sample size for the dlm variance
+        :param s0_dlm: Prior mean for the dlm variance
         :param nregn_dlm: Number of regression components in normal DLM
         :param ntrend_dlm: Number of trend components in normal DLM
         :param seasPeriods_dlm: List of periods of seasonal components in normal DLM
@@ -61,34 +67,37 @@ class dlmm:
         :param delVar_dlm: Discount factor for observation volatility in normal DLM
         """
 
-        self.bern_mod = bern_dglm(a0=a0_bern,
-                                  R0=R0_bern,
-                                  nregn=nregn_bern,
-                                  ntrend=ntrend_bern,
-                                  nlf=0,
-                                  nhol=nhol_bern,
-                                  seasPeriods=seasPeriods_bern,
-                                  seasHarmComponents=seasHarmComponents_bern,
-                                  deltrend=deltrend_bern, delregn=delregn_bern,
-                                  delhol=delhol_bern, delseas=delseas_bern,
-                                  dellf=1,
+        self.bern_mod = bern_dglm(a0 = a0_bern,
+                                  R0 = R0_bern,
+                                  nregn = nregn_bern,
+                                  ntrend = ntrend_bern,
+                                  nlf = nlf_bern,
+                                  nhol = nhol_bern,
+                                  seasPeriods = seasPeriods_bern,
+                                  seasHarmComponents = seasHarmComponents_bern,
+                                  deltrend = deltrend_bern, delregn = delregn_bern,
+                                  delhol = delhol_bern, delseas = delseas_bern,
+                                  dellf = dellf_bern,
                                   rho = rho,
-                                  interpolate=interpolate,
-                                  adapt_discount=adapt_discount)
+                                  interpolate = interpolate,
+                                  adapt_discount = adapt_discount)
 
-        self.dlm_mod = dlm(a0=a0_dlm,
-                           R0=R0_dlm,
-                           nregn=nregn_dlm,
-                           ntrend=ntrend_dlm,
-                           nhol=nhol_dlm,
-                           seasPeriods=seasPeriods_dlm,
-                           seasHarmComponents=seasHarmComponents_dlm,
-                           deltrend=deltrend_dlm, delregn=delregn_dlm,
-                           delhol=delhol_dlm, delseas=delseas_dlm,
-                           dellf=1,
+        self.dlm = dlm(a0 = a0_dlm,
+                           R0 = R0_dlm,
+                           n0 = n0_dlm,
+                           s0 = s0_dlm,
+                           nregn = nregn_dlm,
+                           ntrend = ntrend_dlm,
+                           nhol = nhol_dlm,
+                           nlf = nlf_dlm,
+                           seasPeriods = seasPeriods_dlm,
+                           seasHarmComponents = seasHarmComponents_dlm,
+                           deltrend = deltrend_dlm, delregn = delregn_dlm,
+                           delhol = delhol_dlm, delseas = delseas_dlm,
+                           dellf = dellf_dlm,
                            delVar = delVar_dlm,
-                           interpolate=interpolate,
-                           adapt_discount=adapt_discount)
+                           interpolate = interpolate,
+                           adapt_discount = adapt_discount)
 
         self.t = 0
 
@@ -98,10 +107,10 @@ class dlmm:
         X = self.make_pair(X)
         if y is None:
             self.bern_mod.update(y=y)
-            self.dlm_mod.update(y=y)
+            self.dlm.update(y=y)
         elif y == 0:
             self.bern_mod.update(y = 0, X = X[0])
-            self.dlm_mod.update(y = np.nan, X = X[1])
+            self.dlm.update(y = np.nan, X = X[1])
         else: # only update beta model if we have significant uncertainty in the forecast
             # get the lower end forecast on the logit scale
             F = update_F(self.bern_mod, X[0], F=self.bern_mod.F.copy())
@@ -112,24 +121,63 @@ class dlmm:
                 self.bern_mod.update(y=1, X = X[0])
             else:
                 self.bern_mod.update(y=np.nan, X=X[0])
-            self.dlm_mod.update(y = y, X = X[1]) # NO-Shifted Y values in the Normal DLM
+            self.dlm.update(y = y, X = X[1]) # NO-Shifted Y values in the Normal DLM
         self.t += 1
 
+
+    def update_lf_analytic(self, y = None, X = None, phi_mu = None, phi_sigma = None):
+
+        X = self.make_pair(X)
+        phi_mu = self.make_pair(phi_mu)
+        phi_sigma = self.make_pair(phi_sigma)
+
+        if y is None:
+            self.bern_mod.update_lf_analytic(y = y)
+            self.dlm.update_lf_analytic(y = y)
+        elif y == 0:
+            self.bern_mod.update_lf_analytic(y = 0, X = X[0], phi_mu = phi_mu[0], phi_sigma = phi_sigma[0])
+            self.dlm.update_lf_analytic(y = np.nan, X = X[1], phi_mu = phi_mu[1], phi_sigma = phi_sigma[1])
+        else:
+            self.bern_mod.update_lf_analytic(y = 1, X = X[0], phi_mu = phi_mu[0], phi_sigma = phi_sigma[0])
+            self.dlm.update_lf_analytic(y = y, X = X[1], phi_mu = phi_mu[1], phi_sigma = phi_sigma[1])
+
+        self.t += 1
 
     def forecast_marginal(self, k, X = None, nsamps = 1, mean_only = False, state_mean_var = False):
         X = self.make_pair(X)
 
         if mean_only:
             mean_bern = self.bern_mod.forecast_marginal(k, X[0], nsamps, mean_only)
-            mean_dlm = self.dlm_mod.forecast_marginal(k, X[1], nsamps, mean_only)
+            mean_dlm = self.dlm.forecast_marginal(k, X[1], nsamps, mean_only)
             return mean_bern * (mean_dlm)
         elif state_mean_var:
             mv_bern = self.bern_mod.forecast_marginal(k, X[0], state_mean_var = state_mean_var)
-            mv_dlm = self.dlm_mod.forecast_marginal(k, X[1], state_mean_var = state_mean_var)
+            mv_dlm = self.dlm.forecast_marginal(k, X[1], state_mean_var = state_mean_var)
             return mv_bern, mv_dlm
         else:
             samps_bern = self.bern_mod.forecast_marginal(k, X[0], nsamps)
-            samps_dlm = self.dlm_mod.forecast_marginal(k, X[1], nsamps) # NO Shifted Y values in the normal DLM
+            samps_dlm = self.dlm.forecast_marginal(k, X[1], nsamps) # NO Shifted Y values in the normal DLM
+            return samps_bern * samps_dlm
+
+
+    def forecast_marginal_lf_analytic(self, k, X = None, phi_mu = None, phi_sigma = None, nsamps = 1, mean_only = False, state_mean_var = False):
+        X = self.make_pair(X)
+        phi_mu = self.make_pair(phi_mu)
+        phi_sigma = self.make_pair(phi_sigma)
+
+        #print(X[0])
+
+        if mean_only:
+            mean_bern = self.bern_mod.forecast_marginal_lf_analytic(k, X[0], phi_mu[0], phi_sigma[0], nsamps, mean_only)
+            mean_dlm = self.dlm.forecast_marginal_lf_analytic(k, X[1], phi_mu[1], phi_sigma[1], nsamps, mean_only)
+            return np.array([[mean_bern * (mean_dlm)]])
+        elif state_mean_var:
+            mv_bern = self.bern_mod.forecast_marginal_lf_analytic(k, X[0], phi_mu[0], phi_sigma[0], state_mean_var = state_mean_var)
+            mv_dlm = self.dlm.forecast_marginal_lf_analytic(k, X[1], phi_mu[1], phi_sigma[1], state_mean_var = state_mean_var)
+            return mv_bern, mv_dlm
+        else:
+            samps_bern = self.bern_mod.forecast_marginal_lf_analytic(k, X[0], phi_mu = phi_mu[0], phi_sigma = phi_sigma[0], nsamps = nsamps)
+            samps_dlm = self.dlm.forecast_marginal_lf_analytic(k, X[1], phi_mu = phi_mu[1], phi_sigma = phi_sigma[1], nsamps = nsamps)
             return samps_bern * samps_dlm
 
 
@@ -137,20 +185,22 @@ class dlmm:
         X = self.make_pair(X)
 
         samps_bern = self.bern_mod.forecast_path(k, X[0], nsamps)
-        samps_dlm = self.dlm_mod.forecast_path(k, X[1], nsamps) # NO Shifted Y values in the Normal DLM
+        samps_dlm = self.dlm.forecast_path(k, X[1], nsamps) # NO Shifted Y values in the Normal DLM
         return samps_bern * samps_dlm
 
     def forecast_path_copula(self, k, X = None, nsamps = 1, **kwargs):
         X = self.make_pair(X)
 
         samps_bern = self.bern_mod.forecast_path_copula(k, X[0], nsamps, **kwargs)
-        samps_dlm = self.dlm_mod.forecast_path_copula(k, X[1], nsamps, **kwargs) # NO Shifted Y values in the Normal DLM
+        samps_dlm = self.dlm.forecast_path(k, X[1], nsamps) # NO Shifted Y values in the Normal DLM
         return samps_bern * samps_dlm
 
+    def forecast_path_lf_copula(self, k, X = None, phi_mu = None, phi_sigma = None, phi_psi = None, nsamps = 1, **kwargs):
+        print('Path forecasting for latent factor DLMs is not yet implemented')
 
     def forecast_state_mean_and_var(self, k = 1, X = None):
         mean_var_bern = self.bern_mod.forecast_state_mean_and_var(k, X[0])
-        mean_var_dlm = self.dlm_mod.forecast_state_mean_and_var(k, X[1])
+        mean_var_dlm = self.dlm.forecast_state_mean_and_var(k, X[1])
         return mean_var_bern, mean_var_dlm
 
     def make_pair(self, x):

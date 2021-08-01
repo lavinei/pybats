@@ -19,7 +19,7 @@ def define_dglm(Y, X, family="normal", n=None,
                 ntrend=1, nlf=0, nhol=0,
                 seasPeriods=[7], seasHarmComponents = [[1, 2, 3]],
                 deltrend = .995, delregn =.995, delseas = .999, dellf=.999, delVar = 0.999, delhol=1,
-                n0 = 1, s0 = 1,
+                n0 = None, s0 = None,
                 a0=None, R0=None,
                 adapt_discount='info', discount_forecast=False,
                 prior_length=None, return_aR=False,
@@ -60,7 +60,11 @@ def define_dglm(Y, X, family="normal", n=None,
 
         # Learn a prior based on the first 'prior_length' observations
         if family == "normal":
-            prior_mean, prior_cov, p = define_dlm_params(Y, X_withintercept)
+            prior_mean, prior_cov, p, n, s = define_dlm_params(Y, X_withintercept)
+            if n0 is None:
+                n0 = n
+            if s0 is None:
+                s0 = s
         elif family == "poisson":
             prior_mean, prior_cov, p = define_pois_params(Y, X_withintercept)
         elif family == "bernoulli":
@@ -170,7 +174,10 @@ def define_dlm_params(Y, X=None):
     dlm_mean = linear_mod.params
     dlm_cov = fill_diag((g / (1 + g)) * linear_mod.cov_params())
 
-    return dlm_mean, dlm_cov, p
+    n = linear_mod._results.df_resid
+    s = linear_mod._results.mse_resid
+
+    return dlm_mean, dlm_cov, p, n, s
 
 # Cell
 def define_bern_params(Y, X=None):
@@ -422,47 +429,49 @@ def define_dbcm(Y_transaction, X_transaction=None, Y_cascade=None, X_cascade=Non
 
 # Cell
 def define_dlmm(Y, X,
-                ntrend=1, nhol = 0, rho=1,
+                ntrend=1, nlf=0, nhol = 0, rho=1,
                 seasPeriods = [7], seasHarmComponents = [[1,2,3]],
-                deltrend_bern=.995, delregn_bern=.995, delseas_bern=.995, delhol_bern=1,
-                deltrend_dlm=.998, delregn_dlm=.995, delseas_dlm=.995, delhol_dlm=1,
+                deltrend_bern=.995, delregn_bern=.995, delseas_bern=.995, dellf_bern=.999, delhol_bern=1,
+                deltrend_dlm=.998, delregn_dlm=.995, delseas_dlm=.995, dellf_dlm=.999, delhol_dlm=1, delVar_dlm=1,
                 a0_bern = None, R0_bern = None, a0_dlm = None, R0_dlm = None,
                 interpolate=True, adapt_discount=False, prior_length = None,
                 **kwargs):
     """
-    A helper function to define a DLMM.
+    A helper function to define a DCMM.
 
     """
 
     nonzeros = Y.nonzero()[0]
-
-    dlm_mod = define_dglm(Y[nonzeros], X[nonzeros], family="normal", ntrend=ntrend, nlf=0, nhol=nhol,
+    dlm = define_dglm(Y[nonzeros], X[nonzeros], family="normal", ntrend=ntrend, nlf=nlf, nhol=nhol,
                               seasPeriods=seasPeriods, seasHarmComponents=seasHarmComponents,
                               a0=a0_dlm, R0=R0_dlm, prior_length=prior_length)
-    bern_mod = define_dglm(Y, X, family="bernoulli", ntrend=ntrend, nlf=0, nhol=nhol,
+    bern_mod = define_dglm(Y, X, family="bernoulli", ntrend=ntrend, nlf=nlf, nhol=nhol,
                               seasPeriods=seasPeriods, seasHarmComponents=seasHarmComponents,
                               a0=a0_bern, R0=R0_bern, prior_length=prior_length)
-
-
 
     mod = dlmm(a0_bern = bern_mod.a, R0_bern = bern_mod.R,
                nregn_bern = bern_mod.nregn_exhol,
                ntrend_bern = bern_mod.ntrend,
+               nlf_bern= bern_mod.nlf,
                nhol_bern=bern_mod.nhol,
                seasPeriods_bern = bern_mod.seasPeriods,
                seasHarmComponents_bern = bern_mod.seasHarmComponents,
                deltrend_bern = deltrend_bern, delregn_bern = delregn_bern,
                delseas_bern = delseas_bern,
+               dellf_bern=dellf_bern,
                delhol_bern = delhol_bern,
-               a0_dlm = dlm_mod.a, R0_dlm = dlm_mod.R,
-               nregn_dlm = dlm_mod.nregn_exhol,
-               ntrend_dlm = dlm_mod.ntrend,
-               nhol_dlm=dlm_mod.nhol,
-               seasPeriods_dlm = dlm_mod.seasPeriods,
-               seasHarmComponents_dlm = dlm_mod.seasHarmComponents,
+               a0_dlm = dlm.a, R0_dlm = dlm.R,
+               n0_dlm = dlm.n, s0_dlm=dlm.s,
+               nregn_dlm = dlm.nregn_exhol,
+               ntrend_dlm = dlm.ntrend,
+               nlf_dlm=dlm.nlf,
+               nhol_dlm=dlm.nhol,
+               seasPeriods_dlm = dlm.seasPeriods,
+               seasHarmComponents_dlm = dlm.seasHarmComponents,
                deltrend_dlm = deltrend_dlm, delregn_dlm = delregn_dlm,
                delseas_dlm = delseas_dlm,
-               delhol_dlm = delhol_dlm,
+               dellf_dlm=dellf_dlm,
+               delhol_dlm = delhol_dlm, delVar_dlm=delVar_dlm,
                rho = rho,
                interpolate=interpolate,
                adapt_discount=adapt_discount

@@ -116,7 +116,7 @@ nb_path: "nbs/13_latent_factor.ipynb"
 <div class="cell border-box-sizing text_cell rendered"><div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
 <p>The first latent factor example involves combining forecasts from different models. We have the forecast means and variances from 4 models that were used to predict quarterly US inflation from 1977 to 2014. One simple approach would be to use the 4 forecast means as predictors in a unified model. However, because we know the variance associated with each forecast, we can use a latent factor instead and account for the forecast uncertainty.</p>
-<p>This example is inspired by <a href="https://arxiv.org/pdf/1601.07463.pdf">Bayesian Predictive Synthesis</a>, a sophisticated strategy for combining forecasts. This use of latent factors can be seen as an approximation to Bayesian Predictive Synthesis which allows for faster computation.</p>
+<p>This example is inspired by Bayesian Predictive Synthesis, which is a sophisticated strategy for combining forecasts, and was first developed in <a href="https://arxiv.org/pdf/1601.07463.pdf">McAlinn and West, 2016</a>. This use of latent factors can be seen as an approximation to Bayesian Predictive Synthesis which allows for faster computation. The data in this example comes from that paper, and can be found <a href="https://www2.stat.duke.edu/~mw/mwsoftware/BPS/index.html">here</a>.</p>
 
 </div>
 </div>
@@ -1412,7 +1412,7 @@ Holiday mean: [0. 0. 0. 0. 0. 0. 0. 0. 0. 0.]
 
 <div class="cell border-box-sizing text_cell rendered"><div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<p>The model coefficient latent factors are easy to understand. They store the state vector means and variances over time. If we simply wanted to plot the trajectory of a coefficient after an analysis, we don't need to use a latent factor. This is available in <a href="/pybats/analysis.html"><code>analysis</code></a> by including <code>'model_coef'</code> in the list of items to return.</p>
+<p>The model coefficient latent factors are easy to understand. They store the state vector means and variances over time. If we simply wanted to plot the trajectory of a coefficient after an analysis, we don't need to use a latent factor. This is available in <a href="/pybats/analysis.html#analysis"><code>analysis</code></a> by including <code>'model_coef'</code> in the list of items to return.</p>
 <p>However, the latent factor can be useful for forecasting in two related models. For example, if there are two time series with very related predictors, then the coefficient from one model, multiplied by the predictor, may be a strong latent factor in another model.</p>
 
 </div>

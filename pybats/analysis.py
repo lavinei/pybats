@@ -222,11 +222,11 @@ def analysis_dcmm(Y, X, k=1, forecast_start=0, forecast_end=0,
         X = define_holiday_regressors(X, dates, holidays)
 
     # Initialize the DCMM
-    if not kwargs.__contains__('model_prior'):
+    if model_prior is None:
         mod = define_dcmm(Y, X, prior_length = prior_length, seasPeriods = seasPeriods, seasHarmComponents = seasHarmComponents,
-                          nlf = nlf, rho = rho, nhol = nhol, **kwargs)
+                          ntrend=ntrend, nlf = nlf, rho = rho, nhol = nhol, **kwargs)
     else:
-        mod = kwargs.get('model_prior')
+        mod = model_prior
 
     if ret.__contains__('new_latent_factors'):
         if not isinstance(new_latent_factors, Iterable):
@@ -373,13 +373,13 @@ def analysis_dbcm(Y_transaction, X_transaction, Y_cascade, X_cascade, excess,
         X_transaction = define_holiday_regressors(X_transaction, dates, holidays)
 
 
-    if not kwargs.__contains__('model_prior'):
+    if model_prior is None:
         mod = define_dbcm(Y_transaction, X_transaction, Y_cascade, X_cascade,
                           excess_values = excess, prior_length = prior_length,
                           seasPeriods = seasPeriods, seasHarmComponents=seasHarmComponents,
                           nlf = nlf, rho = rho, nhol=nhol, **kwargs)
     else:
-        mod = kwargs.get('model_prior')
+        mod = model_prior
 
     if ret.__contains__('new_latent_factors'):
         if not isinstance(new_latent_factors, Iterable):
@@ -497,17 +497,29 @@ def analysis_dbcm(Y_transaction, X_transaction, Y_cascade, X_cascade, excess,
         return out
 
 # Cell
-def analysis_dlmm(Y, X, prior_length, k, forecast_start, forecast_end,
+def analysis_dlmm(Y, X, k=1, forecast_start=0, forecast_end=0,
                   nsamps=500, rho=.6,
-                  mean_only=False, dates=None, holidays=[],
-                  seasPeriods=[], seasHarmComponents=[], ret=['model', 'forecast'],
-                  **kwargs):
+                  model_prior=None, prior_length=20, ntrend=1,
+                  dates=None, holidays=[],
+                  seasPeriods=[], seasHarmComponents=[],
+                  latent_factor=None, new_latent_factors=None,
+                  mean_only=False,
+                  ret=['model', 'forecast'],
+                   **kwargs):
     """
     This is a helpful function to run a standard analysis using a DLMM.
     """
 
-    is_lf = False
-    nlf = 0
+    if latent_factor is not None:
+        is_lf = True
+        # Note: This assumes that the bernoulli & poisson components have the same number of latent factor components
+        if isinstance(latent_factor, (list, tuple)):
+            nlf = latent_factor[0].p
+        else:
+            nlf = latent_factor.p
+    else:
+        is_lf = False
+        nlf = 0
 
     # Convert dates into row numbers
     if dates is not None:
@@ -521,26 +533,23 @@ def analysis_dlmm(Y, X, prior_length, k, forecast_start, forecast_end,
     # Add the holiday indicator variables to the regression matrix
     nhol = len(holidays)
     if nhol > 0:
-        X_transaction = define_holiday_regressors(X, dates, holidays)
+        X = define_holiday_regressors(X, dates, holidays)
 
-
-    # Initialize the DLMM
-    if not kwargs.__contains__('model_prior'):
+    # Initialize the DCMM
+    if model_prior is None:
         mod = define_dlmm(Y, X, prior_length = prior_length, seasPeriods = seasPeriods, seasHarmComponents = seasHarmComponents,
-                          rho = rho, nhol = nhol, **kwargs)
+                          ntrend=ntrend, nlf = nlf, rho = rho, nhol = nhol, **kwargs)
     else:
-        mod = kwargs.get('model_prior')
+        mod = model_prior
 
-    # Initialize updating + forecasting
-    horizons = np.arange(1,k+1)
+    if ret.__contains__('new_latent_factors'):
+        if not isinstance(new_latent_factors, Iterable):
+            new_latent_factors = [new_latent_factors]
 
-    if mean_only:
-        forecast = np.zeros([1, forecast_end - forecast_start + 1, k])
-    else:
-        forecast = np.zeros([nsamps, forecast_end - forecast_start + 1, k])
-
-    T = np.min([len(Y), forecast_end]) + 1
-    nu = 9
+        tmp = []
+        for sig in new_latent_factors:
+            tmp.append(sig.copy())
+        new_latent_factors = tmp
 
     if ret.__contains__('model_coef'): ## Return normal dlm params
         m = np.zeros([T, mod.dlm_mod.a.shape[0]])
@@ -550,32 +559,94 @@ def analysis_dlmm(Y, X, prior_length, k, forecast_start, forecast_end,
         n = np.zeros(T)
         s = np.zeros(T)
 
+    # Initialize updating + forecasting
+    horizons = np.arange(1,k+1)
+
+    if mean_only:
+        forecast = np.zeros([1, forecast_end - forecast_start + 1, k])
+    else:
+        forecast = np.zeros([nsamps, forecast_end - forecast_start + 1, k])
+
+    T = len(Y) + 1
+    nu = 9
+
     # Run updating + forecasting
     for t in range(prior_length, T):
+        # if t % 100 == 0:
+        #     print(t)
         if ret.__contains__('forecast'):
             if t >= forecast_start and t <= forecast_end:
                 if t == forecast_start:
                     print('beginning forecasting')
 
                 # Get the forecast samples for all the items over the 1:k step ahead path
-                if mean_only:
-                    forecast[:, t - forecast_start, :] = np.array(list(map(
-                        lambda k, x: mod.forecast_marginal(
-                            k=k, X=(x, x), nsamps=nsamps, mean_only=mean_only),
-                        horizons, X[t + horizons - 1, :]))).reshape(1,-1)
+                if is_lf:
+                    if isinstance(latent_factor, (list, tuple)):
+                        pm_bern, ps_bern = latent_factor[0].get_lf_forecast(dates.iloc[t])
+                        pm_dlm, ps_dlm = latent_factor[1].get_lf_forecast(dates.iloc[t])
+                        pm = (pm_bern, pm_dlm)
+                        ps = (ps_bern, ps_dlm)
+                    else:
+                        pm, ps = latent_factor.get_lf_forecast(dates.iloc[t])
+
+                    pp = None  # Not including the path dependency of the latent factor
+
+                    if mean_only:
+                        forecast[:, t - forecast_start, :] = np.array(list(map(
+                            lambda k, x, pm, ps: mod.forecast_marginal_lf_analytic(
+                                k=k, X=(x, x), phi_mu=(pm, pm), phi_sigma=(ps, ps), nsamps=nsamps, mean_only=mean_only),
+                            horizons, X[t + horizons - 1, :], pm, ps))).reshape(1, -1)
+                    else:
+                        forecast[:, t - forecast_start, :] = np.array(list(map(
+                            lambda k, x, pm, ps: mod.forecast_marginal_lf_analytic(
+                                k=k, X=(x, x), phi_mu=(pm, pm), phi_sigma=(ps, ps), nsamps=nsamps, mean_only=mean_only),
+                            horizons, X[t + horizons - 1, :], pm, ps))).squeeze().T.reshape(-1, k)
+
                 else:
-                    forecast[:, t - forecast_start, :] = mod.forecast_path(
-                    k=k, X=(X[t + horizons - 1, :], X[t + horizons - 1, :]), nsamps=nsamps)
+                    if mean_only:
+                        forecast[:, t - forecast_start, :] = np.array(list(map(
+                            lambda k, x: mod.forecast_marginal(
+                                k=k, X=(x, x), nsamps=nsamps, mean_only=mean_only),
+                            horizons, X[t + horizons - 1, :]))).reshape(1,-1)
+                    else:
+                        forecast[:, t - forecast_start, :] = mod.forecast_path_copula(
+                        k=k, X=(X[t + horizons - 1, :], X[t + horizons - 1, :]), nsamps=nsamps, t_dist=True, nu=nu)
 
+        if ret.__contains__('new_latent_factors'):
+            if t >= forecast_start and t <= forecast_end:
+                for lf in new_latent_factors:
+                    lf.generate_lf_forecast(date=dates.iloc[t], mod=mod, X=X[t + horizons - 1, :],
+                                                k=k, nsamps=nsamps, horizons=horizons)
 
-        mod.update(y = Y[t], X=(X[t], X[t]))
+        # Update the DLMM
+        if t < len(Y):
+            if is_lf:
+                if isinstance(latent_factor, (list, tuple)):
+                    pm_bern, ps_bern = latent_factor[0].get_lf(dates.iloc[t])
+                    pm_dlm, ps_dlm = latent_factor[1].get_lf(dates.iloc[t])
+                    pm = (pm_bern, pm_dlm)
+                    ps = (ps_bern, ps_dlm)
+                else:
+                    pm, ps = latent_factor.get_lf(dates.iloc[t])
+
+                mod.update_lf_analytic(y=Y[t], X=(X[t], X[t]),
+                                       phi_mu=(pm, pm), phi_sigma=(ps, ps))
+            else:
+                mod.update(y = Y[t], X=(X[t], X[t]))
+
+            if ret.__contains__('new_latent_factors'):
+                for lf in new_latent_factors:
+                    lf.generate_lf(date=dates.iloc[t], mod=mod, X=X[t + horizons - 1, :],
+                                       k=k, nsamps=nsamps, horizons=horizons)
+
+        # Store the dlm coefficients
         if ret.__contains__('model_coef'):
-            m[t,:] = mod.dlm_mod.m.reshape(-1)
-            C[t,:,:] = mod.dlm_mod.C
-            a[t,:] = mod.dlm_mod.a.reshape(-1)
-            R[t,:,:] = mod.dlm_mod.R
-            n[t] = mod.dlm_mod.n / mod.dlm_mod.delVar
-            s[t] = mod.dlm_mod.s
+            m[t,:] = mod.dlm.m.reshape(-1)
+            C[t,:,:] = mod.dlm.C
+            a[t,:] = mod.dlm.a.reshape(-1)
+            R[t,:,:] = mod.dlm.R
+            n[t] = mod.dlm.n / mod.dlm.delVar
+            s[t] = mod.dlm.s
 
     out = []
     for obj in ret:
@@ -584,6 +655,14 @@ def analysis_dlmm(Y, X, prior_length, k, forecast_start, forecast_end,
         if obj == 'model_coef':
             mod_coef = {'m':m, 'C':C, 'a':a, 'R':R, 'n':n, 's':s}
             out.append(mod_coef)
+        if obj == 'new_latent_factors':
+            #for lf in new_latent_factors:
+            #    lf.append_lf()
+            #    lf.append_lf_forecast()
+            if len(new_latent_factors) == 1:
+                out.append(new_latent_factors[0])
+            else:
+                out.append(new_latent_factors)
 
     if len(out) == 1:
         return out[0]

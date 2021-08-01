@@ -31,8 +31,8 @@ nb_path: "nbs/14_latent_factor_fxns.ipynb"
 
 <div class="cell border-box-sizing text_cell rendered"><div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<p>The default functions work with the <a href="/pybats/latent_factor.html"><code>latent_factor</code></a> class, and are called automatically by <a href="/pybats/analysis.html"><code>analysis</code></a>, <a href="/pybats/dglm.html#dglm.update"><code>dglm.update</code></a>, <a href="/pybats/dglm.html#dglm.forecast_marginal"><code>dglm.forecast_marginal</code></a>, and <a href="/pybats/dglm.html#dglm.forecast_path"><code>dglm.forecast_path</code></a> when there are latent factors in the model.</p>
-<p>To use simulated latent factor values, set the argument <code>analytic=False</code> in the <a href="/pybats/dglm.html"><code>dglm</code></a> methods, and pass in the set of simulated values as <code>phi_samps</code>. It is not currently supported to use the simulated latent factor values within <a href="/pybats/analysis.html"><code>analysis</code></a>.</p>
+<p>The default functions work with the <a href="/pybats/latent_factor.html"><code>latent_factor</code></a> class, and are called automatically by <a href="/pybats/analysis.html#analysis"><code>analysis</code></a>, <a href="/pybats/dglm.html#dglm.update"><code>dglm.update</code></a>, <a href="/pybats/dglm.html#dglm.forecast_marginal"><code>dglm.forecast_marginal</code></a>, and <a href="/pybats/dglm.html#dglm.forecast_path"><code>dglm.forecast_path</code></a> when there are latent factors in the model.</p>
+<p>To use simulated latent factor values, set the argument <code>analytic=False</code> in the <a href="/pybats/dglm.html"><code>dglm</code></a> methods, and pass in the set of simulated values as <code>phi_samps</code>. It is not currently supported to use the simulated latent factor values within <a href="/pybats/analysis.html#analysis"><code>analysis</code></a>.</p>
 
 </div>
 </div>
@@ -43,6 +43,13 @@ nb_path: "nbs/14_latent_factor_fxns.ipynb"
 </div>
 </div>
 </div>
+    {% raw %}
+    
+<div class="cell border-box-sizing code_cell rendered">
+
+</div>
+    {% endraw %}
+
     {% raw %}
     
 <div class="cell border-box-sizing code_cell rendered">
@@ -160,13 +167,6 @@ nb_path: "nbs/14_latent_factor_fxns.ipynb"
 </div>
     {% endraw %}
 
-    {% raw %}
-    
-<div class="cell border-box-sizing code_cell rendered">
-
-</div>
-    {% endraw %}
-
 <div class="cell border-box-sizing text_cell rendered"><div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
 <p>These functions are called automatically in PyBATS when working with a DGLM that has a latent factor component. The new arguments are:</p>
@@ -191,6 +191,13 @@ nb_path: "nbs/14_latent_factor_fxns.ipynb"
 </div>
 </div>
 </div>
+    {% raw %}
+    
+<div class="cell border-box-sizing code_cell rendered">
+
+</div>
+    {% endraw %}
+
     {% raw %}
     
 <div class="cell border-box-sizing code_cell rendered">
@@ -310,13 +317,6 @@ nb_path: "nbs/14_latent_factor_fxns.ipynb"
 </div>
     {% endraw %}
 
-    {% raw %}
-    
-<div class="cell border-box-sizing code_cell rendered">
-
-</div>
-    {% endraw %}
-
 <div class="cell border-box-sizing text_cell rendered"><div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
 <p>These functions can be called through <a href="/pybats/dglm.html#dglm.update"><code>dglm.update</code></a>, <a href="/pybats/dglm.html#dglm.forecast_marginal"><code>dglm.forecast_marginal</code></a>, and <a href="/pybats/dglm.html#dglm.forecast_path"><code>dglm.forecast_path</code></a> by setting the argument <code>analytic=False</code>. They represent an alternative method of analysis by working with simulated values of the latent factor. The simulated values are passed into the function as an array <code>phi_samps</code>, where each row contains a simulated value of the latent factor.</p>
@@ -331,6 +331,13 @@ nb_path: "nbs/14_latent_factor_fxns.ipynb"
 </div>
 </div>
 </div>
+    {% raw %}
+    
+<div class="cell border-box-sizing code_cell rendered">
+
+</div>
+    {% endraw %}
+
     {% raw %}
     
 <div class="cell border-box-sizing code_cell rendered">
@@ -355,13 +362,6 @@ nb_path: "nbs/14_latent_factor_fxns.ipynb"
 </div>
     {% endraw %}
 
-    {% raw %}
-    
-<div class="cell border-box-sizing code_cell rendered">
-
-</div>
-    {% endraw %}
-
 <div class="cell border-box-sizing text_cell rendered"><div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
 <p><a href="/pybats/latent_factor_fxns.html#forecast_joint_marginal_lf_copula"><code>forecast_joint_marginal_lf_copula</code></a> is used to <em>recouple</em> a set of DGLMs which share the same latent factor. In other words, if the same latent factor is used in multiple models, then their forecasts will be correlated. This function allows for joint forecasting across these separated DGLMs.</p>
@@ -376,6 +376,13 @@ nb_path: "nbs/14_latent_factor_fxns.ipynb"
 </div>
 </div>
 </div>
+    {% raw %}
+    
+<div class="cell border-box-sizing code_cell rendered">
+
+</div>
+    {% endraw %}
+
     {% raw %}
     
 <div class="cell border-box-sizing code_cell rendered">
@@ -400,13 +407,6 @@ nb_path: "nbs/14_latent_factor_fxns.ipynb"
 </div>
     {% endraw %}
 
-    {% raw %}
-    
-<div class="cell border-box-sizing code_cell rendered">
-
-</div>
-    {% endraw %}
-
 <div class="cell border-box-sizing text_cell rendered"><div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
 <p><a href="/pybats/latent_factor_fxns.html#forecast_joint_marginal_lf_copula_dcmm"><code>forecast_joint_marginal_lf_copula_dcmm</code></a> behaves similarly to <a href="/pybats/latent_factor_fxns.html#forecast_joint_marginal_lf_copula"><code>forecast_joint_marginal_lf_copula</code></a>, but for a set of related DCMMs instead of related DGLMs.</p>
@@ -420,6 +420,13 @@ nb_path: "nbs/14_latent_factor_fxns.ipynb"
 </div>
 </div>
 </div>
+    {% raw %}
+    
+<div class="cell border-box-sizing code_cell rendered">
+
+</div>
+    {% endraw %}
+
     {% raw %}
     
 <div class="cell border-box-sizing code_cell rendered">
@@ -471,13 +478,6 @@ nb_path: "nbs/14_latent_factor_fxns.ipynb"
 
 </div>
 </div>
-
-</div>
-    {% endraw %}
-
-    {% raw %}
-    
-<div class="cell border-box-sizing code_cell rendered">
 
 </div>
     {% endraw %}
