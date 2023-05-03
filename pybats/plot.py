@@ -42,12 +42,19 @@ def ax_style(ax, ylim=None, xlim=None, xlabel=None, ylabel=None, title=None,
 
 # Cell
 # Plot Data vs Forecast (with credible intervals)
-def plot_data_forecast(fig, ax, y, f, samples, dates, linewidth=1, linecolor='b', credible_interval=95, **kwargs):
+def plot_data_forecast(fig, ax, y, f, samples, dates, linewidth=.5, linecolor='b', credible_interval=95, **kwargs):
     """
     Plot observations along with sequential forecasts and credible intervals.
+    Adjusted to apply cubic spline to smooth the curves
+    Added density function to fill area of confidence intervals
     """
 
-    ax.plot(dates, f, color=linecolor, linewidth=linewidth)
+    # Predictions with cubic spline for smoothing
+    pred_cubic_func = interp1d(dates, f.ravel(), kind='cubic')
+    x_pred = np.linspace(start=0, stop=len(dates)-1, num=200)
+    pc = pred_cubic_func(x_pred)
+    ax.plot(x_pred, pc, color='white', linewidth=linewidth)
+    
     alpha = (100 - credible_interval) / 2
     
     # NEW :: for probabilistic CI in plot ####################
@@ -57,8 +64,16 @@ def plot_data_forecast(fig, ax, y, f, samples, dates, linewidth=1, linecolor='b'
     
         upper = np.percentile(samples, [100-alpha], axis=0).reshape(-1)
         lower = np.percentile(samples, [alpha], axis=0).reshape(-1)
-        ax.fill_between(dates, upper, lower, alpha=.01, color=linecolor)
-    ax.scatter(dates, y, color='k')
+        u_cubic = interp1d(dates, upper, kind='cubic')
+        l_cubic = interp1d(dates, lower, kind='cubic')
+        yu = u_cubic(x_pred)
+        yl = l_cubic(x_pred)
+        ax.fill_between(x_pred, yu, yl, alpha=.01, color=linecolor)
+    #Actuals with cubic splie for smoothing
+    act_cubic_func = interp1d(dates, y, kind='cubic')
+    act_c = act_cubic_func(x_pred)
+    ax.plot(x_pred, act_c, color='black', linewidth=.5)
+    ax.scatter(dates, y, color='black')
 
     if kwargs.get('xlim') is None:
         kwargs.update({'xlim':[dates[0], dates[-1]]})
