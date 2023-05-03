@@ -47,12 +47,18 @@ def plot_data_forecast(fig, ax, y, f, samples, dates, linewidth=1, linecolor='b'
     Plot observations along with sequential forecasts and credible intervals.
     """
 
-    ax.scatter(dates, y, color='k')
     ax.plot(dates, f, color=linecolor, linewidth=linewidth)
     alpha = (100 - credible_interval) / 2
-    upper = np.percentile(samples, [100-alpha], axis=0).reshape(-1)
-    lower = np.percentile(samples, [alpha], axis=0).reshape(-1)
-    ax.fill_between(dates, upper, lower, alpha=.3, color=linecolor)
+    
+    # NEW :: for probabilistic CI in plot ####################
+    ar = np.arange(0, 101, 1)
+    for i in ar:
+        alpha = (100-i)/2
+    
+        upper = np.percentile(samples, [100-alpha], axis=0).reshape(-1)
+        lower = np.percentile(samples, [alpha], axis=0).reshape(-1)
+        ax.fill_between(dates, upper, lower, alpha=.01, color=linecolor)
+    ax.scatter(dates, y, color='k')
 
     if kwargs.get('xlim') is None:
         kwargs.update({'xlim':[dates[0], dates[-1]]})
